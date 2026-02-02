@@ -48,15 +48,25 @@ ApiOK/
 
 ## Installation
 
-1. Installer Python 3.7 ou supérieur
-2. Installer les dépendances :
+1. **Cloner ou télécharger le projet**
+2. **Installer Python 3.7+** si ce n'est pas déjà fait
+3. **Installer les dépendances** :
    ```bash
-   pip install customtkinter openpyxl phonenumbers pillow
+   pip install -r requirements.txt
    ```
-3. Lancer l'application :
+4. **Lancer l'application** :
    ```bash
    python main.py
    ```
+
+### Dépendances détaillées
+
+- **customtkinter** : Interface graphique moderne
+- **Pillow** : Traitement d'images (logo)
+- **openpyxl** : Manipulation Excel
+- **phonenumbers** : Validation numéros téléphone
+
+*Note : L'application fonctionne même sans certaines dépendances optionnelles (avec fonctionnalités réduites)*
 
 ## Utilisation
 

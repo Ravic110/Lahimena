@@ -1,0 +1,17 @@
+# Lahimena Tours Devis Generation - Requirements
+# Liste des dépendances Python externes nécessaires
+
+# Interface graphique moderne
+customtkinter>=5.2.0
+
+# Traitement d'images (pour le logo)
+Pillow>=9.0.0
+
+# Manipulation de fichiers Excel
+openpyxl>=3.0.0
+
+# Validation de numéros de téléphone
+phonenumbers>=8.12.0
+
+# Note: tkinter est inclus dans Python standard
+# Note: Les autres dépendances (os, datetime, re) sont incluses dans Python standard
