@@ -43,6 +43,8 @@ class MainContent:
         # Show appropriate content
         if content_type == "client_form":
             self._show_client_form()
+        elif content_type == "client_list":
+            self._show_client_list()
         elif content_type == "welcome":
             self._show_welcome()
         else:
@@ -57,10 +59,15 @@ class MainContent:
         )
         title.pack(pady=40)
 
-    def _show_client_form(self):
+    def _show_client_form(self, client_to_edit=None):
         """Show client form"""
         from gui.forms.client_form import ClientForm
-        ClientForm(self.main_scroll)
+        ClientForm(self.main_scroll, client_to_edit, self._on_client_saved)
+
+    def _show_client_list(self):
+        """Show client list"""
+        from gui.forms.client_list import ClientList
+        ClientList(self.main_scroll, self._edit_client, self._new_client)
 
     def _show_placeholder(self, content_type):
         """Show placeholder for unimplemented features"""
@@ -70,3 +77,15 @@ class MainContent:
             font=ctk.CTkFont(size=24, weight="bold")
         )
         title.pack(pady=40)
+
+    def _edit_client(self, client):
+        """Edit a client"""
+        self._show_client_form(client)
+
+    def _new_client(self):
+        """Create a new client"""
+        self._show_client_form()
+
+    def _on_client_saved(self):
+        """Callback after client is saved/updated"""
+        self._show_client_list()
