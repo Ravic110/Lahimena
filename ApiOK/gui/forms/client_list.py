@@ -94,6 +94,28 @@ class ClientList:
             font=BUTTON_FONT
         ).pack(side="left", padx=5)
 
+        self.btn_edit = tk.Button(
+            btn_frame,
+            text="✏️ Modifier",
+            command=self._edit_selected,
+            bg="#f39c12",
+            fg="white",
+            font=BUTTON_FONT,
+            state="disabled"
+        )
+        self.btn_edit.pack(side="left", padx=5)
+
+        self.btn_delete = tk.Button(
+            btn_frame,
+            text="🗑️ Supprimer",
+            command=self._delete_selected,
+            bg="#e74c3c",
+            fg="white",
+            font=BUTTON_FONT,
+            state="disabled"
+        )
+        self.btn_delete.pack(side="left", padx=5)
+
         # Treeview frame
         tree_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         tree_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
@@ -101,6 +123,14 @@ class ClientList:
         # Scrollbars
         v_scrollbar = ttk.Scrollbar(tree_frame, orient="vertical")
         h_scrollbar = ttk.Scrollbar(tree_frame, orient="horizontal")
+
+        # Style for better selection appearance
+        style = ttk.Style()
+        style.configure("Treeview", 
+                        background=INPUT_BG_COLOR,
+                        foreground=TEXT_COLOR,
+                        fieldbackground=INPUT_BG_COLOR)
+        style.map('Treeview', background=[('selected', '#4CAF50')])
 
         # Treeview
         columns = ("row", "timestamp", "ref_client", "nom", "telephone", "email",
@@ -110,7 +140,8 @@ class ClientList:
             columns=columns,
             show="headings",
             yscrollcommand=v_scrollbar.set,
-            xscrollcommand=h_scrollbar.set
+            xscrollcommand=h_scrollbar.set,
+            style="Treeview"
         )
 
         v_scrollbar.config(command=self.tree.yview)
@@ -147,15 +178,41 @@ class ClientList:
 
         self.tree.bind("<Button-3>", self._show_context_menu)
         self.tree.bind("<Double-1>", lambda e: self._edit_selected())
+        self.tree.bind("<<TreeviewSelect>>", self._on_selection_change)
+
+        # Status label
+        self.status_label = tk.Label(
+            self.parent,
+            text="",
+            font=("Arial", 10),
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        )
+        self.status_label.pack(anchor="w", padx=20, pady=(0, 10))
 
         # Load clients
         self._load_clients()
+
+    def _on_selection_change(self, event=None):
+        """Handle selection change in treeview"""
+        selection = self.tree.selection()
+        if selection:
+            # Enable buttons when a client is selected
+            self.btn_edit.config(state="normal")
+            self.btn_delete.config(state="normal")
+        else:
+            # Disable buttons when no client is selected
+            self.btn_edit.config(state="disabled")
+            self.btn_delete.config(state="disabled")
 
     def _load_clients(self):
         """Load and display all clients"""
         self.clients = load_all_clients()
         self.filtered_clients = self.clients.copy()
         self._update_treeview()
+        # Clear selection and disable buttons after reload
+        self.tree.selection_remove(self.tree.selection())
+        self._on_selection_change()
 
     def _update_treeview(self):
         """Update the treeview with filtered clients"""
@@ -177,6 +234,14 @@ class ClientList:
                 client['circuit']
             )
             self.tree.insert("", "end", values=values, tags=(str(client['row_number']),))
+
+        # Update status label
+        total_clients = len(self.clients)
+        filtered_count = len(self.filtered_clients)
+        if self.search_var.get():
+            self.status_label.config(text=f"Affichage de {filtered_count} client(s) sur {total_clients} (filtré)")
+        else:
+            self.status_label.config(text=f"Total: {total_clients} client(s)")
 
     def _on_search_change(self, *args):
         """Handle search input change"""
@@ -221,11 +286,14 @@ class ClientList:
         client = self._get_selected_client()
         if client and self.on_edit_client:
             self.on_edit_client(client)
+        else:
+            messagebox.showwarning("Aucun client sélectionné", "Veuillez sélectionner un client à modifier.")
 
     def _delete_selected(self):
         """Delete the selected client"""
         client = self._get_selected_client()
         if not client:
+            messagebox.showwarning("Aucun client sélectionné", "Veuillez sélectionner un client à supprimer.")
             return
 
         if messagebox.askyesno("Confirmation",

@@ -71,8 +71,7 @@ class Sidebar:
         btn1 = self._create_button("🏨 Information client ▶", self._show_client_form)
         submenu1_frame = self._create_submenu(btn1, [
             ("👤 Nouveau client", self._show_client_form),
-            ("📋 Liste clients", self._show_client_list),
-            ("🔍 Recherche", self._show_client_search)
+            ("📋 Liste clients", self._show_client_list)
         ])
 
         # Hotel Quotation
@@ -198,9 +197,6 @@ class Sidebar:
 
     def _show_client_list(self):
         self.main_content_callback("client_list")
-
-    def _show_client_search(self):
-        self.main_content_callback("client_search")
 
     def _show_hotel_quotation(self):
         self.main_content_callback("hotel_quotation")
