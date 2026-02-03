@@ -28,8 +28,10 @@ BUTTON_FONT = ("Arial", 11, "bold")
 
 # File paths
 LOGO_PATH = "assets/logo.png"
-DATA_EXCEL_PATH = "data.xlsx"
+CLIENT_EXCEL_PATH = "data.xlsx"
+HOTEL_EXCEL_PATH = "data-hotel.xlsx"
 CLIENT_SHEET_NAME = "DEMANDE_CLIENT"
+HOTEL_SHEET_NAME = "BDD_HOTEL"
 
 # Form constants
 PERIODES = ["Haute saison", "Moyenne saison", "Basse saison"]

@@ -102,11 +102,10 @@ class Sidebar:
         ])
 
         # Hotel Database
-        btn7 = self._create_button("🏨 Hôtel (DB) ▶", None)
+        btn7 = self._create_button("🏨 Hôtel (DB) ▶", self._show_hotel_list)
         submenu7_frame = self._create_submenu(btn7, [
-            ("➕ Ajout hôtel", self._show_add_hotel),
-            ("📝 Mise à jour", self._show_update_hotel),
-            ("❌ Suppression", self._show_delete_hotel)
+            ("📋 Liste hôtels", self._show_hotel_list),
+            ("➕ Ajout hôtel", self._show_add_hotel)
         ])
 
         # Collective Expenses Database
@@ -198,6 +197,9 @@ class Sidebar:
     def _show_client_list(self):
         self.main_content_callback("client_list")
 
+    def _show_hotel_list(self):
+        self.main_content_callback("hotel_list")
+
     def _show_hotel_quotation(self):
         self.main_content_callback("hotel_quotation")
 
@@ -223,13 +225,7 @@ class Sidebar:
         self.main_content_callback("expense_history")
 
     def _show_add_hotel(self):
-        self.main_content_callback("add_hotel")
-
-    def _show_update_hotel(self):
-        self.main_content_callback("update_hotel")
-
-    def _show_delete_hotel(self):
-        self.main_content_callback("delete_hotel")
+        self.main_content_callback("hotel_form")
 
     def _show_add_collective_expense(self):
         self.main_content_callback("add_collective_expense")

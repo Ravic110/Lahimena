@@ -45,6 +45,12 @@ class MainContent:
             self._show_client_form()
         elif content_type == "client_list":
             self._show_client_list()
+        elif content_type == "hotel_form":
+            self._show_hotel_form()
+        elif content_type == "hotel_list":
+            self._show_hotel_list()
+        elif content_type == "hotel_quotation":
+            self._show_hotel_quotation()
         elif content_type == "welcome":
             self._show_welcome()
         else:
@@ -69,6 +75,21 @@ class MainContent:
         from gui.forms.client_list import ClientList
         ClientList(self.main_scroll, self._edit_client, self._new_client)
 
+    def _show_hotel_form(self, hotel_to_edit=None):
+        """Show hotel form"""
+        from gui.forms.hotel_form import HotelForm
+        HotelForm(self.main_scroll, hotel_to_edit, self._on_hotel_saved)
+
+    def _show_hotel_list(self):
+        """Show hotel list"""
+        from gui.forms.hotel_list import HotelList
+        HotelList(self.main_scroll, self._edit_hotel, self._new_hotel)
+
+    def _show_hotel_quotation(self):
+        """Show hotel quotation form"""
+        from gui.forms.hotel_quotation import HotelQuotation
+        HotelQuotation(self.main_scroll)
+
     def _show_placeholder(self, content_type):
         """Show placeholder for unimplemented features"""
         title = ctk.CTkLabel(
@@ -89,3 +110,15 @@ class MainContent:
     def _on_client_saved(self):
         """Callback after client is saved/updated"""
         self._show_client_list()
+
+    def _edit_hotel(self, hotel):
+        """Edit a hotel"""
+        self._show_hotel_form(hotel)
+
+    def _new_hotel(self):
+        """Create a new hotel"""
+        self._show_hotel_form()
+
+    def _on_hotel_saved(self):
+        """Callback after hotel is saved/updated"""
+        self._show_hotel_list()

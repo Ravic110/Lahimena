@@ -1,0 +1,50 @@
+================================================================================
+                            LAHIMENA TOURS
+                       DEVIS D'HÉBERGEMENT HÔTEL
+================================================================================
+
+Numéro de devis: DEVIS_HOTEL_20260204_003632
+Date de génération: 04/02/2026 00:36:32
+
+COTATION HÔTEL - COLBERT PALACE 5*
+==================================================
+
+HÔTEL: COLBERT PALACE 5*
+LIEU: ANTANANARIVO
+CATÉGORIE: PBC
+
+PARAMÈTRES:
+- Nombre de nuits: 4
+- Type de chambre: Double
+- Adultes: 2
+- Enfants: 0
+- Restauration: All inclusive soft
+- Période: Moyenne saison
+
+CALCUL:
+- Prix chambre/nuit: 160 Ar
+- Prix total chambre: 640 Ar
+- Supplément restauration: 0 Ar
+
+TOTAL: 640 Ar
+
+Prix par personne: 320 Ar
+Prix par nuit: 160 Ar
+
+================================================================================
+INFORMATIONS COMPLÉMENTAIRES:
+- Hôtel: COLBERT PALACE 5*
+- Localisation: ANTANANARIVO
+- Catégorie: PBC
+- Contact hôtel: 
+- Email hôtel: 
+
+CONDITIONS:
+- Prix en Ariary (Ar)
+- TVA non incluse
+- Validité du devis: 30 jours
+- Conditions d'annulation selon politique hôtelière
+
+================================================================================
+Généré par Lahimena Tours - Système de gestion de devis
+================================================================================
