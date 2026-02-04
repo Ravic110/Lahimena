@@ -17,23 +17,25 @@ def get_exchange_rates():
 
     Returns:
         dict: Dictionary with rates {'EUR': rate, 'USD': rate}
+        where rate is how many MGA for 1 EUR/USD
     """
     try:
         import requests
-        # Using exchangerate-api.com free API
+        # Using exchangerate-api.com free API with MGA as base
         response = requests.get('https://api.exchangerate-api.com/v4/latest/MGA', timeout=5)
         data = response.json()
+        # Convert to more readable format: how many MGA for 1 EUR/USD
         rates = {
-            'EUR': data['rates']['EUR'],
-            'USD': data['rates']['USD']
+            'EUR': 1 / data['rates']['EUR'],  # 1 EUR = X MGA
+            'USD': 1 / data['rates']['USD']   # 1 USD = X MGA
         }
         return rates
     except Exception as e:
         # Fallback to hardcoded rates if API fails
         print(f"Warning: Could not fetch exchange rates: {e}. Using fallback rates.")
         return {
-            'EUR': 0.00022,  # Approximate 1 MGA = 0.00022 EUR
-            'USD': 0.00024   # Approximate 1 MGA = 0.00024 USD
+            'EUR': 5235.0,  # Approximate 1 EUR = 5235 MGA
+            'USD': 4900.0   # Approximate 1 USD = 4900 MGA
         }
 
 
@@ -58,17 +60,17 @@ def convert_currency(amount, from_currency, to_currency, rates=None):
 
     # Convert to MGA first if needed
     if from_currency == 'Euro':
-        amount_mga = amount / rates['EUR']
+        amount_mga = amount * rates['EUR']  # EUR to MGA
     elif from_currency == 'Dollar US':
-        amount_mga = amount / rates['USD']
+        amount_mga = amount * rates['USD']  # USD to MGA
     else:  # Ariary
         amount_mga = amount
 
     # Convert to target currency
     if to_currency == 'Euro':
-        return amount_mga * rates['EUR']
+        return amount_mga / rates['EUR']  # MGA to EUR
     elif to_currency == 'Dollar US':
-        return amount_mga * rates['USD']
+        return amount_mga / rates['USD']  # MGA to USD
     else:  # Ariary
         return amount_mga
 

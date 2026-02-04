@@ -271,6 +271,39 @@ class HotelQuotation:
         )
         self.currency_combo.grid(row=4, column=1, padx=(10, 0), pady=5)
 
+        # Exchange rates display
+        rates_frame = tk.Frame(params_frame, bg=MAIN_BG_COLOR)
+        rates_frame.grid(row=4, column=2, columnspan=2, padx=(20, 0), pady=5, sticky="w")
+        
+        self.rates_label = tk.Label(
+            rates_frame,
+            text="Taux de change :\nChargement...",
+            font=("Arial", 10, "bold"),
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+            justify="left"
+        )
+        self.rates_label.pack(side="left")
+        
+        # Refresh rates button
+        self.refresh_rates_button = tk.Button(
+            rates_frame,
+            text="🔄",
+            command=self._update_exchange_rates,
+            bg=MAIN_BG_COLOR,
+            fg=TEXT_COLOR,
+            font=("Arial", 10),
+            padx=5,
+            pady=2
+        )
+        self.refresh_rates_button.pack(side="left", padx=(10, 0))
+
+        # Load initial exchange rates
+        self._update_exchange_rates()
+
+        # Bind currency change to update rates display
+        self.currency_var.trace('w', self._on_currency_changed)
+
         # Client information section
         client_frame = tk.LabelFrame(
             main_frame,
@@ -451,6 +484,33 @@ class HotelQuotation:
         # Reset hotel selection
         self.hotel_var.set("")
         self.selected_hotel = None
+
+    def _update_exchange_rates(self):
+        """Update the exchange rates display"""
+        try:
+            from utils.validators import get_exchange_rates
+            rates = get_exchange_rates()
+            
+            selected_currency = self.currency_var.get()
+            
+            eur_text = f"1 EUR = {rates['EUR']:.4f} MGA"
+            usd_text = f"1 USD = {rates['USD']:.4f} MGA"
+            
+            # Highlight selected currency
+            if selected_currency == "Euro":
+                eur_text = f"▶ {eur_text} ◀"
+            elif selected_currency == "Dollar US":
+                usd_text = f"▶ {usd_text} ◀"
+            
+            rates_text = f"Taux de change :\n{eur_text}\n{usd_text}"
+            self.rates_label.config(text=rates_text, fg=TEXT_COLOR)
+        except Exception as e:
+            self.rates_label.config(text=f"Taux de change :\nErreur: {str(e)}", fg="red")
+
+    def _on_currency_changed(self, *args):
+        """Handle currency change to update rates display"""
+        # Update rates display with highlighting
+        self._update_exchange_rates()
 
     def _calculate_price(self):
         """Calculate the total price based on parameters"""
