@@ -209,9 +209,12 @@ def delete_client_from_excel(row_number):
     return True
 
 
-def load_all_hotels():
+def load_all_hotels(client_type=None):
     """
     Load all hotel data from Excel file
+
+    Args:
+        client_type (str): Filter by client type ('TO' or 'PBC'), if None load all
 
     Returns:
         list: List of hotel dictionaries
@@ -242,6 +245,7 @@ def load_all_hotels():
             'lieu': ws[f'A{row}'].value or '',  # Ville
             'type_hebergement': 'Hôtel',  # Default type
             'categorie': ws[f'C{row}'].value or '',  # CATÉGORIE
+            'type_client': ws[f'N{row}'].value or 'TO',  # TYPE_CLIENT
             'chambre_single': ws[f'E{row}'].value or 0,  # SPL
             'chambre_double': ws[f'F{row}'].value or 0,  # DBL
             'chambre_familiale': ws[f'H{row}'].value or 0,  # FML
@@ -256,6 +260,11 @@ def load_all_hotels():
             'contact': '',  # Not available in source
             'email': ''  # Not available in source
         }
+
+        # Filter by client type if specified
+        if client_type and hotel['type_client'] != client_type:
+            continue
+
         hotels.append(hotel)
 
     return hotels

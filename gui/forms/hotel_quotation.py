@@ -10,6 +10,7 @@ from utils.excel_handler import load_all_hotels
 import os
 import datetime
 import subprocess
+from utils.validators import get_exchange_rates, convert_currency
 
 
 class HotelQuotation:
@@ -25,10 +26,27 @@ class HotelQuotation:
             parent: Parent widget
         """
         self.parent = parent
-        self.hotels = load_all_hotels()
+        self.hotels = self._load_and_filter_hotels()
         self.selected_hotel = None
 
         self._create_quotation_form()
+
+        # Bind client type change to update hotel list
+        if hasattr(self, 'client_type_var'):
+            self.client_type_var.trace('w', self._on_client_type_changed)
+
+    def _load_and_filter_hotels(self, client_type=None):
+        """Load hotels and filter duplicates"""
+        hotels = load_all_hotels(client_type)
+        
+        # Remove duplicates based on nom and lieu
+        unique_hotels = {}
+        for hotel in hotels:
+            key = f"{hotel['nom']}_{hotel['lieu']}"
+            if key not in unique_hotels:
+                unique_hotels[key] = hotel
+        
+        return list(unique_hotels.values())
 
     def _create_quotation_form(self):
         """Create the hotel quotation interface"""
@@ -174,6 +192,26 @@ class HotelQuotation:
         )
         self.children_entry.grid(row=1, column=3, padx=(10, 0), pady=5)
 
+        # Row 2: Client type
+        tk.Label(
+            params_frame,
+            text="Type de client:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        ).grid(row=2, column=0, sticky="w", pady=5)
+
+        self.client_type_var = tk.StringVar(value="PBC")
+        self.client_type_combo = ttk.Combobox(
+            params_frame,
+            textvariable=self.client_type_var,
+            values=["TO", "PBC"],
+            font=ENTRY_FONT,
+            width=10,
+            state="readonly"
+        )
+        self.client_type_combo.grid(row=2, column=1, padx=(10, 0), pady=5)
+
         # Row 3: Period and meal plan
         tk.Label(
             params_frame,
@@ -181,7 +219,7 @@ class HotelQuotation:
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
-        ).grid(row=2, column=0, sticky="w", pady=5)
+        ).grid(row=3, column=0, sticky="w", pady=5)
 
         self.period_var = tk.StringVar(value="Moyenne saison")
         self.period_combo = ttk.Combobox(
@@ -192,7 +230,7 @@ class HotelQuotation:
             width=15,
             state="readonly"
         )
-        self.period_combo.grid(row=2, column=1, padx=(10, 20), pady=5)
+        self.period_combo.grid(row=3, column=1, padx=(10, 20), pady=5)
 
         tk.Label(
             params_frame,
@@ -200,7 +238,7 @@ class HotelQuotation:
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
-        ).grid(row=2, column=2, sticky="w", pady=5)
+        ).grid(row=3, column=2, sticky="w", pady=5)
 
         self.meal_var = tk.StringVar(value="Petit déjeuner")
         self.meal_combo = ttk.Combobox(
@@ -211,7 +249,117 @@ class HotelQuotation:
             width=20,
             state="readonly"
         )
-        self.meal_combo.grid(row=2, column=3, padx=(10, 0), pady=5)
+        self.meal_combo.grid(row=3, column=3, padx=(10, 0), pady=5)
+
+        # Row 4: Currency
+        tk.Label(
+            params_frame,
+            text="Devise:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        ).grid(row=4, column=0, sticky="w", pady=5)
+
+        self.currency_var = tk.StringVar(value="Ariary")
+        self.currency_combo = ttk.Combobox(
+            params_frame,
+            textvariable=self.currency_var,
+            values=["Ariary", "Euro", "Dollar US"],
+            font=ENTRY_FONT,
+            width=10,
+            state="readonly"
+        )
+        self.currency_combo.grid(row=4, column=1, padx=(10, 0), pady=5)
+
+        # Client information section
+        client_frame = tk.LabelFrame(
+            main_frame,
+            text="Informations client",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+            padx=10,
+            pady=10
+        )
+        client_frame.pack(fill="x", pady=(0, 10))
+
+        # Row 1: Name and surname
+        tk.Label(
+            client_frame,
+            text="Nom:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        ).grid(row=0, column=0, sticky="w", pady=5)
+
+        self.client_name_var = tk.StringVar()
+        self.client_name_entry = tk.Entry(
+            client_frame,
+            textvariable=self.client_name_var,
+            font=ENTRY_FONT,
+            width=20,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR
+        )
+        self.client_name_entry.grid(row=0, column=1, padx=(10, 20), pady=5)
+
+        tk.Label(
+            client_frame,
+            text="Prénom:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        ).grid(row=0, column=2, sticky="w", pady=5)
+
+        self.client_surname_var = tk.StringVar()
+        self.client_surname_entry = tk.Entry(
+            client_frame,
+            textvariable=self.client_surname_var,
+            font=ENTRY_FONT,
+            width=20,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR
+        )
+        self.client_surname_entry.grid(row=0, column=3, padx=(10, 0), pady=5)
+
+        # Row 2: Email and phone
+        tk.Label(
+            client_frame,
+            text="Email:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        ).grid(row=1, column=0, sticky="w", pady=5)
+
+        self.client_email_var = tk.StringVar()
+        self.client_email_entry = tk.Entry(
+            client_frame,
+            textvariable=self.client_email_var,
+            font=ENTRY_FONT,
+            width=20,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR
+        )
+        self.client_email_entry.grid(row=1, column=1, padx=(10, 20), pady=5)
+
+        tk.Label(
+            client_frame,
+            text="Téléphone:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        ).grid(row=1, column=2, sticky="w", pady=5)
+
+        self.client_phone_var = tk.StringVar()
+        self.client_phone_entry = tk.Entry(
+            client_frame,
+            textvariable=self.client_phone_var,
+            font=ENTRY_FONT,
+            width=20,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR
+        )
+        self.client_phone_entry.grid(row=1, column=3, padx=(10, 0), pady=5)
 
         # Calculate button
         calc_frame = tk.Frame(main_frame, bg=MAIN_BG_COLOR)
@@ -289,6 +437,21 @@ class HotelQuotation:
                     self.selected_hotel = hotel
                     break
 
+    def _on_client_type_changed(self, *args):
+        """Handle client type change to update hotel list"""
+        if not hasattr(self, 'client_type_var'):
+            return
+        client_type = self.client_type_var.get()
+        self.hotels = self._load_and_filter_hotels(client_type)
+        
+        # Update hotel combobox
+        hotel_names = [f"{hotel['nom']} - {hotel['lieu']}" for hotel in self.hotels]
+        self.hotel_combo['values'] = hotel_names
+        
+        # Reset hotel selection
+        self.hotel_var.set("")
+        self.selected_hotel = None
+
     def _calculate_price(self):
         """Calculate the total price based on parameters"""
         if not self.selected_hotel:
@@ -333,14 +496,46 @@ class HotelQuotation:
             # Calculate total
             total_price = base_price + meal_price
 
+            # Apply client type adjustment
+            client_type = self.client_type_var.get()
+            if client_type == "PBC":
+                # Public pricing with markup
+                total_price *= 1.2
+
+            # Apply currency conversion
+            currency = self.currency_var.get()
+            if currency != "Ariary":
+                rates = get_exchange_rates()
+                base_price = convert_currency(base_price, "Ariary", currency, rates)
+                meal_price = convert_currency(meal_price, "Ariary", currency, rates)
+                total_price = convert_currency(total_price, "Ariary", currency, rates)
+
             # Display results
-            self._display_results(base_price, meal_price, total_price, nights, adults, children, room_type, meal_plan)
+            client_name = self.client_name_var.get()
+            client_surname = self.client_surname_var.get()
+            client_email = self.client_email_var.get()
+            client_phone = self.client_phone_var.get()
+            self._display_results(base_price, meal_price, total_price, nights, adults, children, room_type, meal_plan, client_type, currency, client_name, client_surname, client_email, client_phone)
 
         except ValueError:
             messagebox.showerror("Erreur", "Veuillez saisir des valeurs numériques valides.")
 
-    def _display_results(self, base_price, meal_price, total_price, nights, adults, children, room_type, meal_plan):
+    def _display_results(self, base_price, meal_price, total_price, nights, adults, children, room_type, meal_plan, client_type, currency, client_name, client_surname, client_email, client_phone):
         """Display calculation results"""
+        # Get currency symbol
+        currency_symbols = {
+            "Ariary": "Ar",
+            "Euro": "€",
+            "Dollar US": "$"
+        }
+        symbol = currency_symbols.get(currency, "Ar")
+
+        # Format prices
+        if currency == "Ariary":
+            price_format = ":,.0f"
+        else:
+            price_format = ":,.2f"
+
         self.results_text.delete(1.0, tk.END)
 
         result_text = f"""
@@ -358,16 +553,24 @@ PARAMÈTRES:
 - Enfants: {children}
 - Restauration: {meal_plan}
 - Période: {self.period_var.get()}
+- Type de client: {client_type}
+- Devise: {currency}
+
+INFORMATIONS CLIENT:
+- Nom: {client_name}
+- Prénom: {client_surname}
+- Email: {client_email}
+- Téléphone: {client_phone}
 
 CALCUL:
-- Prix chambre/nuit: {base_price/nights:,.0f} Ar
-- Prix total chambre: {base_price:,.0f} Ar
-- Supplément restauration: {meal_price:,.0f} Ar
+- Prix chambre/nuit: {base_price/nights:{price_format}} {symbol}
+- Prix total chambre: {base_price:{price_format}} {symbol}
+- Supplément restauration: {meal_price:{price_format}} {symbol}
 
-TOTAL: {total_price:,.0f} Ar
+TOTAL: {total_price:{price_format}} {symbol}
 
-Prix par personne: {total_price/(adults+children):,.0f} Ar
-Prix par nuit: {total_price/nights:,.0f} Ar
+Prix par personne: {total_price/(adults+children):{price_format}} {symbol}
+Prix par nuit: {total_price/nights:{price_format}} {symbol}
 """
 
         self.results_text.insert(tk.END, result_text.strip())
@@ -396,6 +599,15 @@ Prix par nuit: {total_price/nights:,.0f} Ar
             # Get quote data
             results_content = self.results_text.get(1.0, tk.END).strip()
 
+            # Get currency info
+            currency = self.currency_var.get()
+            currency_symbols = {
+                "Ariary": "Ar",
+                "Euro": "€",
+                "Dollar US": "$"
+            }
+            symbol = currency_symbols.get(currency, "Ar")
+
             # Create detailed quote content
             quote_content = f"""
 ================================================================================
@@ -417,7 +629,7 @@ INFORMATIONS COMPLÉMENTAIRES:
 - Email hôtel: {self.selected_hotel.get('email', 'Non disponible')}
 
 CONDITIONS:
-- Prix en Ariary (Ar)
+- Prix en {currency} ({symbol})
 - TVA non incluse
 - Validité du devis: 30 jours
 - Conditions d'annulation selon politique hôtelière
@@ -463,6 +675,12 @@ Généré par Lahimena Tours - Système de gestion de devis
         self.adults_var.set("2")
         self.children_var.set("0")
         self.room_type_var.set("Double")
+        self.client_type_var.set("PBC")
+        self.currency_var.set("Ariary")
         self.period_var.set("Moyenne saison")
         self.meal_var.set("Petit déjeuner")
+        self.client_name_var.set("")
+        self.client_surname_var.set("")
+        self.client_email_var.set("")
+        self.client_phone_var.set("")
         self.results_text.delete(1.0, tk.END)

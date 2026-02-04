@@ -11,6 +11,68 @@ except ImportError:
 import re
 
 
+def get_exchange_rates():
+    """
+    Get current exchange rates for EUR and USD to MGA
+
+    Returns:
+        dict: Dictionary with rates {'EUR': rate, 'USD': rate}
+    """
+    try:
+        import requests
+        # Using exchangerate-api.com free API
+        response = requests.get('https://api.exchangerate-api.com/v4/latest/MGA', timeout=5)
+        data = response.json()
+        rates = {
+            'EUR': data['rates']['EUR'],
+            'USD': data['rates']['USD']
+        }
+        return rates
+    except Exception as e:
+        # Fallback to hardcoded rates if API fails
+        print(f"Warning: Could not fetch exchange rates: {e}. Using fallback rates.")
+        return {
+            'EUR': 0.00022,  # Approximate 1 MGA = 0.00022 EUR
+            'USD': 0.00024   # Approximate 1 MGA = 0.00024 USD
+        }
+
+
+def convert_currency(amount, from_currency, to_currency, rates=None):
+    """
+    Convert amount from one currency to another
+
+    Args:
+        amount (float): Amount to convert
+        from_currency (str): Source currency ('Ariary', 'Euro', 'Dollar US')
+        to_currency (str): Target currency ('Ariary', 'Euro', 'Dollar US')
+        rates (dict): Exchange rates dict, if None will fetch
+
+    Returns:
+        float: Converted amount
+    """
+    if from_currency == to_currency:
+        return amount
+
+    if rates is None:
+        rates = get_exchange_rates()
+
+    # Convert to MGA first if needed
+    if from_currency == 'Euro':
+        amount_mga = amount / rates['EUR']
+    elif from_currency == 'Dollar US':
+        amount_mga = amount / rates['USD']
+    else:  # Ariary
+        amount_mga = amount
+
+    # Convert to target currency
+    if to_currency == 'Euro':
+        return amount_mga * rates['EUR']
+    elif to_currency == 'Dollar US':
+        return amount_mga * rates['USD']
+    else:  # Ariary
+        return amount_mga
+
+
 def validate_email(email):
     """
     Validate email address format

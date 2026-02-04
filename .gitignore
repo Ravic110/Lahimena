@@ -162,3 +162,5 @@ Thumbs.db
 # Backup files
 *.bak
 *.backup
+devis
+devis/
