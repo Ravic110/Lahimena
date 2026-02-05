@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import customtkinter as ctk
 from config import *
-from utils.excel_handler import load_all_hotels
+from utils.excel_handler import load_all_hotels, load_all_clients
 import os
 import datetime
 import subprocess
@@ -27,6 +27,7 @@ class HotelQuotation:
         """
         self.parent = parent
         self.hotels = self._load_and_filter_hotels()
+        self.clients = self._load_clients()
         self.selected_hotel = None
 
         self._create_quotation_form()
@@ -47,6 +48,10 @@ class HotelQuotation:
                 unique_hotels[key] = hotel
         
         return list(unique_hotels.values())
+
+    def _load_clients(self):
+        """Load all clients from Excel"""
+        return load_all_clients()
 
     def _create_quotation_form(self):
         """Create the hotel quotation interface"""
@@ -316,6 +321,28 @@ class HotelQuotation:
         )
         client_frame.pack(fill="x", pady=(0, 10))
 
+        # Row 0: Client selection
+        tk.Label(
+            client_frame,
+            text="Sélectionner client:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        ).grid(row=0, column=0, sticky="w", pady=5)
+
+        self.client_var = tk.StringVar()
+        client_names = [""] + [f"{client['ref_client']} - {client['nom']}" for client in self.clients]
+        self.client_combo = ttk.Combobox(
+            client_frame,
+            textvariable=self.client_var,
+            values=client_names,
+            font=ENTRY_FONT,
+            width=30,
+            state="readonly"
+        )
+        self.client_combo.grid(row=0, column=1, columnspan=3, padx=(10, 0), pady=5, sticky="w")
+        self.client_combo.bind("<<ComboboxSelected>>", self._on_client_selected)
+
         # Row 1: Name and surname
         tk.Label(
             client_frame,
@@ -323,7 +350,7 @@ class HotelQuotation:
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
-        ).grid(row=0, column=0, sticky="w", pady=5)
+        ).grid(row=1, column=0, sticky="w", pady=5)
 
         self.client_name_var = tk.StringVar()
         self.client_name_entry = tk.Entry(
@@ -334,7 +361,7 @@ class HotelQuotation:
             bg=INPUT_BG_COLOR,
             fg=TEXT_COLOR
         )
-        self.client_name_entry.grid(row=0, column=1, padx=(10, 20), pady=5)
+        self.client_name_entry.grid(row=1, column=1, padx=(10, 20), pady=5)
 
         tk.Label(
             client_frame,
@@ -342,7 +369,7 @@ class HotelQuotation:
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
-        ).grid(row=0, column=2, sticky="w", pady=5)
+        ).grid(row=1, column=2, sticky="w", pady=5)
 
         self.client_surname_var = tk.StringVar()
         self.client_surname_entry = tk.Entry(
@@ -353,7 +380,7 @@ class HotelQuotation:
             bg=INPUT_BG_COLOR,
             fg=TEXT_COLOR
         )
-        self.client_surname_entry.grid(row=0, column=3, padx=(10, 0), pady=5)
+        self.client_surname_entry.grid(row=1, column=3, padx=(10, 0), pady=5)
 
         # Row 2: Email and phone
         tk.Label(
@@ -362,7 +389,7 @@ class HotelQuotation:
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
-        ).grid(row=1, column=0, sticky="w", pady=5)
+        ).grid(row=2, column=0, sticky="w", pady=5)
 
         self.client_email_var = tk.StringVar()
         self.client_email_entry = tk.Entry(
@@ -373,7 +400,7 @@ class HotelQuotation:
             bg=INPUT_BG_COLOR,
             fg=TEXT_COLOR
         )
-        self.client_email_entry.grid(row=1, column=1, padx=(10, 20), pady=5)
+        self.client_email_entry.grid(row=2, column=1, padx=(10, 20), pady=5)
 
         tk.Label(
             client_frame,
@@ -381,7 +408,7 @@ class HotelQuotation:
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
-        ).grid(row=1, column=2, sticky="w", pady=5)
+        ).grid(row=2, column=2, sticky="w", pady=5)
 
         self.client_phone_var = tk.StringVar()
         self.client_phone_entry = tk.Entry(
@@ -392,7 +419,7 @@ class HotelQuotation:
             bg=INPUT_BG_COLOR,
             fg=TEXT_COLOR
         )
-        self.client_phone_entry.grid(row=1, column=3, padx=(10, 0), pady=5)
+        self.client_phone_entry.grid(row=2, column=3, padx=(10, 0), pady=5)
 
         # Calculate button
         calc_frame = tk.Frame(main_frame, bg=MAIN_BG_COLOR)
@@ -469,6 +496,29 @@ class HotelQuotation:
                 if hotel_display == selection:
                     self.selected_hotel = hotel
                     break
+
+    def _on_client_selected(self, event=None):
+        """Handle client selection and auto-fill fields"""
+        selection = self.client_var.get()
+        if selection:
+            # Find the selected client
+            for client in self.clients:
+                client_display = f"{client['ref_client']} - {client['nom']}"
+                if client_display == selection:
+                    # Auto-fill the fields
+                    # Assuming the 'nom' field contains the full name or last name
+                    # We'll put it in the name field and leave surname empty for now
+                    self.client_name_var.set(client['nom'])
+                    self.client_surname_var.set("")  # Can be adjusted based on data structure
+                    self.client_email_var.set(client['email'])
+                    self.client_phone_var.set(client['telephone'])
+                    break
+        else:
+            # Clear fields if no client selected
+            self.client_name_var.set("")
+            self.client_surname_var.set("")
+            self.client_email_var.set("")
+            self.client_phone_var.set("")
 
     def _on_client_type_changed(self, *args):
         """Handle client type change to update hotel list"""
