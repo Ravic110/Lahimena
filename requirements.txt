@@ -16,5 +16,8 @@ phonenumbers>=8.12.0
 # Requêtes HTTP pour les taux de change
 requests>=2.25.0
 
+# Génération de PDF professionnels pour les devis
+reportlab>=3.6.0
+
 # Note: tkinter est inclus dans Python standard
 # Note: Les autres dépendances (os, datetime, re) sont incluses dans Python standard

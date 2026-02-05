@@ -243,6 +243,18 @@ class HotelList:
         self.tree.selection_remove(self.tree.selection())
         self._on_selection_change()
 
+    def _fmt_ar(self, val):
+        """Format a value as Ariary with thousand separators, or return empty/string safely."""
+        if val is None or val == "":
+            return ""
+        try:
+            return f"{int(val):,} Ar"
+        except (ValueError, TypeError):
+            try:
+                return f"{float(val):,} Ar"
+            except Exception:
+                return str(val)
+
     def _update_treeview(self):
         """Update the treeview with filtered hotels"""
         # Clear existing items
@@ -258,8 +270,8 @@ class HotelList:
                 hotel['lieu'],
                 hotel['type_hebergement'],
                 hotel['categorie'],
-                f"{hotel['chambre_single']:,} Ar" if hotel['chambre_single'] else "",
-                f"{hotel['chambre_double']:,} Ar" if hotel['chambre_double'] else "",
+                self._fmt_ar(hotel.get('chambre_single')),
+                self._fmt_ar(hotel.get('chambre_double')),
                 hotel['contact']
             )
             self.tree.insert("", "end", values=values, tags=(str(hotel['row_number']),))
@@ -372,33 +384,33 @@ class HotelList:
 
         details = f"""Détails de l'hôtel:
 
-Nom: {hotel['nom']}
-ID: {hotel['id']}
-Lieu: {hotel['lieu']}
-Type: {hotel['type_hebergement']}
-Catégorie: {hotel['categorie']}
+    Nom: {hotel['nom']}
+    ID: {hotel['id']}
+    Lieu: {hotel['lieu']}
+    Type: {hotel['type_hebergement']}
+    Catégorie: {hotel['categorie']}
 
-TARIFICATION:
-Chambre Single: {hotel['chambre_single']:,} Ar
-Chambre Double: {hotel['chambre_double']:,} Ar
-Chambre Familiale: {hotel['chambre_familiale']:,} Ar
-Lit Supplémentaire: {hotel['lit_supp']:,} Ar
-Day Use: {hotel['day_use']:,} Ar
+    TARIFICATION:
+    Chambre Single: {self._fmt_ar(hotel.get('chambre_single'))}
+    Chambre Double: {self._fmt_ar(hotel.get('chambre_double'))}
+    Chambre Familiale: {self._fmt_ar(hotel.get('chambre_familiale'))}
+    Lit Supplémentaire: {self._fmt_ar(hotel.get('lit_supp'))}
+    Day Use: {self._fmt_ar(hotel.get('day_use'))}
 
-FRAIS ADDITIONNELS:
-Vignette: {hotel['vignette']:,} Ar
-Taxe de séjour: {hotel['taxe_sejour']:,} Ar
+    FRAIS ADDITIONNELS:
+    Vignette: {self._fmt_ar(hotel.get('vignette'))}
+    Taxe de séjour: {self._fmt_ar(hotel.get('taxe_sejour'))}
 
-REPAS:
-Petit déjeuner: {hotel['petit_dejeuner']:,} Ar
-Déjeuner: {hotel['dejeuner']:,} Ar
-Dîner: {hotel['diner']:,} Ar
+    REPAS:
+    Petit déjeuner: {self._fmt_ar(hotel.get('petit_dejeuner'))}
+    Déjeuner: {self._fmt_ar(hotel.get('dejeuner'))}
+    Dîner: {self._fmt_ar(hotel.get('diner'))}
 
-CONTACT:
-{hotel['contact']}
-{hotel['email']}
+    CONTACT:
+    {hotel['contact']}
+    {hotel['email']}
 
-Description: {hotel['description']}"""
+    Description: {hotel['description']}"""
 
         messagebox.showinfo("Détails hôtel", details)
 

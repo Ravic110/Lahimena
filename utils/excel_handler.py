@@ -10,7 +10,70 @@ except ImportError:
     OPENPYXL_AVAILABLE = False
 
 import os
+import shutil
+from datetime import datetime
 from config import CLIENT_EXCEL_PATH, HOTEL_EXCEL_PATH, CLIENT_SHEET_NAME, HOTEL_SHEET_NAME
+from utils.logger import logger
+from utils.cache import cached_hotel_data, cached_client_data, invalidate_hotel_cache, invalidate_client_cache
+
+import re
+
+
+def _parse_num(val):
+    """Parse a cell value into int or float, stripping thousand separators and currency text.
+
+    Returns 0 on failure or empty values.
+    """
+    if val is None or val == "":
+        return 0
+    if isinstance(val, (int, float)):
+        return val
+    try:
+        s = str(val).strip()
+        s = s.replace(',', '').replace(' ', '')
+        m = re.search(r"-?\d+(?:\.\d+)?", s)
+        if not m:
+            return 0
+        num_str = m.group(0)
+        if '.' in num_str:
+            return float(num_str)
+        return int(num_str)
+    except Exception:
+        return 0
+
+
+def create_backup(filepath):
+    """
+    Create a backup of Excel file before modification
+    
+    Args:
+        filepath (str): Path to the Excel file to backup
+        
+    Returns:
+        str: Path to backup file, or None if failed
+    """
+    if not os.path.exists(filepath):
+        logger.warning(f"File not found for backup: {filepath}")
+        return None
+    
+    try:
+        # Create backups directory
+        backup_dir = os.path.join(os.path.dirname(filepath), 'backups')
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Create backup filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = os.path.basename(filepath)
+        backup_path = os.path.join(backup_dir, f"{filename}.{timestamp}.bak")
+        
+        # Copy file
+        shutil.copy2(filepath, backup_path)
+        logger.info(f"Backup created: {backup_path}")
+        
+        return backup_path
+    except Exception as e:
+        logger.error(f"Failed to create backup for {filepath}: {e}", exc_info=True)
+        return None
 
 
 def save_client_to_excel(client_data):
@@ -24,7 +87,7 @@ def save_client_to_excel(client_data):
         int: Row number where data was saved, or -1 if failed
     """
     if not OPENPYXL_AVAILABLE:
-        print("Warning: openpyxl not available. Cannot save to Excel.")
+        logger.warning( "openpyxl not available. Cannot save to Excel.")
         return -1
 
     # Create file if it doesn't exist
@@ -86,18 +149,24 @@ def save_client_to_excel(client_data):
         ws.column_dimensions[column_letter].width = min(max_length + 2, 25)
 
     wb.save(CLIENT_EXCEL_PATH)
+    
+    # Invalidate cache after modification
+    invalidate_client_cache()
+    
     return last_row
 
 
+@cached_client_data(ttl_seconds=3600)  # Cache for 1 hour
 def load_all_clients():
     """
     Load all client data from Excel file
+    Results are cached for 1 hour
 
     Returns:
         list: List of client dictionaries
     """
     if not OPENPYXL_AVAILABLE:
-        print("Warning: openpyxl not available. Cannot load from Excel.")
+        logger.warning("openpyxl not available. Cannot load from Excel.")
         return []
 
     if not os.path.exists(CLIENT_EXCEL_PATH):
@@ -148,8 +217,11 @@ def update_client_in_excel(row_number, client_data):
         bool: True if successful, False otherwise
     """
     if not OPENPYXL_AVAILABLE:
-        print("Warning: openpyxl not available. Cannot update Excel.")
+        logger.warning("openpyxl not available. Cannot update Excel.")
         return False
+
+    # Create backup before modifying Excel file
+    create_backup(CLIENT_EXCEL_PATH)
 
     if not os.path.exists(CLIENT_EXCEL_PATH):
         return False
@@ -190,7 +262,7 @@ def delete_client_from_excel(row_number):
         bool: True if successful, False otherwise
     """
     if not OPENPYXL_AVAILABLE:
-        print("Warning: openpyxl not available. Cannot delete from Excel.")
+        logger.warning("openpyxl not available. Cannot delete from Excel.")
         return False
 
     if not os.path.exists(CLIENT_EXCEL_PATH):
@@ -209,9 +281,11 @@ def delete_client_from_excel(row_number):
     return True
 
 
+@cached_hotel_data(ttl_seconds=86400)  # Cache for 24 hours
 def load_all_hotels(client_type=None):
     """
     Load all hotel data from Excel file
+    Results are cached for 24 hours
 
     Args:
         client_type (str): Filter by client type ('TO' or 'PBC'), if None load all
@@ -220,7 +294,7 @@ def load_all_hotels(client_type=None):
         list: List of hotel dictionaries
     """
     if not OPENPYXL_AVAILABLE:
-        print("Warning: openpyxl not available. Cannot load from Excel.")
+        logger.warning("openpyxl not available. Cannot load from Excel.")
         return []
 
     if not os.path.exists(HOTEL_EXCEL_PATH):
@@ -246,16 +320,16 @@ def load_all_hotels(client_type=None):
             'type_hebergement': 'Hôtel',  # Default type
             'categorie': ws[f'C{row}'].value or '',  # CATÉGORIE
             'type_client': ws[f'N{row}'].value or 'TO',  # TYPE_CLIENT
-            'chambre_single': ws[f'E{row}'].value or 0,  # SPL
-            'chambre_double': ws[f'F{row}'].value or 0,  # DBL
-            'chambre_familiale': ws[f'H{row}'].value or 0,  # FML
-            'lit_supp': ws[f'I{row}'].value or 0,  # SUPP
+            'chambre_single': _parse_num(ws[f'E{row}'].value),  # SPL
+            'chambre_double': _parse_num(ws[f'F{row}'].value),  # DBL
+            'chambre_familiale': _parse_num(ws[f'H{row}'].value),  # FML
+            'lit_supp': _parse_num(ws[f'I{row}'].value),  # SUPP
             'day_use': 0,  # Not available in source
             'vignette': 0,  # Not available in source
             'taxe_sejour': 0,  # Not available in source
-            'petit_dejeuner': ws[f'K{row}'].value or 0,  # PDJ
-            'dejeuner': ws[f'L{row}'].value or 0,  # DJ
-            'diner': ws[f'M{row}'].value or 0,  # DR
+            'petit_dejeuner': _parse_num(ws[f'K{row}'].value),  # PDJ
+            'dejeuner': _parse_num(ws[f'L{row}'].value),  # DJ
+            'diner': _parse_num(ws[f'M{row}'].value),  # DR
             'description': f"Unité: {ws[f'D{row}'].value or ''}, Suite: {ws[f'J{row}'].value or ''}",  # UNITÉ + SUITE
             'contact': '',  # Not available in source
             'email': ''  # Not available in source
@@ -281,9 +355,11 @@ def save_hotel_to_excel(hotel_data):
         int: Row number where data was saved, or -1 if failed
     """
     if not OPENPYXL_AVAILABLE:
-        print("Warning: openpyxl not available. Cannot save to Excel.")
+        logger.warning("openpyxl not available. Cannot save to Excel.")
         return -1
 
+    # Create backup before modifying Excel file
+    create_backup(HOTEL_EXCEL_PATH)
     # Create file if it doesn't exist
     if not os.path.exists(HOTEL_EXCEL_PATH):
         wb = Workbook()
@@ -357,8 +433,11 @@ def update_hotel_in_excel(row_number, hotel_data):
         bool: True if successful, False otherwise
     """
     if not OPENPYXL_AVAILABLE:
-        print("Warning: openpyxl not available. Cannot update Excel.")
+        logger.warning("openpyxl not available. Cannot update Excel.")
         return False
+
+    # Create backup before modifying Excel file
+    create_backup(HOTEL_EXCEL_PATH)
 
     if not os.path.exists(HOTEL_EXCEL_PATH):
         return False
@@ -399,7 +478,7 @@ def delete_hotel_from_excel(row_number):
         bool: True if successful, False otherwise
     """
     if not OPENPYXL_AVAILABLE:
-        print("Warning: openpyxl not available. Cannot delete from Excel.")
+        logger.warning( "openpyxl not available. Cannot delete from Excel.")
         return False
 
     if not os.path.exists(HOTEL_EXCEL_PATH):

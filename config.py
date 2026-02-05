@@ -2,6 +2,8 @@
 Configuration constants for Lahimena Tours application
 """
 
+import os
+
 # Application settings
 APP_TITLE = "Lahimena Tours Devis Generation"
 APP_GEOMETRY = "1200x500"
@@ -26,10 +28,12 @@ LABEL_FONT = ("Arial", 10, "bold")
 ENTRY_FONT = ("Arial", 11)
 BUTTON_FONT = ("Arial", 11, "bold")
 
-# File paths
-LOGO_PATH = "assets/logo.png"
-CLIENT_EXCEL_PATH = "data.xlsx"
-HOTEL_EXCEL_PATH = "data-hotel.xlsx"
+# File paths (using absolute paths)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOGO_PATH = os.path.join(BASE_DIR, "assets", "logo.png")
+CLIENT_EXCEL_PATH = os.path.join(BASE_DIR, "data.xlsx")
+HOTEL_EXCEL_PATH = os.path.join(BASE_DIR, "data-hotel.xlsx")
+DEVIS_FOLDER = os.path.join(BASE_DIR, "devis")
 CLIENT_SHEET_NAME = "DEMANDE_CLIENT"
 HOTEL_SHEET_NAME = "BDD_HOTEL"
 

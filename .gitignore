@@ -164,3 +164,6 @@ Thumbs.db
 *.backup
 devis
 devis/
+
+# Audit folder
+audit/

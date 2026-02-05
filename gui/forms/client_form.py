@@ -9,6 +9,7 @@ from config import *
 from models.client_data import ClientData
 from utils.validators import validate_email, validate_phone_number
 from utils.excel_handler import save_client_to_excel
+from utils.logger import logger
 import calendar
 
 
@@ -676,17 +677,28 @@ class ClientForm:
                 success = update_client_in_excel(self.client_to_edit['row_number'], client.to_dict())
                 if success:
                     messagebox.showinfo("✅ SUCCÈS", f"Client {client.nom} modifié avec succès !")
+                    logger.info(f"Client updated: {client.ref_client} - {client.nom}")
                     if self.on_save_callback:
                         self.on_save_callback()
                 else:
-                    messagebox.showerror("❌ Erreur Excel", "Erreur lors de la modification")
+                    error_msg = "Erreur lors de la modification du client. Voir les logs."
+                    messagebox.showerror("❌ Erreur Excel", error_msg)
+                    logger.error(f"Failed to update client: {client.ref_client}")
             else:
                 # Save new client
                 row = save_client_to_excel(client.to_dict())
-                messagebox.showinfo("✅ SUCCÈS", f"Client {client.nom} sauvé ligne Excel {row} !")
-                self._reset_form()
+                if row > 0:
+                    messagebox.showinfo("✅ SUCCÈS", f"Client {client.nom} sauvé ligne Excel {row} !")
+                    logger.info(f"New client saved: {client.ref_client} - {client.nom} at row {row}")
+                    self._reset_form()
+                else:
+                    error_msg = "Erreur lors de la sauvegarde du client. Voir les logs."
+                    messagebox.showerror("❌ Erreur Excel", error_msg)
+                    logger.error(f"Failed to save new client: {client.ref_client}")
         except Exception as e:
-            messagebox.showerror("❌ Erreur Excel", f"Erreur: {str(e)}")
+            error_msg = f"Erreur Excel: {str(e)}\n\nDétails dans les logs de l'application."
+            messagebox.showerror("❌ Erreur", error_msg)
+            logger.error(f"Exception during client save/update: {e}", exc_info=True)
 
     def _cancel(self):
         """Cancel editing and return to list"""

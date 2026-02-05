@@ -9,6 +9,7 @@ from config import *
 from models.hotel_data import HotelData
 from utils.validators import validate_email
 from utils.excel_handler import save_hotel_to_excel, update_hotel_in_excel
+from utils.logger import logger
 
 
 class HotelForm:
@@ -295,20 +296,28 @@ class HotelForm:
                 success = update_hotel_in_excel(self.hotel_to_edit['row_number'], hotel.to_dict())
                 if success:
                     messagebox.showinfo("✅ SUCCÈS", f"Hôtel {hotel.nom} modifié avec succès !")
+                    logger.info(f"Hotel updated: {hotel.nom}")
                     if self.on_save_callback:
                         self.on_save_callback()
                 else:
-                    messagebox.showerror("❌ Erreur", "Erreur lors de la modification de l'hôtel")
+                    error_msg = "Erreur lors de la modification de l'hôtel. Voir les logs."
+                    messagebox.showerror("❌ Erreur", error_msg)
+                    logger.error(f"Failed to update hotel: {hotel.nom}")
             else:
                 # Save new hotel
                 row = save_hotel_to_excel(hotel.to_dict())
                 if row > 0:
                     messagebox.showinfo("✅ SUCCÈS", f"Hôtel {hotel.nom} ajouté ligne Excel {row} !")
+                    logger.info(f"New hotel saved: {hotel.nom} at row {row}")
                     self._reset_form()
                 else:
-                    messagebox.showerror("❌ Erreur", "Erreur lors de l'ajout de l'hôtel")
+                    error_msg = "Erreur lors de l'ajout de l'hôtel. Voir les logs."
+                    messagebox.showerror("❌ Erreur", error_msg)
+                    logger.error(f"Failed to save new hotel: {hotel.nom}")
         except Exception as e:
-            messagebox.showerror("❌ Erreur", f"Erreur: {str(e)}")
+            error_msg = f"Erreur: {str(e)}\n\nDétails dans les logs de l'application."
+            messagebox.showerror("❌ Erreur", error_msg)
+            logger.error(f"Exception during hotel save/update: {e}", exc_info=True)
 
     def _parse_price(self, value):
         """Parse price value, return 0 if empty or invalid"""
