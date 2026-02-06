@@ -36,6 +36,7 @@ HOTEL_EXCEL_PATH = os.path.join(BASE_DIR, "data-hotel.xlsx")
 DEVIS_FOLDER = os.path.join(BASE_DIR, "devis")
 CLIENT_SHEET_NAME = "DEMANDE_CLIENT"
 HOTEL_SHEET_NAME = "BDD_HOTEL"
+COTATION_H_SHEET_NAME = "COTATION_H"
 
 # Form constants
 PERIODES = ["Haute saison", "Moyenne saison", "Basse saison"]

@@ -75,7 +75,11 @@ class Sidebar:
         ])
 
         # Hotel Quotation
-        btn2 = self._create_button("🏨 Cotation hôtel", self._show_hotel_quotation)
+        btn2 = self._create_button("🏨 Cotation hôtel ▶", None)
+        submenu2_frame = self._create_submenu(btn2, [
+            ("🆕 Nouvelle cotation", self._show_hotel_quotation),
+            ("📊 Résumé cotations", self._show_hotel_quotation_summary)
+        ])
 
         # Service Quotation
         btn3 = self._create_button("🎯 Cotation prestation", self._show_service_quotation)
@@ -202,6 +206,9 @@ class Sidebar:
 
     def _show_hotel_quotation(self):
         self.main_content_callback("hotel_quotation")
+
+    def _show_hotel_quotation_summary(self):
+        self.main_content_callback("hotel_quotation_summary")
 
     def _show_service_quotation(self):
         self.main_content_callback("service_quotation")

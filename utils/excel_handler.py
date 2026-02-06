@@ -12,7 +12,7 @@ except ImportError:
 import os
 import shutil
 from datetime import datetime
-from config import CLIENT_EXCEL_PATH, HOTEL_EXCEL_PATH, CLIENT_SHEET_NAME, HOTEL_SHEET_NAME
+from config import CLIENT_EXCEL_PATH, HOTEL_EXCEL_PATH, CLIENT_SHEET_NAME, HOTEL_SHEET_NAME, COTATION_H_SHEET_NAME
 from utils.logger import logger
 from utils.cache import cached_hotel_data, cached_client_data, invalidate_hotel_cache, invalidate_client_cache
 
@@ -495,3 +495,205 @@ def delete_hotel_from_excel(row_number):
 
     wb.save(HOTEL_EXCEL_PATH)
     return True
+
+
+def save_hotel_quotation_to_excel(quotation_data):
+    """
+    Save hotel quotation to COTATION_H sheet in data.xlsx
+    
+    Args:
+        quotation_data (dict): Quotation data with keys:
+            - client_id (str): ID/Ref of the client
+            - client_name (str): Name of the client
+            - hotel_name (str): Name of the hotel
+            - city (str): City where the hotel is located
+            - total_price (float): Total price of the quotation
+            - currency (str): Currency of the price
+            - nights (int): Number of nights
+            - adults (int): Number of adults
+            - children (int): Number of children
+            - room_type (str): Type of room
+            - meal_plan (str): Meal plan selected
+            - period (str): Period/season
+            - quote_date (str): Date of the quotation
+            
+    Returns:
+        int: Row number where data was saved, or -1 if failed
+    """
+    if not OPENPYXL_AVAILABLE:
+        logger.warning("openpyxl not available. Cannot save quotation to Excel.")
+        return -1
+    
+    try:
+        # Create or load the file
+        if not os.path.exists(CLIENT_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = COTATION_H_SHEET_NAME
+        else:
+            wb = load_workbook(CLIENT_EXCEL_PATH)
+            if COTATION_H_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(COTATION_H_SHEET_NAME)
+            else:
+                ws = wb[COTATION_H_SHEET_NAME]
+        
+        # Add headers if this is the first row
+        if ws.max_row == 1 or ws[f'A1'].value is None:
+            headers = [
+                'Date', 'ID_Client', 'Nom_Client', 'Hôtel', 'Ville', 
+                'Nuits', 'Type_Chambre', 'Adultes', 'Enfants', 
+                'Plan_Repas', 'Période', 'Total_Devise', 'Devise'
+            ]
+            for col, header in enumerate(headers, start=1):
+                cell = ws.cell(row=1, column=col)
+                cell.value = header
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+        
+        # Find next row
+        next_row = ws.max_row + 1
+        
+        # Save data
+        ws[f'A{next_row}'] = quotation_data.get('quote_date', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        ws[f'B{next_row}'] = quotation_data.get('client_id', '')
+        ws[f'C{next_row}'] = quotation_data.get('client_name', '')
+        ws[f'D{next_row}'] = quotation_data.get('hotel_name', '')
+        ws[f'E{next_row}'] = quotation_data.get('city', '')
+        ws[f'F{next_row}'] = quotation_data.get('nights', 0)
+        ws[f'G{next_row}'] = quotation_data.get('room_type', '')
+        ws[f'H{next_row}'] = quotation_data.get('adults', 0)
+        ws[f'I{next_row}'] = quotation_data.get('children', 0)
+        ws[f'J{next_row}'] = quotation_data.get('meal_plan', '')
+        ws[f'K{next_row}'] = quotation_data.get('period', '')
+        ws[f'L{next_row}'] = _parse_num(quotation_data.get('total_price', 0))
+        ws[f'M{next_row}'] = quotation_data.get('currency', 'Ariary')
+        
+        # Adjust column widths
+        ws.column_dimensions['A'].width = 16
+        ws.column_dimensions['B'].width = 12
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 25
+        ws.column_dimensions['E'].width = 12
+        ws.column_dimensions['F'].width = 8
+        ws.column_dimensions['G'].width = 14
+        ws.column_dimensions['H'].width = 8
+        ws.column_dimensions['I'].width = 8
+        ws.column_dimensions['J'].width = 18
+        ws.column_dimensions['K'].width = 12
+        ws.column_dimensions['L'].width = 14
+        ws.column_dimensions['M'].width = 10
+        
+        wb.save(CLIENT_EXCEL_PATH)
+        logger.info(f"Quotation saved to row {next_row} in {COTATION_H_SHEET_NAME}")
+        return next_row
+        
+    except Exception as e:
+        logger.error(f"Failed to save quotation to Excel: {e}", exc_info=True)
+        return -1
+
+
+def load_all_hotel_quotations():
+    """
+    Load all hotel quotations from COTATION_H sheet
+    
+    Returns:
+        list: List of quotation dictionaries
+    """
+    if not OPENPYXL_AVAILABLE:
+        logger.warning("openpyxl not available. Cannot load from Excel.")
+        return []
+    
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return []
+    
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        if COTATION_H_SHEET_NAME not in wb.sheetnames:
+            return []
+        
+        ws = wb[COTATION_H_SHEET_NAME]
+        
+        quotations = []
+        # Start from row 2 (skip headers)
+        for row in range(2, ws.max_row + 1):
+            if ws[f'A{row}'].value is None:
+                continue
+            
+            quotation = {
+                'row_number': row,
+                'quote_date': ws[f'A{row}'].value or '',
+                'client_id': ws[f'B{row}'].value or '',
+                'client_name': ws[f'C{row}'].value or '',
+                'hotel_name': ws[f'D{row}'].value or '',
+                'city': ws[f'E{row}'].value or '',
+                'nights': _parse_num(ws[f'F{row}'].value),
+                'room_type': ws[f'G{row}'].value or '',
+                'adults': _parse_num(ws[f'H{row}'].value),
+                'children': _parse_num(ws[f'I{row}'].value),
+                'meal_plan': ws[f'J{row}'].value or '',
+                'period': ws[f'K{row}'].value or '',
+                'total_price': _parse_num(ws[f'L{row}'].value),
+                'currency': ws[f'M{row}'].value or 'Ariary'
+            }
+            quotations.append(quotation)
+        
+        return quotations
+        
+    except Exception as e:
+        logger.error(f"Failed to load quotations from Excel: {e}", exc_info=True)
+        return []
+
+
+def get_quotations_grouped_by_client():
+    """
+    Get all hotel quotations grouped by client with subtotals
+    
+    Returns:
+        dict: Dictionary with client_id as key and list of quotations as value,
+              plus 'total' key with grand total per client
+    """
+    quotations = load_all_hotel_quotations()
+    grouped = {}
+    
+    for quotation in quotations:
+        client_id = quotation['client_id']
+        if client_id not in grouped:
+            grouped[client_id] = {
+                'client_name': quotation['client_name'],
+                'quotations': [],
+                'total': 0,
+                'currency': quotation['currency']
+            }
+        
+        grouped[client_id]['quotations'].append(quotation)
+        grouped[client_id]['total'] += quotation['total_price']
+    
+    return grouped
+
+
+def get_quotations_by_city():
+    """
+    Get all hotel quotations grouped by city with subtotals
+    
+    Returns:
+        dict: Dictionary with city as key and list of quotations as value,
+              plus 'total' key with grand total per city
+    """
+    quotations = load_all_hotel_quotations()
+    grouped = {}
+    
+    for quotation in quotations:
+        city = quotation['city']
+        if city not in grouped:
+            grouped[city] = {
+                'quotations': [],
+                'total': 0,
+                'currency': quotation['currency']
+            }
+        
+        grouped[city]['quotations'].append(quotation)
+        grouped[city]['total'] += quotation['total_price']
+    
+    return grouped

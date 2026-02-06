@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import customtkinter as ctk
 from config import *
-from utils.excel_handler import load_all_hotels, load_all_clients
+from utils.excel_handler import load_all_hotels, load_all_clients, save_hotel_quotation_to_excel
 from utils.logger import logger
 from utils.pdf_generator import generate_hotel_quotation_pdf, REPORTLAB_AVAILABLE
 import os
@@ -119,34 +119,16 @@ class HotelQuotation:
         ).grid(row=1, column=0, sticky="w", pady=5)
 
         self.client_name_var = tk.StringVar()
+        # Make the name field wider and remove the separate 'Prénom' field
         self.client_name_entry = tk.Entry(
             client_frame,
             textvariable=self.client_name_var,
             font=ENTRY_FONT,
-            width=20,
+            width=40,
             bg=INPUT_BG_COLOR,
             fg=TEXT_COLOR
         )
-        self.client_name_entry.grid(row=1, column=1, padx=(10, 20), pady=5)
-
-        tk.Label(
-            client_frame,
-            text="Prénom:",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
-        ).grid(row=1, column=2, sticky="w", pady=5)
-
-        self.client_surname_var = tk.StringVar()
-        self.client_surname_entry = tk.Entry(
-            client_frame,
-            textvariable=self.client_surname_var,
-            font=ENTRY_FONT,
-            width=20,
-            bg=INPUT_BG_COLOR,
-            fg=TEXT_COLOR
-        )
-        self.client_surname_entry.grid(row=1, column=3, padx=(10, 0), pady=5)
+        self.client_name_entry.grid(row=1, column=1, columnspan=3, padx=(10, 0), pady=5, sticky="w")
 
         # Row 2: Email and phone
         tk.Label(
@@ -199,26 +181,48 @@ class HotelQuotation:
         )
         hotel_frame.pack(fill="x", pady=(0, 10))
 
-        # Hotel selection
+        # City selection + Hotel selection (city first)
+        tk.Label(
+            hotel_frame,
+            text="Ville:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        ).grid(row=0, column=0, sticky="w", pady=5)
+
+        # Build unique city list from hotels
+        cities = sorted(list({hotel.get('lieu', '') for hotel in self.hotels if hotel.get('lieu')}))
+        self.city_var = tk.StringVar()
+        self.city_combo = ttk.Combobox(
+            hotel_frame,
+            textvariable=self.city_var,
+            values=[""] + cities,
+            font=ENTRY_FONT,
+            width=20,
+            state="readonly"
+        )
+        self.city_combo.grid(row=0, column=1, padx=(10, 10), pady=5, sticky="w")
+        self.city_combo.bind("<<ComboboxSelected>>", self._on_city_selected)
+
         tk.Label(
             hotel_frame,
             text="Hôtel:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
-        ).grid(row=0, column=0, sticky="w", pady=5)
+        ).grid(row=0, column=2, sticky="w", pady=5)
 
         self.hotel_var = tk.StringVar()
-        hotel_names = [f"{hotel['nom']} - {hotel['lieu']}" for hotel in self.hotels]
+        # Initially empty; will be populated when a city is selected
         self.hotel_combo = ttk.Combobox(
             hotel_frame,
             textvariable=self.hotel_var,
-            values=hotel_names,
+            values=[],
             font=ENTRY_FONT,
             width=40,
             state="readonly"
         )
-        self.hotel_combo.grid(row=0, column=1, padx=(10, 0), pady=5)
+        self.hotel_combo.grid(row=0, column=3, padx=(10, 0), pady=5)
         self.hotel_combo.bind("<<ComboboxSelected>>", self._on_hotel_selected)
 
         # Parameters section
@@ -488,6 +492,81 @@ class HotelQuotation:
             pady=8
         ).pack(side="left", padx=5)
 
+        # Quotation history section
+        history_frame = tk.LabelFrame(
+            main_frame,
+            text="📋 Liste des cotations générées",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+            padx=10,
+            pady=10
+        )
+        history_frame.pack(fill="both", expand=True, pady=(0, 10))
+
+        # Treeview for quotations
+        columns = ("filename", "date", "size")
+        self.quotations_tree = ttk.Treeview(
+            history_frame,
+            columns=columns,
+            height=8,
+            show="tree headings"
+        )
+        self.quotations_tree.heading("#0", text="Nom du fichier")
+        self.quotations_tree.heading("date", text="Date")
+        self.quotations_tree.heading("size", text="Taille")
+        
+        self.quotations_tree.column("#0", width=250)
+        self.quotations_tree.column("date", width=120)
+        self.quotations_tree.column("size", width=80)
+        
+        self.quotations_tree.pack(fill="both", expand=True, side="left")
+        
+        # Scrollbar for treeview
+        scrollbar = ttk.Scrollbar(history_frame, orient="vertical", command=self.quotations_tree.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.quotations_tree.configure(yscroll=scrollbar.set)
+        
+        # Buttons for quotation management
+        history_buttons = tk.Frame(main_frame, bg=MAIN_BG_COLOR)
+        history_buttons.pack(fill="x", pady=(0, 10))
+        
+        tk.Button(
+            history_buttons,
+            text="🔄 Rafraîchir",
+            command=self._refresh_quotations_list,
+            bg=BUTTON_BLUE,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=15,
+            pady=8
+        ).pack(side="left", padx=5)
+        
+        tk.Button(
+            history_buttons,
+            text="📂 Ouvrir devis",
+            command=self._open_selected_quotation,
+            bg=BUTTON_GREEN,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=15,
+            pady=8
+        ).pack(side="left", padx=5)
+        
+        tk.Button(
+            history_buttons,
+            text="🗑️ Supprimer devis",
+            command=self._delete_selected_quotation,
+            bg=BUTTON_RED,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=15,
+            pady=8
+        ).pack(side="left", padx=5)
+        
+        # Load initial quotation list
+        self._refresh_quotations_list()
+
     def _on_hotel_selected(self, event=None):
         """Handle hotel selection"""
         selection = self.hotel_var.get()
@@ -499,6 +578,18 @@ class HotelQuotation:
                     self.selected_hotel = hotel
                     break
 
+    def _on_city_selected(self, event=None):
+        """Filter hotels when a city is selected"""
+        city = self.city_var.get()
+        # Filter hotels by city and update hotel combobox
+        if city:
+            filtered = [f"{h['nom']} - {h['lieu']}" for h in self.hotels if h.get('lieu') == city]
+        else:
+            filtered = [f"{h['nom']} - {h['lieu']}" for h in self.hotels]
+        # Update combobox values and clear previous selection
+        self.hotel_combo['values'] = filtered
+        self.hotel_var.set("")
+
     def _on_client_selected(self, event=None):
         """Handle client selection and auto-fill fields"""
         selection = self.client_var.get()
@@ -509,9 +600,8 @@ class HotelQuotation:
                 if client_display == selection:
                     # Auto-fill the fields
                     # Assuming the 'nom' field contains the full name or last name
-                    # We'll put it in the name field and leave surname empty for now
-                    self.client_name_var.set(client['nom'])
-                    self.client_surname_var.set("")  # Can be adjusted based on data structure
+                    # We'll put the client last name (or full name) in the single name field
+                    self.client_name_var.set(client.get('nom', ''))
                     self.client_email_var.set(client['email'])
                     self.client_phone_var.set(client['telephone'])
                     # Auto-fill other quotation parameters from client data when available
@@ -578,7 +668,6 @@ class HotelQuotation:
         else:
             # Clear fields if no client selected
             self.client_name_var.set("")
-            self.client_surname_var.set("")
             self.client_email_var.set("")
             self.client_phone_var.set("")
             # Keep default values for numeric fields
@@ -721,10 +810,9 @@ class HotelQuotation:
 
             # Display results
             client_name = self.client_name_var.get()
-            client_surname = self.client_surname_var.get()
             client_email = self.client_email_var.get()
             client_phone = self.client_phone_var.get()
-            self._display_results(base_price, meal_price, total_price, nights, adults, children, room_type, meal_plan, client_type, currency, client_name, client_surname, client_email, client_phone)
+            self._display_results(base_price, meal_price, total_price, nights, adults, children, room_type, meal_plan, client_type, currency, client_name, client_email, client_phone)
 
         except ValueError as e:
             error_details = str(e)
@@ -741,7 +829,7 @@ class HotelQuotation:
             )
             logger.error(f"Unexpected error in _calculate_price: {error_details}", exc_info=True)
 
-    def _display_results(self, base_price, meal_price, total_price, nights, adults, children, room_type, meal_plan, client_type, currency, client_name, client_surname, client_email, client_phone):
+    def _display_results(self, base_price, meal_price, total_price, nights, adults, children, room_type, meal_plan, client_type, currency, client_name, client_email, client_phone):
         """Display calculation results"""
         # Get currency symbol
         currency_symbols = {
@@ -759,40 +847,44 @@ class HotelQuotation:
 
         self.results_text.delete(1.0, tk.END)
 
+        # Prepare a prominent client name banner (remove first name display)
+        display_name = (client_name or "").upper()
+        name_banner = display_name.center(50)
+
         result_text = f"""
-COTATION HÔTEL - {self.selected_hotel['nom']}
-{'='*50}
+    COTATION HÔTEL - {self.selected_hotel['nom']}
+    {'='*50}
 
-HÔTEL: {self.selected_hotel['nom']}
-LIEU: {self.selected_hotel['lieu']}
-CATÉGORIE: {self.selected_hotel['categorie']}
+    HÔTEL: {self.selected_hotel['nom']}
+    LIEU: {self.selected_hotel['lieu']}
+    CATÉGORIE: {self.selected_hotel['categorie']}
 
-PARAMÈTRES:
-- Nombre de nuits: {nights}
-- Type de chambre: {room_type}
-- Adultes: {adults}
-- Enfants: {children}
-- Restauration: {meal_plan}
-- Période: {self.period_var.get()}
-- Type de client: {client_type}
-- Devise: {currency}
+    PARAMÈTRES:
+    - Nombre de nuits: {nights}
+    - Type de chambre: {room_type}
+    - Adultes: {adults}
+    - Enfants: {children}
+    - Restauration: {meal_plan}
+    - Période: {self.period_var.get()}
+    - Type de client: {client_type}
+    - Devise: {currency}
 
-INFORMATIONS CLIENT:
-- Nom: {client_name}
-- Prénom: {client_surname}
-- Email: {client_email}
-- Téléphone: {client_phone}
+    INFORMATIONS CLIENT:
+    {name_banner}
+    - Nom client: {display_name}
+    - Email: {client_email}
+    - Téléphone: {client_phone}
 
-CALCUL:
-- Prix chambre/nuit: {base_price/nights:{price_format}} {symbol}
-- Prix total chambre: {base_price:{price_format}} {symbol}
-- Supplément restauration: {meal_price:{price_format}} {symbol}
+    CALCUL:
+    - Prix chambre/nuit: {base_price/nights:{price_format}} {symbol}
+    - Prix total chambre: {base_price:{price_format}} {symbol}
+    - Supplément restauration: {meal_price:{price_format}} {symbol}
 
-TOTAL: {total_price:{price_format}} {symbol}
+    TOTAL: {total_price:{price_format}} {symbol}
 
-Prix par personne: {total_price/(adults+children):{price_format}} {symbol}
-Prix par nuit: {total_price/nights:{price_format}} {symbol}
-"""
+    Prix par personne: {total_price/(adults+children):{price_format}} {symbol}
+    Prix par nuit: {total_price/nights:{price_format}} {symbol}
+    """
 
         self.results_text.insert(tk.END, result_text.strip())
 
@@ -878,12 +970,37 @@ Prix par nuit: {total_price/nights:{price_format}} {symbol}
                 output_dir=devis_folder
             )
 
+            # Save quotation to COTATION_H sheet
+            try:
+                quotation_data = {
+                    'client_id': self.client_var.get().split(' - ')[0] if ' - ' in self.client_var.get() else '',
+                    'client_name': client_name,
+                    'hotel_name': self.selected_hotel['nom'],
+                    'city': self.selected_hotel.get('lieu', ''),
+                    'total_price': total_price,
+                    'currency': currency,
+                    'nights': nights,
+                    'adults': adults,
+                    'children': int(self.children_var.get()) if hasattr(self, 'children_var') else 0,
+                    'room_type': room_type,
+                    'meal_plan': self.meal_var.get() if hasattr(self, 'meal_var') else '',
+                    'period': self.period_var.get() if hasattr(self, 'period_var') else '',
+                    'quote_date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+                save_hotel_quotation_to_excel(quotation_data)
+                logger.info(f"Quotation saved to COTATION_H sheet: {client_name} - {self.selected_hotel['nom']}")
+            except Exception as e:
+                logger.warning(f"Could not save quotation to Excel: {e}")
+
             # Show success message with file location
             messagebox.showinfo(
                 "✅ Devis généré avec succès",
                 f"Le devis PDF a été sauvegardé :\n{filename}\n\nLe fichier va s'ouvrir automatiquement."
             )
             logger.info(f"PDF quotation generated successfully: {filename}")
+
+            # Refresh quotation history list
+            self._refresh_quotations_list()
 
             # Try to open the file
             try:
@@ -919,7 +1036,95 @@ Prix par nuit: {total_price/nights:{price_format}} {symbol}
         self.period_var.set("Moyenne saison")
         self.meal_var.set("Petit déjeuner")
         self.client_name_var.set("")
-        self.client_surname_var.set("")
         self.client_email_var.set("")
         self.client_phone_var.set("")
         self.results_text.delete(1.0, tk.END)
+
+    def _refresh_quotations_list(self):
+        """Load and display all quotation files from devis folder"""
+        # Clear existing items
+        for item in self.quotations_tree.get_children():
+            self.quotations_tree.delete(item)
+        
+        try:
+            devis_folder = DEVIS_FOLDER
+            if not os.path.exists(devis_folder):
+                logger.warning(f"Devis folder not found: {devis_folder}")
+                return
+            
+            # Get all PDF files
+            pdf_files = [f for f in os.listdir(devis_folder) if f.endswith('.pdf')]
+            pdf_files.sort(reverse=True)  # Most recent first
+            
+            # Add files to treeview
+            for filename in pdf_files:
+                filepath = os.path.join(devis_folder, filename)
+                try:
+                    # Get file info
+                    file_stat = os.stat(filepath)
+                    file_size = f"{file_stat.st_size / 1024:.1f} KB"
+                    file_date = datetime.datetime.fromtimestamp(file_stat.st_mtime).strftime("%d/%m/%Y %H:%M")
+                    
+                    # Add to treeview
+                    self.quotations_tree.insert("", "end", text=filename, values=(filename, file_date, file_size))
+                except Exception as e:
+                    logger.error(f"Error processing quotation file {filename}: {e}")
+        
+        except Exception as e:
+            logger.error(f"Error refreshing quotations list: {e}")
+            messagebox.showerror("Erreur", f"Erreur lors du chargement de la liste des devis:\n{str(e)}")
+
+    def _open_selected_quotation(self):
+        """Open the selected quotation file"""
+        selection = self.quotations_tree.selection()
+        if not selection:
+            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner un devis à ouvrir.")
+            return
+        
+        try:
+            selected_item = selection[0]
+            filename = self.quotations_tree.item(selected_item)['text']
+            filepath = os.path.join(DEVIS_FOLDER, filename)
+            
+            if not os.path.exists(filepath):
+                messagebox.showerror("Erreur", f"Le fichier n'existe pas:\n{filepath}")
+                return
+            
+            # Open the file
+            if os.name == 'nt':  # Windows
+                os.startfile(filepath)
+            elif os.name == 'posix':  # macOS/Linux
+                subprocess.run(['xdg-open', filepath])
+            
+            logger.info(f"Opened quotation: {filename}")
+        
+        except Exception as e:
+            logger.error(f"Error opening quotation: {e}")
+            messagebox.showerror("Erreur", f"Impossible d'ouvrir le devis:\n{str(e)}")
+
+    def _delete_selected_quotation(self):
+        """Delete the selected quotation file"""
+        selection = self.quotations_tree.selection()
+        if not selection:
+            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner un devis à supprimer.")
+            return
+        
+        try:
+            selected_item = selection[0]
+            filename = self.quotations_tree.item(selected_item)['text']
+            filepath = os.path.join(DEVIS_FOLDER, filename)
+            
+            # Confirm deletion
+            if messagebox.askyesno("Confirmer suppression", f"Êtes-vous sûr de vouloir supprimer:\n{filename}?"):
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                    logger.info(f"Deleted quotation: {filename}")
+                    messagebox.showinfo("Succès", f"Le devis a été supprimé:\n{filename}")
+                    # Refresh the list
+                    self._refresh_quotations_list()
+                else:
+                    messagebox.showerror("Erreur", f"Le fichier n'existe pas:\n{filepath}")
+        
+        except Exception as e:
+            logger.error(f"Error deleting quotation: {e}")
+            messagebox.showerror("Erreur", f"Impossible de supprimer le devis:\n{str(e)}")
