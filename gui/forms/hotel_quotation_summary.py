@@ -62,11 +62,11 @@ class HotelQuotationSummary:
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
         )
-        title.pack(pady=(20, 10))
+        title.pack(pady=(20, 10), fill="x")
 
         # View selection frame
         view_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
-        view_frame.pack(fill="x", padx=20, pady=(0, 10))
+        view_frame.pack(fill="x", padx=8, pady=(0, 10))
 
         tk.Label(
             view_frame,
@@ -102,7 +102,7 @@ class HotelQuotationSummary:
 
         # Main content frame
         self.content_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
-        self.content_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        self.content_frame.pack(fill="both", expand=True, padx=0, pady=(0, 0))
 
         # Display the current view
         self._display_by_client()
@@ -145,8 +145,13 @@ class HotelQuotationSummary:
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
 
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        window_id = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
+        # Make the scrollable_frame match the canvas width so content fills available space
+        canvas.bind(
+            "<Configure>",
+            lambda e, cid=window_id: canvas.itemconfig(cid, width=e.width)
+        )
 
         # Grand total
         grand_total = sum(
@@ -156,7 +161,7 @@ class HotelQuotationSummary:
         currency = list(self.grouped_by_client.values())[0]['currency'] if self.grouped_by_client else 'Ariary'
 
         grand_total_frame = tk.Frame(scrollable_frame, bg="#E8F4F8", bd=2, relief="ridge")
-        grand_total_frame.pack(fill="x", pady=(0, 10))
+        grand_total_frame.pack(fill="x", pady=(0, 10), padx=0)
 
         tk.Label(
             grand_total_frame,
@@ -192,7 +197,7 @@ class HotelQuotationSummary:
             padx=10,
             pady=10
         )
-        client_frame.pack(fill="x", pady=10)
+        client_frame.pack(fill="x", pady=10, padx=0)
 
         # Create treeview for quotations
         tree_frame = tk.Frame(client_frame, bg=MAIN_BG_COLOR)
@@ -292,8 +297,12 @@ class HotelQuotationSummary:
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
 
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        window_id = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.bind(
+            "<Configure>",
+            lambda e, cid=window_id: canvas.itemconfig(cid, width=e.width)
+        )
 
         # Grand total
         grand_total = sum(
@@ -303,7 +312,7 @@ class HotelQuotationSummary:
         currency = list(self.grouped_by_city.values())[0]['currency'] if self.grouped_by_city else 'Ariary'
 
         grand_total_frame = tk.Frame(scrollable_frame, bg="#E8F4F8", bd=2, relief="ridge")
-        grand_total_frame.pack(fill="x", pady=(0, 10))
+        grand_total_frame.pack(fill="x", pady=(0, 10), padx=0)
 
         tk.Label(
             grand_total_frame,
@@ -339,7 +348,7 @@ class HotelQuotationSummary:
             padx=10,
             pady=10
         )
-        city_frame.pack(fill="x", pady=10)
+        city_frame.pack(fill="x", pady=10, padx=0)
 
         # Create treeview for quotations
         tree_frame = tk.Frame(city_frame, bg=MAIN_BG_COLOR)
