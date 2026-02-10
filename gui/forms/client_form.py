@@ -236,30 +236,9 @@ class ClientForm:
         )
         title.pack(pady=(10, 5), fill="x")
 
-        # Create scrollable frame that fills ALL available height
-        container = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
-        container.pack(fill="both", expand=True, padx=10, pady=(5, 10))
-
-        canvas = tk.Canvas(container, bg=MAIN_BG_COLOR, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
-        self.main_frame = tk.Frame(canvas, bg=MAIN_BG_COLOR)
-        
-        self.main_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        
-        canvas.create_window((0, 0), window=self.main_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        # Pack to fill container completely
-        scrollbar.pack(side="right", fill="y", expand=False)
-        canvas.pack(side="left", fill="both", expand=True)
-        
-        # Mouse wheel scrolling
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        # Use the parent scrollable frame to occupy full height
+        self.main_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
+        self.main_frame.pack(fill="both", expand=True, padx=10, pady=(5, 10))
 
         # ===== SECTION: INFOS CLIENTS =====
         section_label = tk.Label(
@@ -443,6 +422,19 @@ class ClientForm:
         )
         self.entry_duree_sejour.pack(fill="x", pady=(0, 15))
 
+        # Children checkbox (placed before composition section)
+        self.var_enfant = tk.BooleanVar()
+        self.check_enfant_widget = tk.Checkbutton(
+            self.main_frame,
+            text="Voyage avec enfant(s)",
+            variable=self.var_enfant,
+            command=self._toggle_enfant,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+            selectcolor="#4CAF50"
+        )
+        self.check_enfant_widget.pack(anchor="w", pady=(0, 15))
+
         # Nombre de participants et composition
         tk.Label(
             self.main_frame,
@@ -455,10 +447,11 @@ class ClientForm:
             self.main_frame,
             font=ENTRY_FONT,
             width=40,
-            bg=INPUT_BG_COLOR,
+            bg="#e8f5e9",
             fg=TEXT_COLOR
         )
         self.entry_nombre_participants.pack(fill="x", pady=(0, 15))
+        self.entry_nombre_participants.config(state="readonly")
 
         # Composition par âge
         composition_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
@@ -482,6 +475,7 @@ class ClientForm:
             fg=TEXT_COLOR
         )
         self.entry_adultes.pack(fill="x")
+        self.entry_adultes.bind("<KeyRelease>", lambda e: self._update_participants_total())
 
         col2 = tk.Frame(composition_frame, bg=MAIN_BG_COLOR)
         col2.pack(side="left", fill="x", expand=True)
@@ -501,6 +495,7 @@ class ClientForm:
             fg=TEXT_COLOR
         )
         self.entry_enfants_2_12.pack(fill="x")
+        self.entry_enfants_2_12.bind("<KeyRelease>", lambda e: self._update_participants_total())
 
         col3 = tk.Frame(composition_frame, bg=MAIN_BG_COLOR)
         col3.pack(side="right", fill="x", expand=True, padx=(10, 0))
@@ -520,6 +515,7 @@ class ClientForm:
             fg=TEXT_COLOR
         )
         self.entry_bebes_0_2.pack(fill="x")
+        self.entry_bebes_0_2.bind("<KeyRelease>", lambda e: self._update_participants_total())
 
         # ===== SECTION: CONTACTS =====
         section_label = tk.Label(
@@ -743,20 +739,6 @@ class ClientForm:
         )
         self.combo_TypeChambre.pack(fill="x", pady=(0, 15))
 
-        # Children
-        self.var_enfant = tk.BooleanVar()
-        self.check_enfant_widget = tk.Checkbutton(
-            self.main_frame,
-            text="Voyage avec enfant(s)",
-            variable=self.var_enfant,
-            command=self._toggle_enfant,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-            selectcolor="#4CAF50"
-        )
-        self.check_enfant_widget.pack(anchor="w", pady=(0, 15))
-        self.frame_age_enfant = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
-
         # Package type
         tk.Label(
             self.main_frame,
@@ -826,6 +808,8 @@ class ClientForm:
         # Populate fields if editing
         if self.client_to_edit:
             self._populate_fields()
+        else:
+            self._toggle_enfant()
 
     def _populate_fields(self):
         """Populate form fields with client data"""
@@ -909,8 +893,11 @@ class ClientForm:
         if enfant.lower() == 'oui':
             self.var_enfant.set(True)
             self._toggle_enfant()
-            if hasattr(self, 'combo_age_enfant'):
-                self.combo_age_enfant.set(self.client_to_edit.get('age_enfant', ''))
+        else:
+            self.var_enfant.set(False)
+            self._toggle_enfant()
+
+        self._update_participants_total()
 
     def _open_calendar(self, entry_widget):
         """Open calendar dialog for date selection"""
@@ -946,24 +933,37 @@ class ClientForm:
     def _toggle_enfant(self):
         """Show/hide child age field"""
         if self.var_enfant.get():
-            self.frame_age_enfant.pack(fill="x", pady=(0, 15), after=self.check_enfant_widget)
-            if not hasattr(self, 'combo_age_enfant'):
-                tk.Label(
-                    self.frame_age_enfant,
-                    text="Âge enfant(s):",
-                    font=LABEL_FONT,
-                    fg=TEXT_COLOR,
-                    bg=MAIN_BG_COLOR
-                ).pack(anchor="w")
-                self.combo_age_enfant = ttk.Combobox(
-                    self.frame_age_enfant,
-                    values=AGES_ENFANTS,
-                    state="readonly",
-                    width=37
-                )
-                self.combo_age_enfant.pack(fill="x")
+            self.entry_enfants_2_12.config(state="normal")
+            self.entry_bebes_0_2.config(state="normal")
         else:
-            self.frame_age_enfant.pack_forget()
+            self.entry_enfants_2_12.config(state="normal")
+            self.entry_enfants_2_12.delete(0, tk.END)
+            self.entry_enfants_2_12.insert(0, "0")
+            self.entry_enfants_2_12.config(state="disabled")
+            self.entry_bebes_0_2.config(state="normal")
+            self.entry_bebes_0_2.delete(0, tk.END)
+            self.entry_bebes_0_2.insert(0, "0")
+            self.entry_bebes_0_2.config(state="disabled")
+
+        self._update_participants_total()
+
+    def _update_participants_total(self):
+        """Auto-update total participants from adults + children + babies."""
+        def _to_int(value):
+            try:
+                return int(str(value).strip())
+            except Exception:
+                return 0
+
+        adults = _to_int(self.entry_adultes.get())
+        enfants = _to_int(self.entry_enfants_2_12.get())
+        bebes = _to_int(self.entry_bebes_0_2.get())
+
+        total = adults + enfants + bebes
+        self.entry_nombre_participants.config(state="normal")
+        self.entry_nombre_participants.delete(0, tk.END)
+        self.entry_nombre_participants.insert(0, str(total))
+        self.entry_nombre_participants.config(state="readonly")
 
     def _on_room_toggle(self, room_key):
         """Enable/disable room entry field when checkbox is toggled"""
@@ -978,10 +978,6 @@ class ClientForm:
 
     def _validate(self):
         """Validate and save client data"""
-        age_enfant = None
-        if self.var_enfant.get() and hasattr(self, 'combo_age_enfant'):
-            age_enfant = self.combo_age_enfant.get()
-
         form_data = {
             'timestamp': datetime.now().strftime('%d/%m/%Y %H:%M'),
             'date_jour': self.entry_date_jour.get(),
@@ -1004,7 +1000,7 @@ class ClientForm:
             'hebergement': self.combo_TypeHebergement.get(),
             'chambre': self.combo_TypeChambre.get(),
             'enfant': 'Oui' if self.var_enfant.get() else 'Non',
-            'age_enfant': age_enfant or '',
+            'age_enfant': '',
             'forfait': self.combo_forfait.get(),
             'circuit': self.combo_circuit.get(),
             'sgl_count': self.rooming_entries['sgl'].get().strip(),
@@ -1080,7 +1076,9 @@ class ClientForm:
         self.entry_duree_sejour.config(state="normal")
         self.entry_duree_sejour.delete(0, tk.END)
         self.entry_duree_sejour.config(state="readonly")
+        self.entry_nombre_participants.config(state="normal")
         self.entry_nombre_participants.delete(0, tk.END)
+        self.entry_nombre_participants.config(state="readonly")
         self.entry_adultes.delete(0, tk.END)
         self.entry_enfants_2_12.delete(0, tk.END)
         self.entry_bebes_0_2.delete(0, tk.END)
@@ -1103,5 +1101,4 @@ class ClientForm:
         self.combo_forfait.set("")
         self.combo_circuit.set("")
         self.var_enfant.set(False)
-        if hasattr(self, 'combo_age_enfant'):
-            self.combo_age_enfant.set("")
+        self._toggle_enfant()

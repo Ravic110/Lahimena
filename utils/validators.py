@@ -143,33 +143,33 @@ def validate_email(email):
         email (str): Email address to validate
         
     Returns:
-        tuple: (is_valid: bool, error_message: str or None)
+        bool: True if valid, False otherwise
     """
     if not email:
-        return False, "L'email est requis"
+        return False
     
     email = email.strip()
     
     # Check email length
     if len(email) > 254:
-        return False, "Email trop long (max 254 caractères)"
+        return False
     
     # Check email format
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     if not re.match(pattern, email):
-        return False, "Format email invalide"
+        return False
     
     # Check for consecutive dots
     if '..' in email:
-        return False, "Email invalide (points consécutifs)"
+        return False
     
     # Check local part length (before @)
     local_part = email.split('@')[0]
     if len(local_part) > 64:
-        return False, "Partie locale de l'email trop longue"
+        return False
     
     logger.debug(f"Email validated: {email}")
-    return True, None
+    return True
 
 
 def validate_phone_number(phone_code, phone_number):
@@ -181,10 +181,10 @@ def validate_phone_number(phone_code, phone_number):
         phone_number (str): Phone number to validate
         
     Returns:
-        tuple: (is_valid: bool, error_message: str or None)
+        bool: True if valid, False otherwise
     """
     if not phone_number or not str(phone_number).strip():
-        return False, "Le numéro de téléphone est requis"
+        return False
     
     phone_number = str(phone_number).strip()
     
@@ -193,16 +193,16 @@ def validate_phone_number(phone_code, phone_number):
     
     # Check minimum length
     if len(phone_number) < 7:
-        return False, "Numéro de téléphone trop court"
+        return False
     
     # Check maximum length
     if len(phone_number) > 20:
-        return False, "Numéro de téléphone trop long"
+        return False
     
     if not PHONENUMBERS_AVAILABLE:
         # Basic validation if phonenumbers is not available
         logger.warning("phonenumbers library not available, using basic validation")
-        return True, None
+        return True
     
     try:
         # Normalize phone code if needed
@@ -222,12 +222,11 @@ def validate_phone_number(phone_code, phone_number):
         
         if is_valid_number(parsed):
             logger.debug(f"Phone number validated: {phone_code}:{phone_number}")
-            return True, None
-        else:
-            return False, "Numéro de téléphone invalide pour ce pays"
+            return True
+        return False
     except Exception as e:
         logger.warning(f"Phone validation error: {e}")
-        return False, f"Erreur validation téléphone: {str(e)}"
+        return False
 
 
 def validate_price(price_str):

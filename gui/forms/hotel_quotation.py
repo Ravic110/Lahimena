@@ -97,7 +97,12 @@ class HotelQuotation:
         ).grid(row=0, column=0, sticky="w", pady=5)
 
         self.client_var = tk.StringVar()
-        client_names = [""] + [f"{client['ref_client']} - {client['nom']}" for client in self.clients]
+        client_names = [""]
+        for client in self.clients:
+            nom = (client.get('nom') or '').strip()
+            prenom = (client.get('prenom') or '').strip()
+            full_name = f"{nom} {prenom}".strip()
+            client_names.append(full_name if full_name else (client.get('ref_client') or ''))
         self.client_combo = ttk.Combobox(
             client_frame,
             textvariable=self.client_var,
@@ -112,7 +117,7 @@ class HotelQuotation:
         # Row 1: Name and surname
         tk.Label(
             client_frame,
-            text="Nom:",
+            text="Nom et Prénom:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
@@ -596,14 +601,16 @@ class HotelQuotation:
         if selection:
             # Find the selected client
             for client in self.clients:
-                client_display = f"{client['ref_client']} - {client['nom']}"
+                nom = (client.get('nom') or '').strip()
+                prenom = (client.get('prenom') or '').strip()
+                client_display = f"{nom} {prenom}".strip() or (client.get('ref_client') or '')
                 if client_display == selection:
                     # Auto-fill the fields
-                    # Assuming the 'nom' field contains the full name or last name
-                    # We'll put the client last name (or full name) in the single name field
-                    self.client_name_var.set(client.get('nom', ''))
+                    full_name = f"{nom} {prenom}".strip()
+                    self.client_name_var.set(full_name)
                     self.client_email_var.set(client['email'])
                     self.client_phone_var.set(client['telephone'])
+                    self.client_var.set(client.get('ref_client', ''))
                     # Auto-fill other quotation parameters from client data when available
                     # Period
                     period = client.get('periode')

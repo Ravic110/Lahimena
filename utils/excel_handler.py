@@ -76,6 +76,41 @@ def create_backup(filepath):
         return None
 
 
+def _ensure_headers(ws, headers, header_style=None):
+    header_map = {}
+    max_col = ws.max_column if ws.max_column and ws.max_column > 0 else 0
+    for col in range(1, max_col + 1):
+        value = ws.cell(row=1, column=col).value
+        if value:
+            header_map[str(value).strip()] = col
+
+    if max_col == 1 and not header_map and ws.cell(row=1, column=1).value is None:
+        max_col = 0
+
+    next_col = max_col + 1 if max_col else 1
+    for header in headers:
+        if header not in header_map:
+            cell = ws.cell(row=1, column=next_col, value=header)
+            if header_style:
+                if header_style.get("font"):
+                    cell.font = header_style["font"]
+                if header_style.get("fill"):
+                    cell.fill = header_style["fill"]
+                if header_style.get("alignment"):
+                    cell.alignment = header_style["alignment"]
+            header_map[header] = next_col
+            next_col += 1
+
+    return header_map
+
+
+def _first_available(data, keys, default=""):
+    for key in keys:
+        if key in data and data.get(key) not in (None, ""):
+            return data.get(key)
+    return default
+
+
 def save_client_to_excel(client_data):
     """
     Save client data to Excel file
@@ -91,21 +126,28 @@ def save_client_to_excel(client_data):
         return -1
 
     # Create file if it doesn't exist
+    client_headers = [
+        "Date", "Réf. Client", "Type Client", "Prénom", "Nom",
+        "Date Arrivée", "Date Départ", "Durée Séjour",
+        "Nombre Participants", "Nombre Adultes",
+        "Enfants 2-12", "Bébés 0-2",
+        "Téléphone", "Téléphone WhatsApp", "Email",
+        "Période", "Restauration", "Hébergement", "Chambre",
+        "Enfant", "Âge Enfant", "Forfait", "Circuit",
+        "SGL", "DBL", "TWN", "TPL", "FML"
+    ]
+    client_header_style = {
+        "font": Font(bold=True, color="FFFFFF"),
+        "fill": PatternFill(start_color="27AE60", end_color="27AE60", fill_type="solid"),
+        "alignment": Alignment(horizontal="center")
+    }
+
     if not os.path.exists(CLIENT_EXCEL_PATH):
         wb = Workbook()
         ws = wb.active
         ws.title = CLIENT_SHEET_NAME
 
-        # Headers (A1:M1)
-        headers = ['Date', 'Réf. Client', 'Nom', 'Téléphone', 'Email', 'Période',
-                  'Restauration', 'Hébergement', 'Chambre', 'Enfant', 'Âge Enfant',
-                  'Forfait', 'Circuit']
-
-        for i, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=i, value=header)
-            cell.font = Font(bold=True, color="FFFFFF")
-            cell.fill = PatternFill(start_color="27AE60", end_color="27AE60", fill_type="solid")
-            cell.alignment = Alignment(horizontal="center")
+        _ensure_headers(ws, client_headers, client_header_style)
 
         wb.save(CLIENT_EXCEL_PATH)
 
@@ -116,25 +158,48 @@ def save_client_to_excel(client_data):
     else:
         ws = wb[CLIENT_SHEET_NAME]
 
+    header_map = _ensure_headers(ws, client_headers, client_header_style)
+
     # Find last empty row (column A)
     last_row = 2
     while ws[f'A{last_row}'].value is not None:
         last_row += 1
 
-    # Write data
-    ws[f'A{last_row}'] = client_data.get('Timestamp', '')
-    ws[f'B{last_row}'] = client_data.get('Ref_Client', '')
-    ws[f'C{last_row}'] = client_data.get('Nom', '')
-    ws[f'D{last_row}'] = client_data.get('Téléphone', '')
-    ws[f'E{last_row}'] = client_data.get('Email', '')
-    ws[f'F{last_row}'] = client_data.get('Période', '')
-    ws[f'G{last_row}'] = client_data.get('Restauration', '')
-    ws[f'H{last_row}'] = client_data.get('Hébergement', '')
-    ws[f'I{last_row}'] = client_data.get('Chambre', '')
-    ws[f'J{last_row}'] = client_data.get('Enfant', '')
-    ws[f'K{last_row}'] = client_data.get('Âge_Enfant', '')
-    ws[f'L{last_row}'] = client_data.get('Forfait', '')
-    ws[f'M{last_row}'] = client_data.get('Circuit', '')
+    # Write data by headers for compatibility and extensibility
+    field_map = {
+        "Date": ["Timestamp", "Date", "date_jour"],
+        "Réf. Client": ["Ref_Client", "ref_client"],
+        "Type Client": ["Type_Client", "type_client"],
+        "Prénom": ["Prénom", "prenom"],
+        "Nom": ["Nom", "nom"],
+        "Date Arrivée": ["Date_Arrivée", "date_arrivee"],
+        "Date Départ": ["Date_Départ", "date_depart"],
+        "Durée Séjour": ["Durée_Séjour", "duree_sejour"],
+        "Nombre Participants": ["Nombre_Participants", "nombre_participants"],
+        "Nombre Adultes": ["Nombre_Adultes", "nombre_adultes"],
+        "Enfants 2-12": ["Enfants_2_12_ans", "nombre_enfants_2_12"],
+        "Bébés 0-2": ["Bébés_0_2_ans", "nombre_bebes_0_2"],
+        "Téléphone": ["Téléphone", "telephone"],
+        "Téléphone WhatsApp": ["Téléphone_WhatsApp", "telephone_whatsapp"],
+        "Email": ["Email", "email"],
+        "Période": ["Période", "periode"],
+        "Restauration": ["Restauration", "restauration"],
+        "Hébergement": ["Hébergement", "hebergement"],
+        "Chambre": ["Chambre", "chambre"],
+        "Enfant": ["Enfant", "enfant"],
+        "Âge Enfant": ["Âge_Enfant", "age_enfant"],
+        "Forfait": ["Forfait", "forfait"],
+        "Circuit": ["Circuit", "circuit"],
+        "SGL": ["SGL_Count", "sgl_count"],
+        "DBL": ["DBL_Count", "dbl_count"],
+        "TWN": ["TWN_Count", "twn_count"],
+        "TPL": ["TPL_Count", "tpl_count"],
+        "FML": ["FML_Count", "fml_count"]
+    }
+    for header, keys in field_map.items():
+        col = header_map.get(header)
+        if col:
+            ws.cell(row=last_row, column=col, value=_first_available(client_data, keys, ""))
 
     # Auto-adjust column widths
     for column in ws.columns:
@@ -177,6 +242,7 @@ def load_all_clients():
         return []
 
     ws = wb[CLIENT_SHEET_NAME]
+    header_map = _ensure_headers(ws, [])
 
     clients = []
     # Start from row 2 (skip headers)
@@ -184,21 +250,44 @@ def load_all_clients():
         if ws[f'A{row}'].value is None:
             continue
 
+        def _cell(header, fallback_cell=None):
+            col = header_map.get(header)
+            if col:
+                return ws.cell(row=row, column=col).value
+            if fallback_cell:
+                return ws[fallback_cell].value
+            return None
+
         client = {
             'row_number': row,
-            'timestamp': ws[f'A{row}'].value or '',
-            'ref_client': ws[f'B{row}'].value or '',
-            'nom': ws[f'C{row}'].value or '',
-            'telephone': ws[f'D{row}'].value or '',
-            'email': ws[f'E{row}'].value or '',
-            'periode': ws[f'F{row}'].value or '',
-            'restauration': ws[f'G{row}'].value or '',
-            'hebergement': ws[f'H{row}'].value or '',
-            'chambre': ws[f'I{row}'].value or '',
-            'enfant': ws[f'J{row}'].value or '',
-            'age_enfant': ws[f'K{row}'].value or '',
-            'forfait': ws[f'L{row}'].value or '',
-            'circuit': ws[f'M{row}'].value or ''
+            'timestamp': _cell("Date", f'A{row}') or '',
+            'ref_client': _cell("Réf. Client", f'B{row}') or '',
+            'type_client': _cell("Type Client") or '',
+            'prenom': _cell("Prénom") or '',
+            'nom': _cell("Nom", f'C{row}') or '',
+            'date_arrivee': _cell("Date Arrivée") or '',
+            'date_depart': _cell("Date Départ") or '',
+            'duree_sejour': _cell("Durée Séjour") or '',
+            'nombre_participants': _cell("Nombre Participants") or '',
+            'nombre_adultes': _cell("Nombre Adultes") or '',
+            'nombre_enfants_2_12': _cell("Enfants 2-12") or '',
+            'nombre_bebes_0_2': _cell("Bébés 0-2") or '',
+            'telephone': _cell("Téléphone", f'D{row}') or '',
+            'telephone_whatsapp': _cell("Téléphone WhatsApp") or '',
+            'email': _cell("Email", f'E{row}') or '',
+            'periode': _cell("Période", f'F{row}') or '',
+            'restauration': _cell("Restauration", f'G{row}') or '',
+            'hebergement': _cell("Hébergement", f'H{row}') or '',
+            'chambre': _cell("Chambre", f'I{row}') or '',
+            'enfant': _cell("Enfant", f'J{row}') or '',
+            'age_enfant': _cell("Âge Enfant", f'K{row}') or '',
+            'forfait': _cell("Forfait", f'L{row}') or '',
+            'circuit': _cell("Circuit", f'M{row}') or '',
+            'sgl_count': _cell("SGL") or '',
+            'dbl_count': _cell("DBL") or '',
+            'twn_count': _cell("TWN") or '',
+            'tpl_count': _cell("TPL") or '',
+            'fml_count': _cell("FML") or ''
         }
         clients.append(client)
 
@@ -231,23 +320,61 @@ def update_client_in_excel(row_number, client_data):
         return False
 
     ws = wb[CLIENT_SHEET_NAME]
+    client_headers = [
+        "Date", "Réf. Client", "Type Client", "Prénom", "Nom",
+        "Date Arrivée", "Date Départ", "Durée Séjour",
+        "Nombre Participants", "Nombre Adultes",
+        "Enfants 2-12", "Bébés 0-2",
+        "Téléphone", "Téléphone WhatsApp", "Email",
+        "Période", "Restauration", "Hébergement", "Chambre",
+        "Enfant", "Âge Enfant", "Forfait", "Circuit",
+        "SGL", "DBL", "TWN", "TPL", "FML"
+    ]
+    client_header_style = {
+        "font": Font(bold=True, color="FFFFFF"),
+        "fill": PatternFill(start_color="27AE60", end_color="27AE60", fill_type="solid"),
+        "alignment": Alignment(horizontal="center")
+    }
+    header_map = _ensure_headers(ws, client_headers, client_header_style)
 
     # Update data
-    ws[f'A{row_number}'] = client_data.get('Timestamp', '')
-    ws[f'B{row_number}'] = client_data.get('Ref_Client', '')
-    ws[f'C{row_number}'] = client_data.get('Nom', '')
-    ws[f'D{row_number}'] = client_data.get('Téléphone', '')
-    ws[f'E{row_number}'] = client_data.get('Email', '')
-    ws[f'F{row_number}'] = client_data.get('Période', '')
-    ws[f'G{row_number}'] = client_data.get('Restauration', '')
-    ws[f'H{row_number}'] = client_data.get('Hébergement', '')
-    ws[f'I{row_number}'] = client_data.get('Chambre', '')
-    ws[f'J{row_number}'] = client_data.get('Enfant', '')
-    ws[f'K{row_number}'] = client_data.get('Âge_Enfant', '')
-    ws[f'L{row_number}'] = client_data.get('Forfait', '')
-    ws[f'M{row_number}'] = client_data.get('Circuit', '')
+    field_map = {
+        "Date": ["Timestamp", "Date", "date_jour"],
+        "Réf. Client": ["Ref_Client", "ref_client"],
+        "Type Client": ["Type_Client", "type_client"],
+        "Prénom": ["Prénom", "prenom"],
+        "Nom": ["Nom", "nom"],
+        "Date Arrivée": ["Date_Arrivée", "date_arrivee"],
+        "Date Départ": ["Date_Départ", "date_depart"],
+        "Durée Séjour": ["Durée_Séjour", "duree_sejour"],
+        "Nombre Participants": ["Nombre_Participants", "nombre_participants"],
+        "Nombre Adultes": ["Nombre_Adultes", "nombre_adultes"],
+        "Enfants 2-12": ["Enfants_2_12_ans", "nombre_enfants_2_12"],
+        "Bébés 0-2": ["Bébés_0_2_ans", "nombre_bebes_0_2"],
+        "Téléphone": ["Téléphone", "telephone"],
+        "Téléphone WhatsApp": ["Téléphone_WhatsApp", "telephone_whatsapp"],
+        "Email": ["Email", "email"],
+        "Période": ["Période", "periode"],
+        "Restauration": ["Restauration", "restauration"],
+        "Hébergement": ["Hébergement", "hebergement"],
+        "Chambre": ["Chambre", "chambre"],
+        "Enfant": ["Enfant", "enfant"],
+        "Âge Enfant": ["Âge_Enfant", "age_enfant"],
+        "Forfait": ["Forfait", "forfait"],
+        "Circuit": ["Circuit", "circuit"],
+        "SGL": ["SGL_Count", "sgl_count"],
+        "DBL": ["DBL_Count", "dbl_count"],
+        "TWN": ["TWN_Count", "twn_count"],
+        "TPL": ["TPL_Count", "tpl_count"],
+        "FML": ["FML_Count", "fml_count"]
+    }
+    for header, keys in field_map.items():
+        col = header_map.get(header)
+        if col:
+            ws.cell(row=row_number, column=col, value=_first_available(client_data, keys, ""))
 
     wb.save(CLIENT_EXCEL_PATH)
+    invalidate_client_cache()
     return True
 
 
@@ -278,6 +405,7 @@ def delete_client_from_excel(row_number):
     ws.delete_rows(row_number)
 
     wb.save(CLIENT_EXCEL_PATH)
+    invalidate_client_cache()
     return True
 
 
@@ -305,6 +433,7 @@ def load_all_hotels(client_type=None):
         return []
 
     ws = wb[HOTEL_SHEET_NAME]
+    header_map = _ensure_headers(ws, [])
 
     hotels = []
     # Start from row 2 (skip headers)
@@ -312,27 +441,35 @@ def load_all_hotels(client_type=None):
         if ws[f'A{row}'].value is None:
             continue
 
+        def _cell(header, fallback_cell=None):
+            col = header_map.get(header)
+            if col:
+                return ws.cell(row=row, column=col).value
+            if fallback_cell:
+                return ws[fallback_cell].value
+            return None
+
         hotel = {
             'row_number': row,
-            'id': f"{ws[f'A{row}'].value}_{ws[f'B{row}'].value}",  # Combine Ville + HTL as ID
-            'nom': ws[f'B{row}'].value or '',  # HTL
-            'lieu': ws[f'A{row}'].value or '',  # Ville
-            'type_hebergement': 'Hôtel',  # Default type
-            'categorie': ws[f'C{row}'].value or '',  # CATÉGORIE
-            'type_client': ws[f'N{row}'].value or 'TO',  # TYPE_CLIENT
-            'chambre_single': _parse_num(ws[f'E{row}'].value),  # SPL
-            'chambre_double': _parse_num(ws[f'F{row}'].value),  # DBL
-            'chambre_familiale': _parse_num(ws[f'H{row}'].value),  # FML
-            'lit_supp': _parse_num(ws[f'I{row}'].value),  # SUPP
-            'day_use': 0,  # Not available in source
-            'vignette': 0,  # Not available in source
-            'taxe_sejour': 0,  # Not available in source
-            'petit_dejeuner': _parse_num(ws[f'K{row}'].value),  # PDJ
-            'dejeuner': _parse_num(ws[f'L{row}'].value),  # DJ
-            'diner': _parse_num(ws[f'M{row}'].value),  # DR
-            'description': f"Unité: {ws[f'D{row}'].value or ''}, Suite: {ws[f'J{row}'].value or ''}",  # UNITÉ + SUITE
-            'contact': '',  # Not available in source
-            'email': ''  # Not available in source
+            'id': _cell("ID") or f"{_cell('Ville', f'A{row}')}_{_cell('HTL', f'B{row}')}",
+            'nom': _cell("HTL", f'B{row}') or '',
+            'lieu': _cell("Ville", f'A{row}') or '',
+            'type_hebergement': _cell("TYPE_HEBERGEMENT") or 'Hôtel',
+            'categorie': _cell("CATÉGORIE", f'C{row}') or '',
+            'type_client': _cell("TYPE_CLIENT", f'N{row}') or 'TO',
+            'chambre_single': _parse_num(_cell("SPL", f'E{row}')),
+            'chambre_double': _parse_num(_cell("DBL", f'F{row}')),
+            'chambre_familiale': _parse_num(_cell("FML", f'H{row}')),
+            'lit_supp': _parse_num(_cell("SUPP", f'I{row}')),
+            'day_use': _parse_num(_cell("DAY_USE")) if _cell("DAY_USE") is not None else 0,
+            'vignette': _parse_num(_cell("VIGNETTE")) if _cell("VIGNETTE") is not None else 0,
+            'taxe_sejour': _parse_num(_cell("TAXE_SEJOUR")) if _cell("TAXE_SEJOUR") is not None else 0,
+            'petit_dejeuner': _parse_num(_cell("PDJ", f'K{row}')),
+            'dejeuner': _parse_num(_cell("DJ", f'L{row}')),
+            'diner': _parse_num(_cell("DR", f'M{row}')),
+            'description': _cell("DESCRIPTION") or f"Unité: {_cell('UNITÉ', f'D{row}') or ''}, Suite: {_cell('SUITE', f'J{row}') or ''}",
+            'contact': _cell("CONTACT") or '',
+            'email': _cell("EMAIL") or ''
         }
 
         # Filter by client type if specified
@@ -361,6 +498,18 @@ def save_hotel_to_excel(hotel_data):
     # Create backup before modifying Excel file
     create_backup(HOTEL_EXCEL_PATH)
     # Create file if it doesn't exist
+    hotel_headers = [
+        "Ville", "HTL", "CATÉGORIE", "UNITÉ", "SPL", "DBL", "TWINS",
+        "FML", "SUPP", "SUITE", "PDJ", "DJ", "DR",
+        "ID", "TYPE_HEBERGEMENT", "TYPE_CLIENT", "CONTACT", "EMAIL",
+        "DESCRIPTION", "DAY_USE", "VIGNETTE", "TAXE_SEJOUR"
+    ]
+    hotel_header_style = {
+        "font": Font(bold=True, color="FFFFFF"),
+        "fill": PatternFill(start_color="27AE60", end_color="27AE60", fill_type="solid"),
+        "alignment": Alignment(horizontal="center")
+    }
+
     if not os.path.exists(HOTEL_EXCEL_PATH):
         wb = Workbook()
         wb.save(HOTEL_EXCEL_PATH)
@@ -369,41 +518,49 @@ def save_hotel_to_excel(hotel_data):
     wb = load_workbook(HOTEL_EXCEL_PATH)
 
     if HOTEL_SHEET_NAME not in wb.sheetnames:
-        # If the sheet doesn't exist, create it with existing format headers
         ws = wb.create_sheet(HOTEL_SHEET_NAME)
-        
-        # Headers in existing format
-        headers = ['Ville', 'HTL', 'CATÉGORIE', 'UNITÉ', 'SPL', 'DBL', 'TWINS', 'FML', 'SUPP', 'SUITE', 'PDJ', 'DJ', 'DR']
-        
-        for i, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=i, value=header)
-            cell.font = Font(bold=True, color="FFFFFF")
-            cell.fill = PatternFill(start_color="27AE60", end_color="27AE60", fill_type="solid")
-            cell.alignment = Alignment(horizontal="center")
-        
+        _ensure_headers(ws, hotel_headers, hotel_header_style)
         wb.save(HOTEL_EXCEL_PATH)
 
     # Open existing file again
     wb = load_workbook(HOTEL_EXCEL_PATH)
     ws = wb[HOTEL_SHEET_NAME]
+    header_map = _ensure_headers(ws, hotel_headers, hotel_header_style)
 
     # Find last empty row (column A)
     last_row = ws.max_row + 1
 
-    # Write data in existing format
-    ws[f'A{last_row}'] = hotel_data.get('Lieu', '')  # Ville
-    ws[f'B{last_row}'] = hotel_data.get('Nom', '')  # HTL
-    ws[f'C{last_row}'] = hotel_data.get('Catégorie', '')  # CATÉGORIE
-    ws[f'D{last_row}'] = '$'  # UNITÉ (default)
-    ws[f'E{last_row}'] = hotel_data.get('Chambre_Single', 0)  # SPL
-    ws[f'F{last_row}'] = hotel_data.get('Chambre_Double', 0)  # DBL
-    ws[f'G{last_row}'] = hotel_data.get('Chambre_Double', 0)  # TWINS (same as DBL)
-    ws[f'H{last_row}'] = hotel_data.get('Chambre_Familiale', 0)  # FML
-    ws[f'I{last_row}'] = hotel_data.get('Lit_Supp', 0)  # SUPP
-    ws[f'J{last_row}'] = ''  # SUITE
-    ws[f'K{last_row}'] = hotel_data.get('Petit_Déjeuner', 0)  # PDJ
-    ws[f'L{last_row}'] = hotel_data.get('Déjeuner', 0)  # DJ
-    ws[f'M{last_row}'] = hotel_data.get('Dîner', 0)  # DR
+    field_map = {
+        "Ville": ["Lieu", "lieu"],
+        "HTL": ["Nom", "nom"],
+        "CATÉGORIE": ["Catégorie", "categorie"],
+        "UNITÉ": ["Unité", "unite"],
+        "SPL": ["Chambre_Single", "chambre_single"],
+        "DBL": ["Chambre_Double", "chambre_double"],
+        "TWINS": ["Chambre_Double", "chambre_double"],
+        "FML": ["Chambre_Familiale", "chambre_familiale"],
+        "SUPP": ["Lit_Supp", "lit_supp"],
+        "SUITE": ["Suite", "suite"],
+        "PDJ": ["Petit_Déjeuner", "petit_dejeuner"],
+        "DJ": ["Déjeuner", "dejeuner"],
+        "DR": ["Dîner", "diner"],
+        "ID": ["ID", "id"],
+        "TYPE_HEBERGEMENT": ["Type_Hébergement", "type_hebergement"],
+        "TYPE_CLIENT": ["Type_Client", "type_client"],
+        "CONTACT": ["Contact", "contact"],
+        "EMAIL": ["Email", "email"],
+        "DESCRIPTION": ["Description", "description"],
+        "DAY_USE": ["Day_Use", "day_use"],
+        "VIGNETTE": ["Vignette", "vignette"],
+        "TAXE_SEJOUR": ["Taxe_Séjour", "taxe_sejour"]
+    }
+    for header, keys in field_map.items():
+        col = header_map.get(header)
+        if col:
+            value = _first_available(hotel_data, keys, "")
+            if header == "UNITÉ" and value == "":
+                value = "$"
+            ws.cell(row=last_row, column=col, value=value)
 
     # Auto-adjust column widths
     for column in ws.columns:
@@ -418,6 +575,7 @@ def save_hotel_to_excel(hotel_data):
         ws.column_dimensions[column_letter].width = min(max_length + 2, 25)
 
     wb.save(HOTEL_EXCEL_PATH)
+    invalidate_hotel_cache()
     return last_row
 
 
@@ -447,23 +605,53 @@ def update_hotel_in_excel(row_number, hotel_data):
         return False
 
     ws = wb[HOTEL_SHEET_NAME]
+    hotel_headers = [
+        "Ville", "HTL", "CATÉGORIE", "UNITÉ", "SPL", "DBL", "TWINS",
+        "FML", "SUPP", "SUITE", "PDJ", "DJ", "DR",
+        "ID", "TYPE_HEBERGEMENT", "TYPE_CLIENT", "CONTACT", "EMAIL",
+        "DESCRIPTION", "DAY_USE", "VIGNETTE", "TAXE_SEJOUR"
+    ]
+    hotel_header_style = {
+        "font": Font(bold=True, color="FFFFFF"),
+        "fill": PatternFill(start_color="27AE60", end_color="27AE60", fill_type="solid"),
+        "alignment": Alignment(horizontal="center")
+    }
+    header_map = _ensure_headers(ws, hotel_headers, hotel_header_style)
 
-    # Update data in existing format
-    ws[f'A{row_number}'] = hotel_data.get('Lieu', '')  # Ville
-    ws[f'B{row_number}'] = hotel_data.get('Nom', '')  # HTL
-    ws[f'C{row_number}'] = hotel_data.get('Catégorie', '')  # CATÉGORIE
-    ws[f'D{row_number}'] = '$'  # UNITÉ
-    ws[f'E{row_number}'] = hotel_data.get('Chambre_Single', 0)  # SPL
-    ws[f'F{row_number}'] = hotel_data.get('Chambre_Double', 0)  # DBL
-    ws[f'G{row_number}'] = hotel_data.get('Chambre_Double', 0)  # TWINS
-    ws[f'H{row_number}'] = hotel_data.get('Chambre_Familiale', 0)  # FML
-    ws[f'I{row_number}'] = hotel_data.get('Lit_Supp', 0)  # SUPP
-    ws[f'J{row_number}'] = ''  # SUITE
-    ws[f'K{row_number}'] = hotel_data.get('Petit_Déjeuner', 0)  # PDJ
-    ws[f'L{row_number}'] = hotel_data.get('Déjeuner', 0)  # DJ
-    ws[f'M{row_number}'] = hotel_data.get('Dîner', 0)  # DR
+    field_map = {
+        "Ville": ["Lieu", "lieu"],
+        "HTL": ["Nom", "nom"],
+        "CATÉGORIE": ["Catégorie", "categorie"],
+        "UNITÉ": ["Unité", "unite"],
+        "SPL": ["Chambre_Single", "chambre_single"],
+        "DBL": ["Chambre_Double", "chambre_double"],
+        "TWINS": ["Chambre_Double", "chambre_double"],
+        "FML": ["Chambre_Familiale", "chambre_familiale"],
+        "SUPP": ["Lit_Supp", "lit_supp"],
+        "SUITE": ["Suite", "suite"],
+        "PDJ": ["Petit_Déjeuner", "petit_dejeuner"],
+        "DJ": ["Déjeuner", "dejeuner"],
+        "DR": ["Dîner", "diner"],
+        "ID": ["ID", "id"],
+        "TYPE_HEBERGEMENT": ["Type_Hébergement", "type_hebergement"],
+        "TYPE_CLIENT": ["Type_Client", "type_client"],
+        "CONTACT": ["Contact", "contact"],
+        "EMAIL": ["Email", "email"],
+        "DESCRIPTION": ["Description", "description"],
+        "DAY_USE": ["Day_Use", "day_use"],
+        "VIGNETTE": ["Vignette", "vignette"],
+        "TAXE_SEJOUR": ["Taxe_Séjour", "taxe_sejour"]
+    }
+    for header, keys in field_map.items():
+        col = header_map.get(header)
+        if col:
+            value = _first_available(hotel_data, keys, "")
+            if header == "UNITÉ" and value == "":
+                value = "$"
+            ws.cell(row=row_number, column=col, value=value)
 
     wb.save(HOTEL_EXCEL_PATH)
+    invalidate_hotel_cache()
     return True
 
 
@@ -494,6 +682,7 @@ def delete_hotel_from_excel(row_number):
     ws.delete_rows(row_number)
 
     wb.save(HOTEL_EXCEL_PATH)
+    invalidate_hotel_cache()
     return True
 
 

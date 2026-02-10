@@ -38,10 +38,14 @@ class QuotationPDF:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"DEVIS_{timestamp}.pdf"
         
-        # Ensure devis folder exists
-        os.makedirs(DEVIS_FOLDER, exist_ok=True)
+        # Determine full output path
+        if os.path.isabs(filename) or os.path.dirname(filename):
+            self.filepath = filename
+        else:
+            self.filepath = os.path.join(DEVIS_FOLDER, filename)
         
-        self.filepath = os.path.join(DEVIS_FOLDER, filename)
+        output_dir = os.path.dirname(self.filepath) or DEVIS_FOLDER
+        os.makedirs(output_dir, exist_ok=True)
         self.doc = SimpleDocTemplate(
             self.filepath,
             pagesize=A4,

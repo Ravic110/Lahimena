@@ -130,7 +130,6 @@ def cached_exchange_rates(ttl_seconds=3600):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # Cache key is simple for exchange rates (no args)
             cache_key = 'exchange_rates'
             
             # Check cache
@@ -151,6 +150,12 @@ def cached_exchange_rates(ttl_seconds=3600):
     return decorator
 
 
+def _make_cache_key(prefix, args, kwargs):
+    if not args and not kwargs:
+        return prefix
+    return (prefix, args, tuple(sorted(kwargs.items())))
+
+
 def cached_hotel_data(ttl_seconds=86400):
     """
     Decorator to cache hotel data
@@ -161,7 +166,7 @@ def cached_hotel_data(ttl_seconds=86400):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            cache_key = 'all_hotels'
+            cache_key = _make_cache_key('all_hotels', args, kwargs)
             
             # Check cache
             cached_value = _hotel_cache.get(cache_key)
@@ -191,7 +196,7 @@ def cached_client_data(ttl_seconds=86400):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            cache_key = 'all_clients'
+            cache_key = _make_cache_key('all_clients', args, kwargs)
             
             # Check cache
             cached_value = _client_cache.get(cache_key)
