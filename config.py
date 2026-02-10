@@ -35,6 +35,7 @@ CLIENT_EXCEL_PATH = os.path.join(BASE_DIR, "data.xlsx")
 HOTEL_EXCEL_PATH = os.path.join(BASE_DIR, "data-hotel.xlsx")
 DEVIS_FOLDER = os.path.join(BASE_DIR, "devis")
 CLIENT_SHEET_NAME = "DEMANDE_CLIENT"
+CLIENT_INFOS_SHEET_NAME = "INFOS_CLIENTS"
 HOTEL_SHEET_NAME = "BDD_HOTEL"
 COTATION_H_SHEET_NAME = "COTATION_H"
 
@@ -49,9 +50,10 @@ TYPE_HEBERGEMENTS = ["Bivouac", "Hôtel 3*", "Hôtel 2*", "Hôtel 4*",
 TYPE_CHAMBRES = ["Single", "Double/twin", "Triple", "Familliale"]
 AGES_ENFANTS = ["0 à 2 ans", "2 à 6 ans", "6 à 12 ans"]
 FORFAITS = ["À la carte", "Sur mesure"]
-CIRCUITS = ["Circuit nature", "Circuit aventure", "Circuit tourisme solidaire",
-           "Circuit culturel", "Circuits trek et randonnée", "Circuits détente",
-           "Voyage de noce"]
+CIRCUITS = ["Circuits nature", "Circuits aventure", "Circuit Tourisme Solidaire",
+           "Circuit Culturel", "Circuits trek et randonnées", "Circuits détente",
+           "Voyages de noce"]
+HOTEL_ARRIVAL_TYPES = ["1*", "2*", "3*", "4*", "5*", "Luxe", "Eco"]
 
 # Phone codes
 PHONE_CODES = ["+261", "+33", "+32", "+34"]

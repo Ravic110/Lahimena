@@ -8,7 +8,7 @@ from datetime import datetime
 from config import *
 from models.client_data import ClientData
 from utils.validators import validate_email, validate_phone_number
-from utils.excel_handler import save_client_to_excel
+from utils.excel_handler import save_client_to_excel, load_all_hotels
 from utils.logger import logger
 import calendar
 
@@ -216,8 +216,19 @@ class ClientForm:
         self.canvas = None
         self.form_frame = None
         self.main_frame = None
+        self.city_options = self._load_city_options()
 
         self._create_form()
+
+    def _load_city_options(self):
+        """Load unique city options from hotel database"""
+        try:
+            hotels = load_all_hotels()
+            cities = sorted({(hotel.get('lieu') or '').strip() for hotel in hotels if hotel.get('lieu')})
+            return cities
+        except Exception as e:
+            logger.warning(f"Failed to load city options: {e}")
+            return []
 
     def _create_form(self):
         """Create the client form with scrollable area for many fields"""
@@ -288,6 +299,23 @@ class ClientForm:
             fg=TEXT_COLOR
         )
         self.entry_ref_client.pack(fill="x", pady=(0, 15))
+
+        # Numéro de dossier
+        tk.Label(
+            self.main_frame,
+            text="Numéro de dossier",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        ).pack(anchor="w")
+        self.entry_numero_dossier = tk.Entry(
+            self.main_frame,
+            font=ENTRY_FONT,
+            width=40,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR
+        )
+        self.entry_numero_dossier.pack(fill="x", pady=(0, 15))
 
         # Type de client
         tk.Label(
@@ -769,7 +797,65 @@ class ClientForm:
             state="readonly",
             width=37
         )
-        self.combo_circuit.pack(fill="x", pady=(0, 30))
+        self.combo_circuit.pack(fill="x", pady=(0, 20))
+
+        # ===== SECTION: ITINÉRAIRES =====
+        section_itineraire = tk.Label(
+            self.main_frame,
+            text="🧭 ITINÉRAIRES",
+            font=("Arial", 12, "bold"),
+            fg="#2c3e50",
+            bg=MAIN_BG_COLOR
+        )
+        section_itineraire.pack(anchor="w", pady=(10, 10))
+
+        # Ville de départ
+        tk.Label(
+            self.main_frame,
+            text="Ville de départ",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        ).pack(anchor="w")
+        self.combo_ville_depart = ttk.Combobox(
+            self.main_frame,
+            values=self.city_options,
+            state="normal",
+            width=37
+        )
+        self.combo_ville_depart.pack(fill="x", pady=(0, 15))
+
+        # Ville d'arrivée
+        tk.Label(
+            self.main_frame,
+            text="Ville d'arrivée",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        ).pack(anchor="w")
+        self.combo_ville_arrivee = ttk.Combobox(
+            self.main_frame,
+            values=self.city_options,
+            state="normal",
+            width=37
+        )
+        self.combo_ville_arrivee.pack(fill="x", pady=(0, 15))
+
+        # Type d'hôtel à la ville d'arrivée
+        tk.Label(
+            self.main_frame,
+            text="Type d'hôtel à la ville d'arrivée",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        ).pack(anchor="w")
+        self.combo_type_hotel_arrivee = ttk.Combobox(
+            self.main_frame,
+            values=HOTEL_ARRIVAL_TYPES,
+            state="readonly",
+            width=37
+        )
+        self.combo_type_hotel_arrivee.pack(fill="x", pady=(0, 30))
 
         # Buttons
         btn_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
@@ -831,6 +917,7 @@ class ClientForm:
 
         # Populate basic fields
         self.entry_ref_client.insert(0, self.client_to_edit.get('ref_client', ''))
+        self.entry_numero_dossier.insert(0, self.client_to_edit.get('numero_dossier', ''))
         self.entry_prenom.insert(0, self.client_to_edit.get('prenom', ''))
         self.entry_nom.insert(0, self.client_to_edit.get('nom', ''))
         self.entry_date_arrivee.config(state="normal")
@@ -887,6 +974,9 @@ class ClientForm:
         self.combo_TypeChambre.set(self.client_to_edit.get('chambre', ''))
         self.combo_forfait.set(self.client_to_edit.get('forfait', ''))
         self.combo_circuit.set(self.client_to_edit.get('circuit', ''))
+        self.combo_ville_depart.set(self.client_to_edit.get('ville_depart', ''))
+        self.combo_ville_arrivee.set(self.client_to_edit.get('ville_arrivee', ''))
+        self.combo_type_hotel_arrivee.set(self.client_to_edit.get('type_hotel_arrivee', ''))
 
         # Handle children
         enfant = self.client_to_edit.get('enfant', '')
@@ -982,6 +1072,7 @@ class ClientForm:
             'timestamp': datetime.now().strftime('%d/%m/%Y %H:%M'),
             'date_jour': self.entry_date_jour.get(),
             'ref_client': self.entry_ref_client.get().strip(),
+            'numero_dossier': self.entry_numero_dossier.get().strip(),
             'type_client': self.combo_type_client.get(),
             'prenom': self.entry_prenom.get().strip(),
             'nom': self.entry_nom.get().strip(),
@@ -1003,6 +1094,10 @@ class ClientForm:
             'age_enfant': '',
             'forfait': self.combo_forfait.get(),
             'circuit': self.combo_circuit.get(),
+            'type_circuit': self.combo_circuit.get(),
+            'ville_depart': self.combo_ville_depart.get().strip(),
+            'ville_arrivee': self.combo_ville_arrivee.get().strip(),
+            'type_hotel_arrivee': self.combo_type_hotel_arrivee.get(),
             'sgl_count': self.rooming_entries['sgl'].get().strip(),
             'dbl_count': self.rooming_entries['dbl'].get().strip(),
             'twn_count': self.rooming_entries['twn'].get().strip(),
@@ -1065,6 +1160,7 @@ class ClientForm:
     def _reset_form(self):
         """Reset all form fields"""
         self.entry_ref_client.delete(0, tk.END)
+        self.entry_numero_dossier.delete(0, tk.END)
         self.entry_prenom.delete(0, tk.END)
         self.entry_nom.delete(0, tk.END)
         self.entry_date_arrivee.config(state="normal")
@@ -1100,5 +1196,8 @@ class ClientForm:
         self.combo_TypeChambre.set("")
         self.combo_forfait.set("")
         self.combo_circuit.set("")
+        self.combo_ville_depart.set("")
+        self.combo_ville_arrivee.set("")
+        self.combo_type_hotel_arrivee.set("")
         self.var_enfant.set(False)
         self._toggle_enfant()

@@ -217,8 +217,104 @@ def save_client_to_excel(client_data):
     
     # Invalidate cache after modification
     invalidate_client_cache()
+
+    # Also store extended infos in dedicated sheet
+    _save_client_infos_to_excel(client_data)
     
     return last_row
+
+
+def _save_client_infos_to_excel(client_data):
+    """Save extended client infos to the INFOS_CLIENTS sheet"""
+    if not OPENPYXL_AVAILABLE:
+        logger.warning("openpyxl not available. Cannot save client infos.")
+        return False
+
+    infos_headers = [
+        "Date", "Réf. Client", "Numéro Dossier", "Type Client", "Prénom", "Nom",
+        "Date Arrivée", "Date Départ", "Durée Séjour",
+        "Nombre Participants", "Nombre Adultes",
+        "Enfants 2-12", "Bébés 0-2",
+        "Téléphone", "Téléphone WhatsApp", "Email",
+        "Période", "Restauration", "Hébergement", "Chambre",
+        "Enfant", "Âge Enfant", "Forfait", "Circuit",
+        "Type Circuit", "Ville Départ", "Ville Arrivée", "Type Hôtel Arrivée",
+        "SGL", "DBL", "TWN", "TPL", "FML"
+    ]
+    infos_header_style = {
+        "font": Font(bold=True, color="FFFFFF"),
+        "fill": PatternFill(start_color="27AE60", end_color="27AE60", fill_type="solid"),
+        "alignment": Alignment(horizontal="center")
+    }
+
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        wb = Workbook()
+        wb.save(CLIENT_EXCEL_PATH)
+
+    wb = load_workbook(CLIENT_EXCEL_PATH)
+    if CLIENT_INFOS_SHEET_NAME not in wb.sheetnames:
+        ws = wb.create_sheet(CLIENT_INFOS_SHEET_NAME)
+    else:
+        ws = wb[CLIENT_INFOS_SHEET_NAME]
+
+    header_map = _ensure_headers(ws, infos_headers, infos_header_style)
+
+    # Find existing row by ref client
+    ref_client = _first_available(client_data, ["Ref_Client", "ref_client"], "")
+    target_row = None
+    if ref_client:
+        for row in range(2, ws.max_row + 1):
+            if ws.cell(row=row, column=header_map["Réf. Client"]).value == ref_client:
+                target_row = row
+                break
+
+    if target_row is None:
+        target_row = 2
+        while ws[f'A{target_row}'].value is not None:
+            target_row += 1
+
+    field_map = {
+        "Date": ["Timestamp", "Date", "date_jour"],
+        "Réf. Client": ["Ref_Client", "ref_client"],
+        "Numéro Dossier": ["Numero_Dossier", "numero_dossier"],
+        "Type Client": ["Type_Client", "type_client"],
+        "Prénom": ["Prénom", "prenom"],
+        "Nom": ["Nom", "nom"],
+        "Date Arrivée": ["Date_Arrivée", "date_arrivee"],
+        "Date Départ": ["Date_Départ", "date_depart"],
+        "Durée Séjour": ["Durée_Séjour", "duree_sejour"],
+        "Nombre Participants": ["Nombre_Participants", "nombre_participants"],
+        "Nombre Adultes": ["Nombre_Adultes", "nombre_adultes"],
+        "Enfants 2-12": ["Enfants_2_12_ans", "nombre_enfants_2_12"],
+        "Bébés 0-2": ["Bébés_0_2_ans", "nombre_bebes_0_2"],
+        "Téléphone": ["Téléphone", "telephone"],
+        "Téléphone WhatsApp": ["Téléphone_WhatsApp", "telephone_whatsapp"],
+        "Email": ["Email", "email"],
+        "Période": ["Période", "periode"],
+        "Restauration": ["Restauration", "restauration"],
+        "Hébergement": ["Hébergement", "hebergement"],
+        "Chambre": ["Chambre", "chambre"],
+        "Enfant": ["Enfant", "enfant"],
+        "Âge Enfant": ["Âge_Enfant", "age_enfant"],
+        "Forfait": ["Forfait", "forfait"],
+        "Circuit": ["Circuit", "circuit"],
+        "Type Circuit": ["Type_Circuit", "type_circuit"],
+        "Ville Départ": ["Ville_Depart", "ville_depart"],
+        "Ville Arrivée": ["Ville_Arrivee", "ville_arrivee"],
+        "Type Hôtel Arrivée": ["Type_Hotel_Arrivee", "type_hotel_arrivee"],
+        "SGL": ["SGL_Count", "sgl_count"],
+        "DBL": ["DBL_Count", "dbl_count"],
+        "TWN": ["TWN_Count", "twn_count"],
+        "TPL": ["TPL_Count", "tpl_count"],
+        "FML": ["FML_Count", "fml_count"]
+    }
+    for header, keys in field_map.items():
+        col = header_map.get(header)
+        if col:
+            ws.cell(row=target_row, column=col, value=_first_available(client_data, keys, ""))
+
+    wb.save(CLIENT_EXCEL_PATH)
+    return True
 
 
 @cached_client_data(ttl_seconds=3600)  # Cache for 1 hour
@@ -245,6 +341,7 @@ def load_all_clients():
     header_map = _ensure_headers(ws, [])
 
     clients = []
+    infos_map = _load_client_infos_map()
     # Start from row 2 (skip headers)
     for row in range(2, ws.max_row + 1):
         if ws[f'A{row}'].value is None:
@@ -289,6 +386,9 @@ def load_all_clients():
             'tpl_count': _cell("TPL") or '',
             'fml_count': _cell("FML") or ''
         }
+        ref_key = client.get('ref_client')
+        if ref_key and ref_key in infos_map:
+            client.update(infos_map[ref_key])
         clients.append(client)
 
     return clients
@@ -375,7 +475,48 @@ def update_client_in_excel(row_number, client_data):
 
     wb.save(CLIENT_EXCEL_PATH)
     invalidate_client_cache()
+    _save_client_infos_to_excel(client_data)
     return True
+
+
+def _load_client_infos_map():
+    """Load extended client infos from INFOS_CLIENTS sheet by ref client"""
+    if not OPENPYXL_AVAILABLE:
+        return {}
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return {}
+
+    wb = load_workbook(CLIENT_EXCEL_PATH, data_only=True)
+    if CLIENT_INFOS_SHEET_NAME not in wb.sheetnames:
+        return {}
+
+    ws = wb[CLIENT_INFOS_SHEET_NAME]
+    header_map = _ensure_headers(ws, [])
+    infos_map = {}
+
+    def _cell(row, header, fallback_cell=None):
+        col = header_map.get(header)
+        if col:
+            return ws.cell(row=row, column=col).value
+        if fallback_cell:
+            return ws[fallback_cell].value
+        return None
+
+    for row in range(2, ws.max_row + 1):
+        if ws[f'A{row}'].value is None:
+            continue
+        ref_client = _cell(row, "Réf. Client", f'B{row}') or ''
+        if not ref_client:
+            continue
+        infos_map[ref_client] = {
+            'numero_dossier': _cell(row, "Numéro Dossier") or '',
+            'type_circuit': _cell(row, "Type Circuit") or '',
+            'ville_depart': _cell(row, "Ville Départ") or '',
+            'ville_arrivee': _cell(row, "Ville Arrivée") or '',
+            'type_hotel_arrivee': _cell(row, "Type Hôtel Arrivée") or ''
+        }
+
+    return infos_map
 
 
 def delete_client_from_excel(row_number):

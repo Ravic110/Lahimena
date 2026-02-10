@@ -14,6 +14,7 @@ class ClientData:
     def __init__(self):
         self.timestamp = ""
         self.ref_client = ""
+        self.numero_dossier = ""
         self.type_client = ""  # Individuel ou Groupe
         self.prenom = ""
         self.nom = ""
@@ -35,6 +36,10 @@ class ClientData:
         self.age_enfant = ""
         self.forfait = ""
         self.circuit = ""
+        self.type_circuit = ""
+        self.ville_depart = ""
+        self.ville_arrivee = ""
+        self.type_hotel_arrivee = ""
         # Rooming list
         self.sgl_count = ""  # Single
         self.dbl_count = ""  # Double
@@ -52,6 +57,7 @@ class ClientData:
         return {
             'Timestamp': self.timestamp,
             'Ref_Client': self.ref_client,
+            'Numero_Dossier': self.numero_dossier,
             'Type_Client': self.type_client,
             'Prénom': self.prenom,
             'Nom': self.nom,
@@ -73,6 +79,10 @@ class ClientData:
             'Âge_Enfant': self.age_enfant,
             'Forfait': self.forfait,
             'Circuit': self.circuit,
+            'Type_Circuit': self.type_circuit,
+            'Ville_Depart': self.ville_depart,
+            'Ville_Arrivee': self.ville_arrivee,
+            'Type_Hotel_Arrivee': self.type_hotel_arrivee,
             'SGL_Count': self.sgl_count,
             'DBL_Count': self.dbl_count,
             'TWN_Count': self.twn_count,
@@ -94,6 +104,7 @@ class ClientData:
         client = cls()
         client.timestamp = form_data.get('timestamp', datetime.now().strftime('%d/%m/%Y %H:%M'))
         client.ref_client = form_data.get('ref_client', '').strip()
+        client.numero_dossier = form_data.get('numero_dossier', '').strip()
         client.type_client = form_data.get('type_client', '').strip()
         client.prenom = form_data.get('prenom', '').strip()
         client.nom = form_data.get('nom', '').strip()
@@ -115,6 +126,10 @@ class ClientData:
         client.age_enfant = form_data.get('age_enfant', '')
         client.forfait = form_data.get('forfait', '')
         client.circuit = form_data.get('circuit', '')
+        client.type_circuit = form_data.get('type_circuit', '')
+        client.ville_depart = form_data.get('ville_depart', '')
+        client.ville_arrivee = form_data.get('ville_arrivee', '')
+        client.type_hotel_arrivee = form_data.get('type_hotel_arrivee', '')
         client.sgl_count = form_data.get('sgl_count', '').strip()
         client.dbl_count = form_data.get('dbl_count', '').strip()
         client.twn_count = form_data.get('twn_count', '').strip()
