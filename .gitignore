@@ -130,8 +130,7 @@ dmypy.json
 
 # Project specific
 # Data files (generated)
-data.xlsx
-*.xlsx
+
 
 # Logs
 *.log
