@@ -12,7 +12,14 @@ except ImportError:
 import os
 import shutil
 from datetime import datetime
-from config import CLIENT_EXCEL_PATH, HOTEL_EXCEL_PATH, CLIENT_SHEET_NAME, HOTEL_SHEET_NAME, COTATION_H_SHEET_NAME
+from config import (
+    CLIENT_EXCEL_PATH,
+    HOTEL_EXCEL_PATH,
+    CLIENT_SHEET_NAME,
+    CLIENT_INFOS_SHEET_NAME,
+    HOTEL_SHEET_NAME,
+    COTATION_H_SHEET_NAME,
+)
 from utils.logger import logger
 from utils.cache import cached_hotel_data, cached_client_data, invalidate_hotel_cache, invalidate_client_cache
 
