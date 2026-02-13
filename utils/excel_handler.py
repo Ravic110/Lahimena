@@ -111,6 +111,31 @@ def _ensure_headers(ws, headers, header_style=None):
     return header_map
 
 
+def _get_header_map(ws, header_row=1):
+    header_map = {}
+    max_col = ws.max_column if ws.max_column and ws.max_column > 0 else 0
+    for col in range(1, max_col + 1):
+        value = ws.cell(row=header_row, column=col).value
+        if value is not None and str(value).strip() != "":
+            header_map[str(value).strip()] = col
+    return header_map
+
+
+def _iter_grouped_columns(ws, group_row=1, header_row=2):
+    columns = []
+    last_group = ""
+    max_col = ws.max_column if ws.max_column and ws.max_column > 0 else 0
+    for col in range(1, max_col + 1):
+        group_val = ws.cell(row=group_row, column=col).value
+        if group_val is not None and str(group_val).strip() != "":
+            last_group = str(group_val).strip()
+        header_val = ws.cell(row=header_row, column=col).value
+        if header_val is None or str(header_val).strip() == "":
+            continue
+        columns.append((last_group, str(header_val).strip(), col))
+    return columns
+
+
 def _first_available(data, keys, default=""):
     for key in keys:
         if key in data and data.get(key) not in (None, ""):
@@ -576,57 +601,258 @@ def load_all_hotels(client_type=None):
     if not os.path.exists(HOTEL_EXCEL_PATH):
         return []
 
-    wb = load_workbook(HOTEL_EXCEL_PATH)
+    wb = load_workbook(HOTEL_EXCEL_PATH, data_only=True)
     if HOTEL_SHEET_NAME not in wb.sheetnames:
         return []
 
     ws = wb[HOTEL_SHEET_NAME]
-    header_map = _ensure_headers(ws, [])
+    header_map_row1 = _get_header_map(ws, 1)
+    header_map_row2 = _get_header_map(ws, 2)
+    use_grouped_format = "Ville" in header_map_row2 and "HTL" in header_map_row2 and "Ville" not in header_map_row1
 
     hotels = []
-    # Start from row 2 (skip headers)
-    for row in range(2, ws.max_row + 1):
-        if ws[f'A{row}'].value is None:
-            continue
-
-        def _cell(header, fallback_cell=None):
-            col = header_map.get(header)
-            if col:
-                return ws.cell(row=row, column=col).value
-            if fallback_cell:
-                return ws[fallback_cell].value
-            return None
-
-        hotel = {
-            'row_number': row,
-            'id': _cell("ID") or f"{_cell('Ville', f'A{row}')}_{_cell('HTL', f'B{row}')}",
-            'nom': _cell("HTL", f'B{row}') or '',
-            'lieu': _cell("Ville", f'A{row}') or '',
-            'type_hebergement': _cell("TYPE_HEBERGEMENT") or 'Hôtel',
-            'categorie': _cell("CATÉGORIE", f'C{row}') or '',
-            'type_client': _cell("TYPE_CLIENT", f'N{row}') or 'TO',
-            'chambre_single': _parse_num(_cell("SPL", f'E{row}')),
-            'chambre_double': _parse_num(_cell("DBL", f'F{row}')),
-            'chambre_familiale': _parse_num(_cell("FML", f'H{row}')),
-            'lit_supp': _parse_num(_cell("SUPP", f'I{row}')),
-            'day_use': _parse_num(_cell("DAY_USE")) if _cell("DAY_USE") is not None else 0,
-            'vignette': _parse_num(_cell("VIGNETTE")) if _cell("VIGNETTE") is not None else 0,
-            'taxe_sejour': _parse_num(_cell("TAXE_SEJOUR")) if _cell("TAXE_SEJOUR") is not None else 0,
-            'petit_dejeuner': _parse_num(_cell("PDJ", f'K{row}')),
-            'dejeuner': _parse_num(_cell("DJ", f'L{row}')),
-            'diner': _parse_num(_cell("DR", f'M{row}')),
-            'description': _cell("DESCRIPTION") or f"Unité: {_cell('UNITÉ', f'D{row}') or ''}, Suite: {_cell('SUITE', f'J{row}') or ''}",
-            'contact': _cell("CONTACT") or '',
-            'email': _cell("EMAIL") or ''
+    if use_grouped_format:
+        grouped_columns = _iter_grouped_columns(ws, 1, 2)
+        group_key_map = {
+            "HOTEL": "hotel",
+            "STANDARD": "standard",
+            "BUNGALOWS": "bungalows",
+            "DE LUXE": "deluxe",
+            "SUITE": "suite",
+            "OPTIONS": "options",
+            "TAXE": "taxes",
+            "REPAS": "meals",
+            "AUTRES INFORMATIONS ET REMARQUES": "extras"
+        }
+        room_key_map = {
+            "SPL": "single",
+            "DBL": "double",
+            "TWINS": "twin",
+            "FML": "familiale",
+            "TRIPLE": "triple",
+            "CHAMBRE CHAUFFEUR": "chauffeur",
+            "DORTOIR": "dortoir",
+            "SUPP": "supp",
+            "STUDIOS": "studios",
+            "VIP": "vip"
+        }
+        options_key_map = {
+            "CH. EVASION": "ch_evasion",
+            "MASSAGE": "massage"
+        }
+        taxes_key_map = {
+            "VIGNETTE": "vignette",
+            "TAXE DE SEJOUR": "taxe_sejour",
+            "TAXE DE SÉJOUR": "taxe_sejour"
+        }
+        meals_key_map = {
+            "PDJ": "petit_dejeuner",
+            "DJ": "dejeuner",
+            "DR": "diner",
+            "REPAS GUIDE": "repas_guide",
+            "REPAS CHAUFFEUR": "repas_chauffeur"
+        }
+        extras_key_map = {
+            "INCLUE": "inclue",
+            "SPA": "spa",
+            "REMARQUES": "remarques"
         }
 
-        # Filter by client type if specified
-        if client_type and hotel['type_client'] != client_type:
-            continue
+        for row in range(3, ws.max_row + 1):
+            if ws[f'A{row}'].value is None:
+                continue
 
-        hotels.append(hotel)
+            hotel = {
+                'row_number': row,
+                'id': "",
+                'nom': "",
+                'lieu': "",
+                'categorie': "",
+                'type_client': "",
+                'unite': "",
+                'type_hebergement': "Hôtel",
+                'room_rates': {
+                    'standard': {},
+                    'bungalows': {},
+                    'deluxe': {},
+                    'suite': {}
+                },
+                'options': {},
+                'taxes': {},
+                'meals': {},
+                'extras': {},
+                'contact': "",
+                'email': ""
+            }
+
+            raw_category = ""
+
+            for group, header, col in grouped_columns:
+                group_key = group_key_map.get(str(group).strip().upper())
+                if not group_key:
+                    continue
+                value = ws.cell(row=row, column=col).value
+                if value is None or value == "":
+                    continue
+
+                header_norm = str(header).strip()
+                header_norm_upper = header_norm.upper()
+
+                if group_key == "hotel":
+                    if header_norm_upper == "VILLE":
+                        hotel['lieu'] = str(value).strip()
+                    elif header_norm_upper == "HTL":
+                        hotel['nom'] = str(value).strip()
+                    elif header_norm_upper == "CATÉGORIE" or header_norm_upper == "CATEGORIE":
+                        raw_category = str(value).strip()
+                    elif header_norm_upper == "UNITÉ" or header_norm_upper == "UNITE":
+                        hotel['unite'] = str(value).strip()
+                elif group_key in ("standard", "bungalows", "deluxe", "suite"):
+                    room_key = room_key_map.get(header_norm_upper)
+                    if room_key:
+                        hotel['room_rates'][group_key][room_key] = _parse_num(value)
+                elif group_key == "options":
+                    opt_key = options_key_map.get(header_norm_upper)
+                    if opt_key:
+                        hotel['options'][opt_key] = _parse_num(value)
+                elif group_key == "taxes":
+                    tax_key = taxes_key_map.get(header_norm_upper)
+                    if tax_key:
+                        hotel['taxes'][tax_key] = _parse_num(value)
+                elif group_key == "meals":
+                    meal_key = meals_key_map.get(header_norm_upper)
+                    if meal_key:
+                        hotel['meals'][meal_key] = _parse_num(value)
+                elif group_key == "extras":
+                    extra_key = extras_key_map.get(header_norm_upper)
+                    if extra_key:
+                        hotel['extras'][extra_key] = value
+
+            raw_category_norm = raw_category.strip().upper()
+            if raw_category_norm in ("TO", "PBC", "DU"):
+                hotel['type_client'] = raw_category_norm
+                hotel['categorie'] = ""
+            else:
+                hotel['categorie'] = raw_category
+                hotel['type_client'] = ""
+
+            if not hotel['type_client']:
+                hotel['type_client'] = "TO"
+
+            hotel['id'] = f"{hotel['lieu']}_{hotel['nom']}_{hotel['type_client']}"
+
+            standard_rates = hotel['room_rates'].get('standard', {})
+            hotel['chambre_single'] = standard_rates.get('single', 0)
+            hotel['chambre_double'] = standard_rates.get('double', 0) or standard_rates.get('twin', 0)
+            hotel['chambre_familiale'] = standard_rates.get('familiale', 0)
+            hotel['lit_supp'] = standard_rates.get('supp', 0)
+            hotel['petit_dejeuner'] = hotel['meals'].get('petit_dejeuner', 0)
+            hotel['dejeuner'] = hotel['meals'].get('dejeuner', 0)
+            hotel['diner'] = hotel['meals'].get('diner', 0)
+
+            if client_type and hotel['type_client'] and hotel['type_client'] != client_type:
+                continue
+
+            hotels.append(hotel)
+    else:
+        header_map = _ensure_headers(ws, [])
+        # Start from row 2 (skip headers)
+        for row in range(2, ws.max_row + 1):
+            if ws[f'A{row}'].value is None:
+                continue
+
+            def _cell(header, fallback_cell=None):
+                col = header_map.get(header)
+                if col:
+                    return ws.cell(row=row, column=col).value
+                if fallback_cell:
+                    return ws[fallback_cell].value
+                return None
+
+            hotel = {
+                'row_number': row,
+                'id': _cell("ID") or f"{_cell('Ville', f'A{row}')}_{_cell('HTL', f'B{row}')}",
+                'nom': _cell("HTL", f'B{row}') or '',
+                'lieu': _cell("Ville", f'A{row}') or '',
+                'type_hebergement': _cell("TYPE_HEBERGEMENT") or 'Hôtel',
+                'categorie': _cell("CATÉGORIE", f'C{row}') or '',
+                'type_client': _cell("TYPE_CLIENT", f'N{row}') or 'TO',
+                'chambre_single': _parse_num(_cell("SPL", f'E{row}')),
+                'chambre_double': _parse_num(_cell("DBL", f'F{row}')),
+                'chambre_familiale': _parse_num(_cell("FML", f'H{row}')),
+                'lit_supp': _parse_num(_cell("SUPP", f'I{row}')),
+                'day_use': _parse_num(_cell("DAY_USE")) if _cell("DAY_USE") is not None else 0,
+                'vignette': _parse_num(_cell("VIGNETTE")) if _cell("VIGNETTE") is not None else 0,
+                'taxe_sejour': _parse_num(_cell("TAXE_SEJOUR")) if _cell("TAXE_SEJOUR") is not None else 0,
+                'petit_dejeuner': _parse_num(_cell("PDJ", f'K{row}')),
+                'dejeuner': _parse_num(_cell("DJ", f'L{row}')),
+                'diner': _parse_num(_cell("DR", f'M{row}')),
+                'description': _cell("DESCRIPTION") or f"Unité: {_cell('UNITÉ', f'D{row}') or ''}, Suite: {_cell('SUITE', f'J{row}') or ''}",
+                'contact': _cell("CONTACT") or '',
+                'email': _cell("EMAIL") or '',
+                'room_rates': {
+                    'standard': {
+                        'single': _parse_num(_cell("SPL", f'E{row}')),
+                        'double': _parse_num(_cell("DBL", f'F{row}')),
+                        'twin': _parse_num(_cell("DBL", f'F{row}')),
+                        'familiale': _parse_num(_cell("FML", f'H{row}')),
+                        'supp': _parse_num(_cell("SUPP", f'I{row}'))
+                    }
+                },
+                'meals': {
+                    'petit_dejeuner': _parse_num(_cell("PDJ", f'K{row}')),
+                    'dejeuner': _parse_num(_cell("DJ", f'L{row}')),
+                    'diner': _parse_num(_cell("DR", f'M{row}'))
+                },
+                'options': {},
+                'taxes': {},
+                'extras': {}
+            }
+
+            # Filter by client type if specified
+            if client_type and hotel['type_client'] != client_type:
+                continue
+
+            hotels.append(hotel)
 
     return hotels
+
+
+def load_all_circuits():
+    """
+    Load circuit names from the Circuits sheet in data-hotel.xlsx.
+
+    Returns:
+        list: List of circuit names
+    """
+    if not OPENPYXL_AVAILABLE:
+        logger.warning("openpyxl not available. Cannot load circuits from Excel.")
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = load_workbook(HOTEL_EXCEL_PATH, data_only=True)
+    if "Circuits" not in wb.sheetnames:
+        return []
+
+    ws = wb["Circuits"]
+    header_map = _get_header_map(ws, 1)
+    name_col = header_map.get("Nom du circuit") or header_map.get("Nom") or 2
+
+    circuits = []
+    seen = set()
+    for row in range(2, ws.max_row + 1):
+        value = ws.cell(row=row, column=name_col).value
+        if value is None or str(value).strip() == "":
+            continue
+        name = str(value).strip()
+        if name in seen:
+            continue
+        seen.add(name)
+        circuits.append(name)
+
+    return circuits
 
 
 def save_hotel_to_excel(hotel_data):

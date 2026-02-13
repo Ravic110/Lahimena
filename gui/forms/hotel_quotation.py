@@ -15,6 +15,29 @@ import subprocess
 from utils.validators import get_exchange_rates, convert_currency
 
 
+ROOM_GROUP_LABELS = {
+    "standard": "Standard",
+    "bungalows": "Bungalows",
+    "deluxe": "De luxe",
+    "suite": "Suite"
+}
+ROOM_GROUP_KEYS = {label: key for key, label in ROOM_GROUP_LABELS.items()}
+
+ROOM_TYPE_LABELS = {
+    "single": "Single",
+    "double": "Double",
+    "twin": "Twin",
+    "familiale": "Familiale",
+    "triple": "Triple",
+    "chauffeur": "Chauffeur",
+    "dortoir": "Dortoir",
+    "supp": "Suppl.",
+    "studios": "Studio",
+    "vip": "VIP"
+}
+ROOM_TYPE_KEYS = {label: key for key, label in ROOM_TYPE_LABELS.items()}
+
+
 class HotelQuotation:
     """
     Hotel quotation component for creating hotel price quotes
@@ -42,14 +65,24 @@ class HotelQuotation:
         """Load hotels and filter duplicates"""
         hotels = load_all_hotels(client_type)
         
-        # Remove duplicates based on nom and lieu
+        # Remove duplicates based on nom, lieu, and categorie
         unique_hotels = {}
         for hotel in hotels:
-            key = f"{hotel['nom']}_{hotel['lieu']}"
+            categorie = (hotel.get('categorie') or '').strip()
+            key = f"{hotel['nom']}_{hotel['lieu']}_{categorie}"
             if key not in unique_hotels:
                 unique_hotels[key] = hotel
         
         return list(unique_hotels.values())
+
+    def _hotel_display(self, hotel):
+        """Build display label for hotel choice"""
+        nom = (hotel.get('nom') or '').strip()
+        lieu = (hotel.get('lieu') or '').strip()
+        categorie = (hotel.get('categorie') or '').strip()
+        if categorie:
+            return f"{nom} - {lieu} ({categorie})"
+        return f"{nom} - {lieu}"
 
     def _load_clients(self):
         """Load all clients from Excel"""
@@ -242,7 +275,7 @@ class HotelQuotation:
         )
         params_frame.pack(fill="x", pady=(0, 10))
 
-        # Row 1: Number of nights and room type
+        # Row 0: Number of nights and room group
         tk.Label(
             params_frame,
             text="Nombre de nuits:",
@@ -264,31 +297,51 @@ class HotelQuotation:
 
         tk.Label(
             params_frame,
-            text="Type de chambre:",
+            text="Gamme:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
         ).grid(row=0, column=2, sticky="w", pady=5)
 
-        self.room_type_var = tk.StringVar(value="Double")
-        self.room_type_combo = ttk.Combobox(
+        self.room_group_var = tk.StringVar(value="")
+        self.room_group_combo = ttk.Combobox(
             params_frame,
-            textvariable=self.room_type_var,
-            values=TYPE_CHAMBRES,
+            textvariable=self.room_group_var,
+            values=[],
             font=ENTRY_FONT,
             width=15,
             state="readonly"
         )
-        self.room_type_combo.grid(row=0, column=3, padx=(10, 0), pady=5)
+        self.room_group_combo.grid(row=0, column=3, padx=(10, 0), pady=5)
+        self.room_group_combo.bind("<<ComboboxSelected>>", self._on_room_group_selected)
 
-        # Row 2: Number of adults and children
+        # Row 1: Room type and adults
+        tk.Label(
+            params_frame,
+            text="Type de chambre:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR
+        ).grid(row=1, column=0, sticky="w", pady=5)
+
+        self.room_type_var = tk.StringVar(value="")
+        self.room_type_combo = ttk.Combobox(
+            params_frame,
+            textvariable=self.room_type_var,
+            values=[],
+            font=ENTRY_FONT,
+            width=15,
+            state="readonly"
+        )
+        self.room_type_combo.grid(row=1, column=1, padx=(10, 20), pady=5)
+
         tk.Label(
             params_frame,
             text="Adultes:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
-        ).grid(row=1, column=0, sticky="w", pady=5)
+        ).grid(row=1, column=2, sticky="w", pady=5)
 
         self.adults_var = tk.StringVar(value="2")
         self.adults_entry = tk.Entry(
@@ -299,15 +352,16 @@ class HotelQuotation:
             bg=INPUT_BG_COLOR,
             fg=TEXT_COLOR
         )
-        self.adults_entry.grid(row=1, column=1, padx=(10, 20), pady=5)
+        self.adults_entry.grid(row=1, column=3, padx=(10, 0), pady=5)
 
+        # Row 2: Number of children and client type
         tk.Label(
             params_frame,
             text="Enfants:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
-        ).grid(row=1, column=2, sticky="w", pady=5)
+        ).grid(row=2, column=0, sticky="w", pady=5)
 
         self.children_var = tk.StringVar(value="0")
         self.children_entry = tk.Entry(
@@ -318,16 +372,15 @@ class HotelQuotation:
             bg=INPUT_BG_COLOR,
             fg=TEXT_COLOR
         )
-        self.children_entry.grid(row=1, column=3, padx=(10, 0), pady=5)
+        self.children_entry.grid(row=2, column=1, padx=(10, 20), pady=5)
 
-        # Row 2: Client type
         tk.Label(
             params_frame,
             text="Type de client:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
-        ).grid(row=2, column=0, sticky="w", pady=5)
+        ).grid(row=2, column=2, sticky="w", pady=5)
 
         self.client_type_var = tk.StringVar(value="PBC")
         self.client_type_combo = ttk.Combobox(
@@ -338,7 +391,7 @@ class HotelQuotation:
             width=10,
             state="readonly"
         )
-        self.client_type_combo.grid(row=2, column=1, padx=(10, 0), pady=5)
+        self.client_type_combo.grid(row=2, column=3, padx=(10, 0), pady=5)
 
         # Row 3: Period and meal plan
         tk.Label(
@@ -578,9 +631,10 @@ class HotelQuotation:
         if selection:
             # Find the selected hotel
             for hotel in self.hotels:
-                hotel_display = f"{hotel['nom']} - {hotel['lieu']}"
+                hotel_display = self._hotel_display(hotel)
                 if hotel_display == selection:
                     self.selected_hotel = hotel
+                    self._update_room_group_options()
                     break
 
     def _on_city_selected(self, event=None):
@@ -588,12 +642,82 @@ class HotelQuotation:
         city = self.city_var.get()
         # Filter hotels by city and update hotel combobox
         if city:
-            filtered = [f"{h['nom']} - {h['lieu']}" for h in self.hotels if h.get('lieu') == city]
+            filtered = [self._hotel_display(h) for h in self.hotels if h.get('lieu') == city]
         else:
-            filtered = [f"{h['nom']} - {h['lieu']}" for h in self.hotels]
+            filtered = [self._hotel_display(h) for h in self.hotels]
         # Update combobox values and clear previous selection
         self.hotel_combo['values'] = filtered
         self.hotel_var.set("")
+        self.selected_hotel = None
+        self._clear_room_selections()
+
+    def _clear_room_selections(self):
+        """Reset room group/type selections"""
+        if hasattr(self, 'room_group_combo'):
+            self.room_group_combo['values'] = []
+        if hasattr(self, 'room_type_combo'):
+            self.room_type_combo['values'] = []
+        if hasattr(self, 'room_group_var'):
+            self.room_group_var.set("")
+        if hasattr(self, 'room_type_var'):
+            self.room_type_var.set("")
+
+    def _get_room_group_options(self):
+        """Get available room groups for the selected hotel"""
+        if not self.selected_hotel:
+            return []
+        rates = self.selected_hotel.get('room_rates', {})
+        options = []
+        for key, label in ROOM_GROUP_LABELS.items():
+            group_rates = rates.get(key, {})
+            if any(v for v in group_rates.values() if v):
+                options.append(label)
+        return options
+
+    def _get_room_type_options(self, group_key):
+        """Get available room types for a room group"""
+        if not self.selected_hotel or not group_key:
+            return []
+        rates = self.selected_hotel.get('room_rates', {}).get(group_key, {})
+        options = []
+        for key, label in ROOM_TYPE_LABELS.items():
+            if rates.get(key):
+                options.append(label)
+        if not options and rates:
+            for key in rates.keys():
+                label = ROOM_TYPE_LABELS.get(key)
+                if label:
+                    options.append(label)
+        return options
+
+    def _update_room_group_options(self):
+        """Update room group and room type options based on selected hotel"""
+        group_options = self._get_room_group_options()
+        self.room_group_combo['values'] = group_options
+        if group_options:
+            self.room_group_var.set(group_options[0])
+        else:
+            self.room_group_var.set("")
+        self._on_room_group_selected()
+
+    def _on_room_group_selected(self, event=None):
+        """Handle room group selection"""
+        group_label = self.room_group_var.get()
+        group_key = ROOM_GROUP_KEYS.get(group_label, "")
+        room_options = self._get_room_type_options(group_key)
+        self.room_type_combo['values'] = room_options
+        if room_options:
+            self.room_type_var.set(room_options[0])
+        else:
+            self.room_type_var.set("")
+
+    def _get_room_display(self):
+        """Build a display label for the selected room group/type"""
+        group_label = self.room_group_var.get().strip() if hasattr(self, 'room_group_var') else ""
+        room_label = self.room_type_var.get().strip() if hasattr(self, 'room_type_var') else ""
+        if group_label and room_label:
+            return f"{group_label} / {room_label}"
+        return room_label or group_label or ""
 
     def _on_client_selected(self, event=None):
         """Handle client selection and auto-fill fields"""
@@ -628,18 +752,21 @@ class HotelQuotation:
                         except Exception:
                             pass
 
-                    # Room type: match against TYPE_CHAMBRES or keywords
+                    # Room type: match against available options or keywords
                     ch = client.get('chambre')
                     if ch:
                         try:
                             ch_str = str(ch)
+                            room_options = list(self.room_type_combo['values']) if hasattr(self, 'room_type_combo') else []
+                            if not room_options:
+                                room_options = list(ROOM_TYPE_LABELS.values())
                             # direct match
-                            if ch_str in TYPE_CHAMBRES:
+                            if ch_str in room_options:
                                 self.room_type_var.set(ch_str)
                             else:
                                 # try case-insensitive keyword match
                                 lower = ch_str.lower()
-                                for t in TYPE_CHAMBRES:
+                                for t in room_options:
                                     if t.lower() in lower:
                                         self.room_type_var.set(t)
                                         break
@@ -690,12 +817,13 @@ class HotelQuotation:
         self.hotels = self._load_and_filter_hotels(client_type)
         
         # Update hotel combobox
-        hotel_names = [f"{hotel['nom']} - {hotel['lieu']}" for hotel in self.hotels]
+        hotel_names = [self._hotel_display(hotel) for hotel in self.hotels]
         self.hotel_combo['values'] = hotel_names
         
         # Reset hotel selection
         self.hotel_var.set("")
         self.selected_hotel = None
+        self._clear_room_selections()
 
     def _update_exchange_rates(self):
         """Update the exchange rates display"""
@@ -768,35 +896,48 @@ class HotelQuotation:
                 messagebox.showerror("Erreur", "Le nombre de nuits et d'adultes doit être supérieur à 0.")
                 return
                 
-            room_type = self.room_type_var.get()
+            room_group_label = self.room_group_var.get().strip() if self.room_group_var.get() else ""
+            room_type_label = self.room_type_var.get().strip() if self.room_type_var.get() else ""
+            room_group_key = ROOM_GROUP_KEYS.get(room_group_label, "standard")
+            room_type_key = ROOM_TYPE_KEYS.get(room_type_label, "")
 
             # Get prices from hotel data
             room_price = 0
-            if room_type == "Single" and self.selected_hotel.get('chambre_single'):
-                room_price = self.selected_hotel['chambre_single']
-            elif room_type == "Double" and self.selected_hotel.get('chambre_double'):
-                room_price = self.selected_hotel['chambre_double']
-            elif room_type == "Triple" and self.selected_hotel.get('chambre_double'):
-                room_price = self.selected_hotel['chambre_double']  # Approximation
-            elif room_type == "Familliale" and self.selected_hotel.get('chambre_familiale'):
-                room_price = self.selected_hotel['chambre_familiale']
+            if room_type_key:
+                group_rates = self.selected_hotel.get('room_rates', {}).get(room_group_key, {})
+                room_price = group_rates.get(room_type_key, 0)
 
             if room_price == 0:
-                messagebox.showwarning("Prix non disponible", f"Le prix pour {room_type} n'est pas disponible pour cet hôtel.")
+                # Fallback to legacy fields if room_rates are not populated
+                if room_type_label == "Single" and self.selected_hotel.get('chambre_single'):
+                    room_price = self.selected_hotel['chambre_single']
+                elif room_type_label == "Double" and self.selected_hotel.get('chambre_double'):
+                    room_price = self.selected_hotel['chambre_double']
+                elif room_type_label == "Triple" and self.selected_hotel.get('chambre_double'):
+                    room_price = self.selected_hotel['chambre_double']
+                elif room_type_label == "Familliale" and self.selected_hotel.get('chambre_familiale'):
+                    room_price = self.selected_hotel['chambre_familiale']
+
+            if room_price == 0:
+                messagebox.showwarning("Prix non disponible", f"Le prix pour {room_type_label} n'est pas disponible pour cet hôtel.")
                 return
 
             # Calculate base price
             base_price = room_price * nights
 
             # Calculate meal supplements
+            meals = self.selected_hotel.get('meals', {})
+            petit_dej = meals.get('petit_dejeuner', self.selected_hotel.get('petit_dejeuner', 0))
+            dejeuner = meals.get('dejeuner', self.selected_hotel.get('dejeuner', 0))
+            diner = meals.get('diner', self.selected_hotel.get('diner', 0))
             meal_price = 0
             meal_plan = self.meal_var.get()
-            if meal_plan == "Petit déjeuner" and self.selected_hotel.get('petit_dejeuner'):
-                meal_price = self.selected_hotel['petit_dejeuner'] * nights * (adults + children)
-            elif meal_plan == "Demi-pension" and self.selected_hotel.get('dejeuner') and self.selected_hotel.get('diner'):
-                meal_price = (self.selected_hotel['dejeuner'] + self.selected_hotel['diner']) * nights * (adults + children)
-            elif meal_plan == "Pension complète" and self.selected_hotel.get('petit_dejeuner') and self.selected_hotel.get('dejeuner') and self.selected_hotel.get('diner'):
-                meal_price = (self.selected_hotel['petit_dejeuner'] + self.selected_hotel['dejeuner'] + self.selected_hotel['diner']) * nights * (adults + children)
+            if meal_plan == "Petit déjeuner" and petit_dej:
+                meal_price = petit_dej * nights * (adults + children)
+            elif meal_plan == "Demi-pension" and dejeuner and diner:
+                meal_price = (dejeuner + diner) * nights * (adults + children)
+            elif meal_plan == "Pension complète" and petit_dej and dejeuner and diner:
+                meal_price = (petit_dej + dejeuner + diner) * nights * (adults + children)
 
             # Calculate total
             total_price = base_price + meal_price
@@ -819,7 +960,10 @@ class HotelQuotation:
             client_name = self.client_name_var.get()
             client_email = self.client_email_var.get()
             client_phone = self.client_phone_var.get()
-            self._display_results(base_price, meal_price, total_price, nights, adults, children, room_type, meal_plan, client_type, currency, client_name, client_email, client_phone)
+            display_room = room_type_label
+            if room_group_label:
+                display_room = f"{room_group_label} / {room_type_label}" if room_type_label else room_group_label
+            self._display_results(base_price, meal_price, total_price, nights, adults, children, display_room, meal_plan, client_type, currency, client_name, client_email, client_phone)
 
         except ValueError as e:
             error_details = str(e)
@@ -935,9 +1079,15 @@ class HotelQuotation:
                     logger.warning(f"Could not retrieve client email: {e}")
 
             # Extract pricing details from results
-            room_type = self.room_type_var.get() if hasattr(self, 'room_type_var') else "Standard"
-            nights = int(self.nights_spinbox.get()) if hasattr(self, 'nights_spinbox') else 1
-            adults = int(self.adults_spinbox.get()) if hasattr(self, 'adults_spinbox') else 1
+            room_type = self._get_room_display() or "Standard"
+            try:
+                nights = int(self.nights_var.get()) if hasattr(self, 'nights_var') else 1
+            except (ValueError, TypeError):
+                nights = 1
+            try:
+                adults = int(self.adults_var.get()) if hasattr(self, 'adults_var') else 1
+            except (ValueError, TypeError):
+                adults = 1
             
             # Extract price from results or calculate
             try:
@@ -1037,7 +1187,7 @@ class HotelQuotation:
         self.nights_var.set("1")
         self.adults_var.set("2")
         self.children_var.set("0")
-        self.room_type_var.set("Double")
+        self._clear_room_selections()
         self.client_type_var.set("PBC")
         self.currency_var.set("Ariary")
         self.period_var.set("Moyenne saison")

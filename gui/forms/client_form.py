@@ -8,7 +8,7 @@ from datetime import datetime
 from config import *
 from models.client_data import ClientData
 from utils.validators import validate_email, validate_phone_number
-from utils.excel_handler import save_client_to_excel, load_all_hotels
+from utils.excel_handler import save_client_to_excel, load_all_hotels, load_all_circuits
 from utils.logger import logger
 import calendar
 
@@ -217,6 +217,7 @@ class ClientForm:
         self.form_frame = None
         self.main_frame = None
         self.city_options = self._load_city_options()
+        self.circuit_options = self._load_circuit_options()
 
         self._create_form()
 
@@ -229,6 +230,15 @@ class ClientForm:
         except Exception as e:
             logger.warning(f"Failed to load city options: {e}")
             return []
+
+    def _load_circuit_options(self):
+        """Load circuit options from the Circuits sheet when available"""
+        try:
+            circuits = load_all_circuits()
+            return circuits if circuits else CIRCUITS
+        except Exception as e:
+            logger.warning(f"Failed to load circuits: {e}")
+            return CIRCUITS
 
     def _create_form(self):
         """Create the client form with scrollable area for many fields"""
@@ -793,7 +803,7 @@ class ClientForm:
         ).pack(anchor="w")
         self.combo_circuit = ttk.Combobox(
             self.main_frame,
-            values=CIRCUITS,
+            values=self.circuit_options,
             state="readonly",
             width=37
         )
