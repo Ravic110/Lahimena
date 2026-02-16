@@ -67,6 +67,9 @@ class Sidebar:
 
     def _create_menu_buttons(self):
         """Create all menu buttons"""
+        # Home
+        self._create_button("🏠 Accueil", self._show_home)
+
         # Client Information
         btn1 = self._create_button("🏨 Information client ▶", self._show_client_form)
         submenu1_frame = self._create_submenu(btn1, [
@@ -195,6 +198,9 @@ class Sidebar:
         btn.configure(command=toggle)
 
     # Placeholder methods for menu actions
+    def _show_home(self):
+        self.main_content_callback("home")
+
     def _show_client_form(self):
         self.main_content_callback("client_form")
 

@@ -53,19 +53,15 @@ class MainContent:
             self._show_hotel_quotation()
         elif content_type == "hotel_quotation_summary":
             self._show_hotel_quotation_summary()
-        elif content_type == "welcome":
+        elif content_type in ("welcome", "home"):
             self._show_welcome()
         else:
             self._show_placeholder(content_type)
 
     def _show_welcome(self):
-        """Show welcome message"""
-        title = ctk.CTkLabel(
-            self.main_scroll,
-            text="Bienvenue - Lahimena Tours: Gestion de devis",
-            font=ctk.CTkFont(size=28, weight="bold")
-        )
-        title.pack(pady=40)
+        """Show home page"""
+        from gui.forms.home_page import HomePage
+        HomePage(self.main_scroll, self.update_content)
 
     def _show_client_form(self, client_to_edit=None):
         """Show client form"""
