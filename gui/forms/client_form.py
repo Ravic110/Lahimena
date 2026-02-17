@@ -5,6 +5,7 @@ Client form GUI component - Version améliorée avec nouveaux champs
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
+import re
 from config import *
 from models.client_data import ClientData
 from utils.validators import validate_email, validate_phone_number
@@ -256,6 +257,15 @@ class ClientForm:
             bg=MAIN_BG_COLOR
         )
         title.pack(pady=(10, 5), fill="x")
+
+        subtitle = tk.Label(
+            self.parent,
+            text="Les champs marqués * sont obligatoires",
+            font=("Arial", 9),
+            fg="#6b7280",
+            bg=MAIN_BG_COLOR
+        )
+        subtitle.pack(pady=(0, 6), fill="x")
 
         # Use the parent scrollable frame to occupy full height
         self.main_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
@@ -701,7 +711,17 @@ class ClientForm:
                 state="disabled"
             )
             entry.pack(side="left", padx=(5, 0))
+            entry.bind("<KeyRelease>", lambda e: self._on_room_count_change())
             self.rooming_entries[key] = entry
+
+        self.rooming_summary_label = tk.Label(
+            self.main_frame,
+            text="Aucune chambre sélectionnée",
+            font=("Arial", 9),
+            fg="#6b7280",
+            bg=MAIN_BG_COLOR
+        )
+        self.rooming_summary_label.pack(anchor="w", pady=(2, 12))
 
         # ===== SECTION: AUTRES INFOS =====
         section_label = tk.Label(
@@ -838,18 +858,65 @@ class ClientForm:
         # Ville d'arrivée
         tk.Label(
             self.main_frame,
-            text="Ville d'arrivée",
+            text="Villes d'itinéraire (passage + arrivée)",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
         ).pack(anchor="w")
-        self.combo_ville_arrivee = ttk.Combobox(
+
+        tk.Label(
             self.main_frame,
+            text="Ajoutez les villes dans l'ordre du parcours.",
+            font=("Arial", 9),
+            fg="#6b7280",
+            bg=MAIN_BG_COLOR
+        ).pack(anchor="w", pady=(0, 6))
+
+        itinerary_select_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
+        itinerary_select_frame.pack(fill="x", pady=(0, 8))
+        self.combo_ville_itineraire = ttk.Combobox(
+            itinerary_select_frame,
             values=self.city_options,
             state="normal",
-            width=37
+            width=29
         )
-        self.combo_ville_arrivee.pack(fill="x", pady=(0, 15))
+        self.combo_ville_itineraire.pack(side="left", fill="x", expand=True)
+        self.combo_ville_itineraire.bind("<Return>", lambda e: self._add_itinerary_city())
+        tk.Button(
+            itinerary_select_frame,
+            text="Ajouter",
+            command=self._add_itinerary_city,
+            bg="#27ae60",
+            fg="white",
+            font=("Arial", 9, "bold"),
+            width=10
+        ).pack(side="left", padx=(8, 0))
+
+        self.listbox_villes_itineraire = tk.Listbox(
+            self.main_frame,
+            height=4,
+            selectmode=tk.EXTENDED,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR
+        )
+        self.listbox_villes_itineraire.pack(fill="x", pady=(0, 6))
+        self.itinerary_count_label = tk.Label(
+            self.main_frame,
+            text="0 ville sélectionnée",
+            font=("Arial", 9),
+            fg="#6b7280",
+            bg=MAIN_BG_COLOR
+        )
+        self.itinerary_count_label.pack(anchor="w", pady=(0, 6))
+        tk.Button(
+            self.main_frame,
+            text="Retirer sélection",
+            command=self._remove_selected_itinerary_cities,
+            bg="#e67e22",
+            fg="white",
+            font=("Arial", 9),
+            width=18
+        ).pack(anchor="e", pady=(0, 15))
 
         # Type d'hôtel à la ville d'arrivée
         tk.Label(
@@ -906,6 +973,14 @@ class ClientForm:
             self._populate_fields()
         else:
             self._toggle_enfant()
+            self._update_rooming_summary()
+            self._update_itinerary_count()
+
+        self.entry_ref_client.focus_set()
+        self.parent.bind("<Control-s>", lambda e: self._validate())
+        self.parent.bind("<Control-S>", lambda e: self._validate())
+        if self.client_to_edit:
+            self.parent.bind("<Escape>", lambda e: self._cancel())
 
     def _populate_fields(self):
         """Populate form fields with client data"""
@@ -975,7 +1050,7 @@ class ClientForm:
                 # Keep disabled
                 self.rooming_vars[key].set(False)
                 self.rooming_entries[key].config(state="disabled")
-        
+        self._update_rooming_summary()
         # Combo boxes
         self.combo_type_client.set(self.client_to_edit.get('type_client', ''))
         self.combo_periode.set(self.client_to_edit.get('periode', ''))
@@ -985,8 +1060,9 @@ class ClientForm:
         self.combo_forfait.set(self.client_to_edit.get('forfait', ''))
         self.combo_circuit.set(self.client_to_edit.get('circuit', ''))
         self.combo_ville_depart.set(self.client_to_edit.get('ville_depart', ''))
-        self.combo_ville_arrivee.set(self.client_to_edit.get('ville_arrivee', ''))
         self.combo_type_hotel_arrivee.set(self.client_to_edit.get('type_hotel_arrivee', ''))
+        self._set_itinerary_cities(self.client_to_edit.get('ville_arrivee', ''))
+        self._update_type_chambre_from_rooming(clear_if_empty=False)
 
         # Handle children
         enfant = self.client_to_edit.get('enfant', '')
@@ -1075,6 +1151,136 @@ class ClientForm:
             self.rooming_entries[room_key].config(state="normal")
             self.rooming_entries[room_key].delete(0, tk.END)
             self.rooming_entries[room_key].config(state="disabled")
+        self._update_type_chambre_from_rooming()
+        self._update_rooming_summary()
+
+    def _on_room_count_change(self):
+        """Refresh rooming derived UI when quantities change."""
+        self._update_type_chambre_from_rooming()
+        self._update_rooming_summary()
+
+    def _update_rooming_summary(self):
+        """Display a compact summary for selected rooming."""
+        checked_types = sum(1 for var in self.rooming_vars.values() if var.get())
+        total_rooms = 0
+        for key, entry in self.rooming_entries.items():
+            if self.rooming_vars.get(key) and self.rooming_vars[key].get():
+                try:
+                    total_rooms += int(str(entry.get()).strip() or "0")
+                except Exception:
+                    pass
+
+        if checked_types == 0:
+            summary = "Aucune chambre sélectionnée"
+        else:
+            summary = f"{checked_types} type(s) sélectionné(s) - {total_rooms} chambre(s)"
+        self.rooming_summary_label.config(text=summary)
+
+    def _update_type_chambre_from_rooming(self, clear_if_empty=True):
+        """Auto-fill room type based on rooming list quantities."""
+        room_type_by_key = {
+            'sgl': "Single",
+            'dbl': "Double/twin",
+            'twn': "Double/twin",
+            'tpl': "Triple",
+            'fml': "Familliale"
+        }
+        priority = ["Single", "Double/twin", "Triple", "Familliale"]
+
+        def _to_int(value):
+            try:
+                return int(str(value).strip())
+            except Exception:
+                return 0
+
+        totals = {room_type: 0 for room_type in priority}
+        has_checked_room = False
+
+        for key, room_type in room_type_by_key.items():
+            if key in self.rooming_vars and self.rooming_vars[key].get():
+                has_checked_room = True
+            if key in self.rooming_entries:
+                qty = _to_int(self.rooming_entries[key].get())
+                if qty > 0:
+                    totals[room_type] += qty
+
+        selected_type = ""
+        positive_totals = {k: v for k, v in totals.items() if v > 0}
+        if positive_totals:
+            # Prefer the room type with highest quantity, then stable priority
+            selected_type = sorted(
+                positive_totals.items(),
+                key=lambda item: (-item[1], priority.index(item[0]))
+            )[0][0]
+        elif has_checked_room:
+            for key in ['sgl', 'dbl', 'twn', 'tpl', 'fml']:
+                if self.rooming_vars[key].get():
+                    selected_type = room_type_by_key[key]
+                    break
+
+        if selected_type:
+            self.combo_TypeChambre.set(selected_type)
+        elif clear_if_empty:
+            self.combo_TypeChambre.set("")
+
+    def _add_itinerary_city(self):
+        """Add a city to itinerary list, avoiding duplicates."""
+        city = self.combo_ville_itineraire.get().strip()
+        if not city:
+            return
+
+        existing = self._get_itinerary_cities()
+        if city in existing:
+            return
+
+        self.listbox_villes_itineraire.insert(tk.END, city)
+        self.combo_ville_itineraire.set("")
+        self._update_itinerary_count()
+
+    def _remove_selected_itinerary_cities(self):
+        """Remove selected itinerary cities from list."""
+        selected_indices = list(self.listbox_villes_itineraire.curselection())
+        if not selected_indices:
+            return
+        for idx in reversed(selected_indices):
+            self.listbox_villes_itineraire.delete(idx)
+        self._update_itinerary_count()
+
+    def _get_itinerary_cities(self):
+        """Return itinerary cities in display order."""
+        return [
+            self.listbox_villes_itineraire.get(i)
+            for i in range(self.listbox_villes_itineraire.size())
+        ]
+
+    def _set_itinerary_cities(self, cities_value):
+        """Set itinerary list from a string or list."""
+        self.listbox_villes_itineraire.delete(0, tk.END)
+        if not cities_value:
+            self._update_itinerary_count()
+            return
+
+        if isinstance(cities_value, list):
+            cities = [str(city).strip() for city in cities_value if str(city).strip()]
+        else:
+            cities = [
+                c.strip()
+                for c in re.split(r"[;,>\n]+", str(cities_value))
+                if c.strip()
+            ]
+
+        seen = set()
+        for city in cities:
+            if city not in seen:
+                self.listbox_villes_itineraire.insert(tk.END, city)
+                seen.add(city)
+        self._update_itinerary_count()
+
+    def _update_itinerary_count(self):
+        """Update itinerary counter label."""
+        count = self.listbox_villes_itineraire.size()
+        suffix = "ville sélectionnée" if count == 1 else "villes sélectionnées"
+        self.itinerary_count_label.config(text=f"{count} {suffix}")
 
     def _validate(self):
         """Validate and save client data"""
@@ -1106,7 +1312,7 @@ class ClientForm:
             'circuit': self.combo_circuit.get(),
             'type_circuit': self.combo_circuit.get(),
             'ville_depart': self.combo_ville_depart.get().strip(),
-            'ville_arrivee': self.combo_ville_arrivee.get().strip(),
+            'ville_arrivee': ", ".join(self._get_itinerary_cities()),
             'type_hotel_arrivee': self.combo_type_hotel_arrivee.get(),
             'sgl_count': self.rooming_entries['sgl'].get().strip(),
             'dbl_count': self.rooming_entries['dbl'].get().strip(),
@@ -1198,6 +1404,7 @@ class ClientForm:
             self.rooming_entries[key].config(state="normal")
             self.rooming_entries[key].delete(0, tk.END)
             self.rooming_entries[key].config(state="disabled")
+        self._update_rooming_summary()
         
         self.combo_type_client.set("")
         self.combo_periode.set("")
@@ -1207,7 +1414,9 @@ class ClientForm:
         self.combo_forfait.set("")
         self.combo_circuit.set("")
         self.combo_ville_depart.set("")
-        self.combo_ville_arrivee.set("")
+        self.combo_ville_itineraire.set("")
+        self.listbox_villes_itineraire.delete(0, tk.END)
+        self._update_itinerary_count()
         self.combo_type_hotel_arrivee.set("")
         self.var_enfant.set(False)
         self._toggle_enfant()
