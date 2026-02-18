@@ -19,11 +19,13 @@ class MainContent:
             parent: Parent widget
         """
         self.parent = parent
+        self.current_content_type = "home"
 
         # Create scrollable main content
         self.main_scroll = ctk.CTkScrollableFrame(
             parent,
-            corner_radius=0
+            corner_radius=0,
+            fg_color=MAIN_BG_COLOR
         )
         self.main_scroll.grid(row=0, column=1, sticky="nswe", padx=(0, 0))
 
@@ -36,6 +38,7 @@ class MainContent:
         Args:
             content_type (str): Type of content to display
         """
+        self.current_content_type = content_type
         # Clear current content
         for widget in self.main_scroll.winfo_children():
             widget.destroy()
@@ -57,6 +60,11 @@ class MainContent:
             self._show_welcome()
         else:
             self._show_placeholder(content_type)
+
+    def refresh(self):
+        """Re-render the current view after a theme change."""
+        self.main_scroll.configure(fg_color=MAIN_BG_COLOR)
+        self.update_content(self.current_content_type)
 
     def _show_welcome(self):
         """Show home page"""

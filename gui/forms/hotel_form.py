@@ -197,7 +197,7 @@ class HotelForm:
                 btn_frame,
                 text="MODIFIER",
                 command=self._validate,
-                bg="#f39c12",
+                bg=BUTTON_ORANGE,
                 fg="white",
                 font=BUTTON_FONT,
                 width=12
@@ -206,7 +206,7 @@ class HotelForm:
                 btn_frame,
                 text="ANNULER",
                 command=self._cancel,
-                bg="#95a5a6",
+                bg=BUTTON_GRAY,
                 fg="white",
                 font=BUTTON_FONT,
                 width=12
@@ -216,7 +216,7 @@ class HotelForm:
                 btn_frame,
                 text="AJOUTER",
                 command=self._validate,
-                bg="#27ae60",
+                bg=BUTTON_GREEN,
                 fg="white",
                 font=BUTTON_FONT,
                 width=12

@@ -108,6 +108,15 @@ class HotelQuotation:
         main_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         main_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
+        style = ttk.Style()
+        style.configure(
+            "Treeview",
+            background=INPUT_BG_COLOR,
+            foreground=TEXT_COLOR,
+            fieldbackground=INPUT_BG_COLOR
+        )
+        style.map("Treeview", background=[("selected", BUTTON_GREEN)])
+
         # Client information section (moved to top)
         client_frame = tk.LabelFrame(
             main_frame,

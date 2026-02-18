@@ -101,7 +101,7 @@ class HotelList:
             btn_frame,
             text="🔄 Actualiser",
             command=self._load_hotels,
-            bg="#3498db",
+            bg=BUTTON_BLUE,
             fg="white",
             font=BUTTON_FONT
         ).pack(side="left", padx=5)
@@ -110,7 +110,7 @@ class HotelList:
             btn_frame,
             text="➕ Nouvel hôtel",
             command=self._new_hotel,
-            bg="#27ae60",
+            bg=BUTTON_GREEN,
             fg="white",
             font=BUTTON_FONT
         ).pack(side="left", padx=5)
@@ -119,7 +119,7 @@ class HotelList:
             btn_frame,
             text="✏️ Modifier",
             command=self._edit_selected,
-            bg="#f39c12",
+            bg=BUTTON_ORANGE,
             fg="white",
             font=BUTTON_FONT,
             state="disabled"
@@ -130,7 +130,7 @@ class HotelList:
             btn_frame,
             text="🗑️ Supprimer",
             command=self._delete_selected,
-            bg="#e74c3c",
+            bg=BUTTON_RED,
             fg="white",
             font=BUTTON_FONT,
             state="disabled"
@@ -147,11 +147,13 @@ class HotelList:
 
         # Style for better selection appearance
         style = ttk.Style()
-        style.configure("Treeview",
-                        background=INPUT_BG_COLOR,
-                        foreground=TEXT_COLOR,
-                        fieldbackground=INPUT_BG_COLOR)
-        style.map('Treeview', background=[('selected', '#4CAF50')])
+        style.configure(
+            "Treeview",
+            background=INPUT_BG_COLOR,
+            foreground=TEXT_COLOR,
+            fieldbackground=INPUT_BG_COLOR
+        )
+        style.map("Treeview", background=[("selected", BUTTON_GREEN)])
 
         # Treeview
         columns = ("row", "id", "nom", "lieu", "type_hebergement", "categorie",

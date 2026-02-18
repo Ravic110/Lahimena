@@ -46,7 +46,7 @@ class CalendarDialog(tk.Toplevel):
             header_frame,
             text="◀",
             command=self._prev_month,
-            bg="#3498db",
+            bg=BUTTON_BLUE,
             fg="white",
             font=("Arial", 12, "bold"),
             width=3
@@ -67,7 +67,7 @@ class CalendarDialog(tk.Toplevel):
             header_frame,
             text="▶",
             command=self._next_month,
-            bg="#3498db",
+            bg=BUTTON_BLUE,
             fg="white",
             font=("Arial", 12, "bold"),
             width=3
@@ -87,7 +87,7 @@ class CalendarDialog(tk.Toplevel):
             btn_frame,
             text="Aujourd'hui",
             command=self._select_today,
-            bg="#27ae60",
+            bg=BUTTON_GREEN,
             fg="white",
             font=("Arial", 10),
             width=12
@@ -97,7 +97,7 @@ class CalendarDialog(tk.Toplevel):
             btn_frame,
             text="Annuler",
             command=self.destroy,
-            bg="#e74c3c",
+            bg=BUTTON_RED,
             fg="white",
             font=("Arial", 10),
             width=12
@@ -123,7 +123,7 @@ class CalendarDialog(tk.Toplevel):
                 self.calendar_frame,
                 text=day,
                 font=("Arial", 10, "bold"),
-                bg="#3498db",
+                bg=BUTTON_BLUE,
                 fg="white",
                 width=5
             ).grid(row=0, column=i, padx=1, pady=1, sticky="nsew")
@@ -151,7 +151,7 @@ class CalendarDialog(tk.Toplevel):
                                self.current_month == today.month and 
                                self.current_year == today.year)
                     
-                    bg_color = "#27ae60" if is_today else "#ecf0f1"
+                    bg_color = BUTTON_GREEN if is_today else INPUT_BG_COLOR
                     fg_color = "white" if is_today else "black"
                     
                     btn = tk.Button(
@@ -252,7 +252,7 @@ class ClientForm:
             main_frame,
             font=ENTRY_FONT,
             width=40,
-            bg="#e8f5e9",  # Light green background to show it's auto-filled
+            bg=READONLY_BG_COLOR,  # Light green background to show it's auto-filled
             fg=TEXT_COLOR,
             state="readonly"
         )
@@ -287,7 +287,7 @@ class ClientForm:
             text="📅",
             font=("Arial", 12),
             width=3,
-            bg="#27ae60",
+            bg=BUTTON_GREEN,
             fg="white",
             command=self._open_calendar
         ).pack(side="left", padx=(10, 0))
@@ -443,7 +443,7 @@ class ClientForm:
             command=self._toggle_enfant,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
-            selectcolor="#4CAF50"
+            selectcolor=BUTTON_GREEN
         )
         self.check_enfant_widget.pack(anchor="w", pady=(0, 15))
         self.frame_age_enfant = tk.Frame(main_frame, bg=MAIN_BG_COLOR)
@@ -489,7 +489,7 @@ class ClientForm:
                 btn_frame,
                 text="MODIFIER",
                 command=self._validate,
-                bg="#f39c12",
+                bg=BUTTON_ORANGE,
                 fg="white",
                 font=BUTTON_FONT,
                 width=12
@@ -498,7 +498,7 @@ class ClientForm:
                 btn_frame,
                 text="ANNULER",
                 command=self._cancel,
-                bg="#95a5a6",
+                bg=BUTTON_GRAY,
                 fg="white",
                 font=BUTTON_FONT,
                 width=12
@@ -508,7 +508,7 @@ class ClientForm:
                 btn_frame,
                 text="VALIDER",
                 command=self._validate,
-                bg="#27ae60",
+                bg=BUTTON_GREEN,
                 fg="white",
                 font=BUTTON_FONT,
                 width=12
@@ -574,18 +574,18 @@ class ClientForm:
 
         # Rounded rectangle
         self.canvas.create_oval(10, 10, 10+2*radius, 10+2*radius,
-                               fill="#E0E0E0", outline="#D0D0D0", width=2)
+                               fill=CARD_BG_COLOR, outline=CARD_HOVER_BG_COLOR, width=2)
         self.canvas.create_oval(width-10-2*radius, 10, width-10, 10+2*radius,
-                               fill="#E0E0E0", outline="#D0D0D0", width=2)
+                               fill=CARD_BG_COLOR, outline=CARD_HOVER_BG_COLOR, width=2)
         self.canvas.create_oval(width-10-2*radius, height-10-2*radius, width-10, height-10,
-                               fill="#E0E0E0", outline="#D0D0D0", width=2)
+                               fill=CARD_BG_COLOR, outline=CARD_HOVER_BG_COLOR, width=2)
         self.canvas.create_oval(10, height-10-2*radius, 10+2*radius, height-10,
-                               fill="#E0E0E0", outline="#D0D0D0", width=2)
+                               fill=CARD_BG_COLOR, outline=CARD_HOVER_BG_COLOR, width=2)
 
         self.canvas.create_rectangle(radius, 10, width-radius-10, height-10,
-                                    fill=MAIN_BG_COLOR, outline="#D0D0D0", width=2)
+                                    fill=MAIN_BG_COLOR, outline=CARD_HOVER_BG_COLOR, width=2)
         self.canvas.create_rectangle(10, radius, width-10, height-radius-10,
-                                    fill=MAIN_BG_COLOR, outline="#D0D0D0", width=2)
+                                    fill=MAIN_BG_COLOR, outline=CARD_HOVER_BG_COLOR, width=2)
 
         # Content frame
         self.form_frame = tk.Frame(frame, bg=MAIN_BG_COLOR)

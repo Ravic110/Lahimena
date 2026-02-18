@@ -47,7 +47,7 @@ class CalendarDialog(tk.Toplevel):
             header_frame,
             text="◀",
             command=self._prev_month,
-            bg="#3498db",
+            bg=BUTTON_BLUE,
             fg="white",
             font=("Arial", 12, "bold"),
             width=3
@@ -68,7 +68,7 @@ class CalendarDialog(tk.Toplevel):
             header_frame,
             text="▶",
             command=self._next_month,
-            bg="#3498db",
+            bg=BUTTON_BLUE,
             fg="white",
             font=("Arial", 12, "bold"),
             width=3
@@ -88,7 +88,7 @@ class CalendarDialog(tk.Toplevel):
             btn_frame,
             text="Aujourd'hui",
             command=self._select_today,
-            bg="#27ae60",
+            bg=BUTTON_GREEN,
             fg="white",
             font=("Arial", 10),
             width=12
@@ -98,7 +98,7 @@ class CalendarDialog(tk.Toplevel):
             btn_frame,
             text="Annuler",
             command=self.destroy,
-            bg="#e74c3c",
+            bg=BUTTON_RED,
             fg="white",
             font=("Arial", 10),
             width=12
@@ -124,7 +124,7 @@ class CalendarDialog(tk.Toplevel):
                 self.calendar_frame,
                 text=day,
                 font=("Arial", 10, "bold"),
-                bg="#3498db",
+                bg=BUTTON_BLUE,
                 fg="white",
                 width=5
             ).grid(row=0, column=i, padx=1, pady=1, sticky="nsew")
@@ -152,7 +152,7 @@ class CalendarDialog(tk.Toplevel):
                                self.current_month == today.month and 
                                self.current_year == today.year)
                     
-                    bg_color = "#27ae60" if is_today else "#ecf0f1"
+                    bg_color = BUTTON_GREEN if is_today else INPUT_BG_COLOR
                     fg_color = "white" if is_today else "black"
                     
                     btn = tk.Button(
@@ -262,7 +262,7 @@ class ClientForm:
             self.parent,
             text="Les champs marqués * sont obligatoires",
             font=("Arial", 9),
-            fg="#6b7280",
+            fg=MUTED_TEXT_COLOR,
             bg=MAIN_BG_COLOR
         )
         subtitle.pack(pady=(0, 6), fill="x")
@@ -276,7 +276,7 @@ class ClientForm:
             self.main_frame,
             text="📋 INFOS CLIENTS",
             font=("Arial", 12, "bold"),
-            fg="#2c3e50",
+            fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
         )
         section_label.pack(anchor="w", pady=(15, 10))
@@ -293,7 +293,7 @@ class ClientForm:
             self.main_frame,
             font=ENTRY_FONT,
             width=40,
-            bg="#e8f5e9",
+            bg=READONLY_BG_COLOR,
             fg=TEXT_COLOR,
             state="readonly"
         )
@@ -416,7 +416,7 @@ class ClientForm:
             text="📅",
             font=("Arial", 12),
             width=3,
-            bg="#27ae60",
+            bg=BUTTON_GREEN,
             fg="white",
             command=lambda: self._open_calendar(self.entry_date_arrivee)
         ).pack(side="left", padx=(5, 0))
@@ -447,7 +447,7 @@ class ClientForm:
             text="📅",
             font=("Arial", 12),
             width=3,
-            bg="#27ae60",
+            bg=BUTTON_GREEN,
             fg="white",
             command=lambda: self._open_calendar(self.entry_date_depart)
         ).pack(side="left", padx=(5, 0))
@@ -464,7 +464,7 @@ class ClientForm:
             self.main_frame,
             font=ENTRY_FONT,
             width=40,
-            bg="#e8f5e9",
+            bg=READONLY_BG_COLOR,
             fg=TEXT_COLOR,
             state="readonly"
         )
@@ -479,7 +479,7 @@ class ClientForm:
             command=self._toggle_enfant,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
-            selectcolor="#4CAF50"
+            selectcolor=BUTTON_GREEN
         )
         self.check_enfant_widget.pack(anchor="w", pady=(0, 15))
 
@@ -495,7 +495,7 @@ class ClientForm:
             self.main_frame,
             font=ENTRY_FONT,
             width=40,
-            bg="#e8f5e9",
+            bg=READONLY_BG_COLOR,
             fg=TEXT_COLOR
         )
         self.entry_nombre_participants.pack(fill="x", pady=(0, 15))
@@ -570,7 +570,7 @@ class ClientForm:
             self.main_frame,
             text="📞 CONTACTS",
             font=("Arial", 12, "bold"),
-            fg="#2c3e50",
+            fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
         )
         section_label.pack(anchor="w", pady=(20, 10))
@@ -651,7 +651,7 @@ class ClientForm:
             self.main_frame,
             text="🛏️ ROOMING LIST (Répartition par chambre)",
             font=("Arial", 12, "bold"),
-            fg="#2c3e50",
+            fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
         )
         section_label.pack(anchor="w", pady=(20, 10))
@@ -684,7 +684,7 @@ class ClientForm:
                 variable=var,
                 fg=TEXT_COLOR,
                 bg=MAIN_BG_COLOR,
-                selectcolor="#4CAF50",
+                selectcolor=BUTTON_GREEN,
                 font=LABEL_FONT,
                 command=lambda v=var, k=key: self._on_room_toggle(k)
             )
@@ -718,7 +718,7 @@ class ClientForm:
             self.main_frame,
             text="Aucune chambre sélectionnée",
             font=("Arial", 9),
-            fg="#6b7280",
+            fg=MUTED_TEXT_COLOR,
             bg=MAIN_BG_COLOR
         )
         self.rooming_summary_label.pack(anchor="w", pady=(2, 12))
@@ -728,7 +728,7 @@ class ClientForm:
             self.main_frame,
             text="ℹ️ AUTRES INFORMATIONS",
             font=("Arial", 12, "bold"),
-            fg="#2c3e50",
+            fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
         )
         section_label.pack(anchor="w", pady=(20, 10))
@@ -834,7 +834,7 @@ class ClientForm:
             self.main_frame,
             text="🧭 ITINÉRAIRES",
             font=("Arial", 12, "bold"),
-            fg="#2c3e50",
+            fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR
         )
         section_itineraire.pack(anchor="w", pady=(10, 10))
@@ -868,7 +868,7 @@ class ClientForm:
             self.main_frame,
             text="Ajoutez les villes dans l'ordre du parcours.",
             font=("Arial", 9),
-            fg="#6b7280",
+            fg=MUTED_TEXT_COLOR,
             bg=MAIN_BG_COLOR
         ).pack(anchor="w", pady=(0, 6))
 
@@ -886,7 +886,7 @@ class ClientForm:
             itinerary_select_frame,
             text="Ajouter",
             command=self._add_itinerary_city,
-            bg="#27ae60",
+            bg=BUTTON_GREEN,
             fg="white",
             font=("Arial", 9, "bold"),
             width=10
@@ -904,7 +904,7 @@ class ClientForm:
             self.main_frame,
             text="0 ville sélectionnée",
             font=("Arial", 9),
-            fg="#6b7280",
+            fg=MUTED_TEXT_COLOR,
             bg=MAIN_BG_COLOR
         )
         self.itinerary_count_label.pack(anchor="w", pady=(0, 6))
@@ -912,7 +912,7 @@ class ClientForm:
             self.main_frame,
             text="Retirer sélection",
             command=self._remove_selected_itinerary_cities,
-            bg="#e67e22",
+            bg=BUTTON_ORANGE,
             fg="white",
             font=("Arial", 9),
             width=18
@@ -943,7 +943,7 @@ class ClientForm:
                 btn_frame,
                 text="MODIFIER",
                 command=self._validate,
-                bg="#f39c12",
+                bg=BUTTON_ORANGE,
                 fg="white",
                 font=BUTTON_FONT,
                 width=12
@@ -952,7 +952,7 @@ class ClientForm:
                 btn_frame,
                 text="ANNULER",
                 command=self._cancel,
-                bg="#95a5a6",
+                bg=BUTTON_GRAY,
                 fg="white",
                 font=BUTTON_FONT,
                 width=12
@@ -962,7 +962,7 @@ class ClientForm:
                 btn_frame,
                 text="VALIDER",
                 command=self._validate,
-                bg="#27ae60",
+                bg=BUTTON_GREEN,
                 fg="white",
                 font=BUTTON_FONT,
                 width=12

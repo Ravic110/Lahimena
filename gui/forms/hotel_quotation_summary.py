@@ -76,6 +76,15 @@ class HotelQuotationSummary:
         view_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
         view_frame.pack(fill="x", padx=8, pady=(0, 10))
 
+        style = ttk.Style()
+        style.configure(
+            "Treeview",
+            background=INPUT_BG_COLOR,
+            foreground=TEXT_COLOR,
+            fieldbackground=INPUT_BG_COLOR
+        )
+        style.map("Treeview", background=[("selected", BUTTON_GREEN)])
+
         tk.Label(
             view_frame,
             text="Afficher par:",
@@ -224,23 +233,23 @@ class HotelQuotationSummary:
         grand_total = sum(client_data['total'] for _, client_data in filtered_clients)
         currency = filtered_clients[0][1]['currency'] if filtered_clients else 'Ariary'
 
-        grand_total_frame = tk.Frame(scrollable_frame, bg="#E8F4F8", bd=2, relief="ridge")
+        grand_total_frame = tk.Frame(scrollable_frame, bg=CARD_BG_COLOR, bd=2, relief="ridge")
         grand_total_frame.pack(fill="x", pady=(0, 10), padx=0)
 
         tk.Label(
             grand_total_frame,
             text="TOTAL GÉNÉRAL",
             font=("Arial", 12, "bold"),
-            fg="#003366",
-            bg="#E8F4F8"
+            fg=ACCENT_TEXT_COLOR,
+            bg=CARD_BG_COLOR
         ).pack(side="left", padx=15, pady=5)
 
         tk.Label(
             grand_total_frame,
             text=f"{grand_total:,.2f} {currency}",
             font=("Arial", 12, "bold"),
-            fg="#003366",
-            bg="#E8F4F8"
+            fg=ACCENT_TEXT_COLOR,
+            bg=CARD_BG_COLOR
         ).pack(side="right", padx=15, pady=5)
 
         # Display each client's quotations
@@ -372,23 +381,23 @@ class HotelQuotationSummary:
         grand_total = sum(city_data['total'] for _, city_data in filtered_cities)
         currency = filtered_cities[0][1]['currency'] if filtered_cities else 'Ariary'
 
-        grand_total_frame = tk.Frame(scrollable_frame, bg="#E8F4F8", bd=2, relief="ridge")
+        grand_total_frame = tk.Frame(scrollable_frame, bg=CARD_BG_COLOR, bd=2, relief="ridge")
         grand_total_frame.pack(fill="x", pady=(0, 10), padx=0)
 
         tk.Label(
             grand_total_frame,
             text="TOTAL GÉNÉRAL",
             font=("Arial", 12, "bold"),
-            fg="#003366",
-            bg="#E8F4F8"
+            fg=ACCENT_TEXT_COLOR,
+            bg=CARD_BG_COLOR
         ).pack(side="left", padx=15, pady=5)
 
         tk.Label(
             grand_total_frame,
             text=f"{grand_total:,.2f} {currency}",
             font=("Arial", 12, "bold"),
-            fg="#003366",
-            bg="#E8F4F8"
+            fg=ACCENT_TEXT_COLOR,
+            bg=CARD_BG_COLOR
         ).pack(side="right", padx=15, pady=5)
 
         # Display each city's quotations
@@ -517,23 +526,23 @@ class HotelQuotationSummary:
         grand_total = sum(hotel_data['total'] for _, hotel_data in filtered_hotels)
         currency = filtered_hotels[0][1]['currency'] if filtered_hotels else 'Ariary'
 
-        grand_total_frame = tk.Frame(scrollable_frame, bg="#E8F4F8", bd=2, relief="ridge")
+        grand_total_frame = tk.Frame(scrollable_frame, bg=CARD_BG_COLOR, bd=2, relief="ridge")
         grand_total_frame.pack(fill="x", pady=(0, 10), padx=0)
 
         tk.Label(
             grand_total_frame,
             text="TOTAL GÉNÉRAL",
             font=("Arial", 12, "bold"),
-            fg="#003366",
-            bg="#E8F4F8"
+            fg=ACCENT_TEXT_COLOR,
+            bg=CARD_BG_COLOR
         ).pack(side="left", padx=15, pady=5)
 
         tk.Label(
             grand_total_frame,
             text=f"{grand_total:,.2f} {currency}",
             font=("Arial", 12, "bold"),
-            fg="#003366",
-            bg="#E8F4F8"
+            fg=ACCENT_TEXT_COLOR,
+            bg=CARD_BG_COLOR
         ).pack(side="right", padx=15, pady=5)
 
         # Display each hotel's quotations

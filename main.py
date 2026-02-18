@@ -38,7 +38,7 @@ def main():
         logger.debug("Main content initialized")
 
         # Initialize sidebar with callback to main content
-        sidebar = Sidebar(app, main_content.update_content)
+        sidebar = Sidebar(app, main_content.update_content, main_content.refresh)
         logger.debug("Sidebar initialized")
 
         logger.info("Application started successfully")

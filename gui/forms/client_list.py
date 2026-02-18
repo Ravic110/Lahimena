@@ -80,7 +80,7 @@ class ClientList:
             btn_frame,
             text="🔄 Actualiser",
             command=self._load_clients,
-            bg="#3498db",
+            bg=BUTTON_BLUE,
             fg="white",
             font=BUTTON_FONT
         ).pack(side="left", padx=5)
@@ -89,7 +89,7 @@ class ClientList:
             btn_frame,
             text="➕ Nouveau client",
             command=self._new_client,
-            bg="#27ae60",
+            bg=BUTTON_GREEN,
             fg="white",
             font=BUTTON_FONT
         ).pack(side="left", padx=5)
@@ -98,7 +98,7 @@ class ClientList:
             btn_frame,
             text="✏️ Modifier",
             command=self._edit_selected,
-            bg="#f39c12",
+            bg=BUTTON_ORANGE,
             fg="white",
             font=BUTTON_FONT,
             state="disabled"
@@ -109,7 +109,7 @@ class ClientList:
             btn_frame,
             text="🗑️ Supprimer",
             command=self._delete_selected,
-            bg="#e74c3c",
+            bg=BUTTON_RED,
             fg="white",
             font=BUTTON_FONT,
             state="disabled"
@@ -126,11 +126,13 @@ class ClientList:
 
         # Style for better selection appearance
         style = ttk.Style()
-        style.configure("Treeview", 
-                        background=INPUT_BG_COLOR,
-                        foreground=TEXT_COLOR,
-                        fieldbackground=INPUT_BG_COLOR)
-        style.map('Treeview', background=[('selected', '#4CAF50')])
+        style.configure(
+            "Treeview",
+            background=INPUT_BG_COLOR,
+            foreground=TEXT_COLOR,
+            fieldbackground=INPUT_BG_COLOR
+        )
+        style.map("Treeview", background=[("selected", BUTTON_GREEN)])
 
         # Treeview
         columns = ("row", "timestamp", "ref_client", "nom", "telephone", "email",

@@ -18,7 +18,7 @@ class Sidebar:
     Sidebar component with navigation menu
     """
 
-    def __init__(self, parent, main_content_callback):
+    def __init__(self, parent, main_content_callback, on_theme_change=None):
         """
         Initialize sidebar
 
@@ -28,21 +28,26 @@ class Sidebar:
         """
         self.parent = parent
         self.main_content_callback = main_content_callback
+        self.on_theme_change = on_theme_change
         self.menu_states = {}
 
         # Create scrollable sidebar
+        self.sidebar_scroll = None
+        self._build_sidebar()
+
+    def _build_sidebar(self):
+        """Setup sidebar content"""
+        if self.sidebar_scroll is not None:
+            self.sidebar_scroll.destroy()
+
         self.sidebar_scroll = ctk.CTkScrollableFrame(
-            parent,
+            self.parent,
             width=250,
             fg_color=SIDEBAR_BG_COLOR,
             corner_radius=0
         )
         self.sidebar_scroll.grid(row=0, column=0, sticky="nswe")
 
-        self._setup_sidebar()
-
-    def _setup_sidebar(self):
-        """Setup sidebar content"""
         # Logo
         try:
             if PIL_AVAILABLE:
@@ -61,6 +66,30 @@ class Sidebar:
                 font=("Arial", 16, "bold")
             )
         logo_label.pack(pady=30)
+
+        theme_frame = ctk.CTkFrame(self.sidebar_scroll, fg_color="transparent")
+        theme_frame.pack(fill="x", padx=20, pady=(0, 10))
+
+        theme_label = ctk.CTkLabel(
+            theme_frame,
+            text="Thème sombre",
+            text_color=TEXT_COLOR,
+            font=("Arial", 12, "bold")
+        )
+        theme_label.pack(side="left")
+
+        self.theme_switch = ctk.CTkSwitch(
+            theme_frame,
+            text="",
+            command=self._toggle_theme,
+            fg_color=BUTTON_BLUE,
+            progress_color=BUTTON_GREEN
+        )
+        if CURRENT_THEME == "dark":
+            self.theme_switch.select()
+        else:
+            self.theme_switch.deselect()
+        self.theme_switch.pack(side="right")
 
         # Menu buttons
         self._create_menu_buttons()
@@ -196,6 +225,14 @@ class Sidebar:
         if "▶" not in btn.cget("text"):
             btn.configure(text=btn.cget("text") + " ▶")
         btn.configure(command=toggle)
+
+    def _toggle_theme(self):
+        theme_name = "dark" if self.theme_switch.get() == 1 else "light"
+        apply_theme(theme_name)
+        ctk.set_appearance_mode(theme_name)
+        self._build_sidebar()
+        if self.on_theme_change:
+            self.on_theme_change()
 
     # Placeholder methods for menu actions
     def _show_home(self):

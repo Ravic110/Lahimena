@@ -59,7 +59,7 @@ class HomePage:
 
         self.clock_label = ctk.CTkLabel(
             clock_box,
-            text="--:--:--",
+            text="--/--/----\n--:--:--",
             font=ctk.CTkFont(size=20, weight="bold"),
             text_color="#F8FAFC"
         )
@@ -169,7 +169,9 @@ class HomePage:
     def _start_clock(self):
         if not self.clock_label or not self.clock_label.winfo_exists():
             return
-        self.clock_label.configure(text=datetime.now().strftime("%H:%M:%S"))
+        self.clock_label.configure(
+            text=datetime.now().strftime("%d/%m/%Y\n%H:%M:%S")
+        )
         self.parent.after(1000, self._start_clock)
 
     def _start_tip_rotation(self):
