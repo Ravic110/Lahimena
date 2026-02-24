@@ -1335,7 +1335,7 @@ class HotelQuotation:
                     "client_id": (
                         self.client_var.get().split(" - ")[0]
                         if " - " in self.client_var.get()
-                        else ""
+                        else (self.client_var.get().strip() or client_name)
                     ),
                     "client_name": client_name,
                     "hotel_name": self.selected_hotel["nom"],
