@@ -128,9 +128,24 @@ class Sidebar:
             ],
         )
 
+        # Service Frais collectifs
+        btn3 = self._create_button(
+            "🎯 Frais collectifs", self._show_service_quotation
+        )
+
+        # Service Transport
+        btn3 = self._create_button(
+            "🎯 Transport", self._show_service_quotation
+        )
+
+        # Service Visite & Excursions
+        btn3 = self._create_button(
+            "🎯 Visite&Excursions", self._show_service_quotation
+        )
+
         # Service Quotation
         btn3 = self._create_button(
-            "🎯 Cotation prestation", self._show_service_quotation
+            "🎯 Billet Avion", self._show_service_quotation
         )
 
         # Client Quotations
