@@ -35,7 +35,11 @@ from utils.excel_handler import (
     save_hotel_quotation_to_excel,
 )
 from utils.logger import logger
-from utils.pdf_generator import REPORTLAB_AVAILABLE, generate_hotel_quotation_pdf
+from utils.pdf_generator import (
+    REPORTLAB_AVAILABLE,
+    generate_hotel_quotation_pdf,
+    generate_multi_hotel_quotation_pdf,
+)
 from utils.validators import convert_currency, get_exchange_rates
 
 ROOM_GROUP_LABELS = {
@@ -78,6 +82,8 @@ class HotelQuotation:
         self.clients = self._load_clients()
         self.selected_hotel = None
         self.last_pricing = None
+        self.batch_items = []
+        self.batch_currency = None
         self.allowed_itinerary_cities = []
         self.preferred_room_type_label = ""
 
@@ -119,7 +125,9 @@ class HotelQuotation:
         if not cities_value:
             return []
         cities = [
-            c.strip() for c in re.split(r"[;,>\n]+", str(cities_value)) if c.strip()
+            c.strip()
+            for c in re.split(r"[;,>\n]+|\\s-\\s|\\s→\\s|\\s->\\s", str(cities_value))
+            if c.strip()
         ]
         parsed = []
         seen = set()
@@ -131,22 +139,21 @@ class HotelQuotation:
                 parsed.append(city)
         return parsed
 
-    def _get_city_values(self):
-        """Build city values according to current itinerary filter."""
-        if self.allowed_itinerary_cities:
-            allowed_set = set(self.allowed_itinerary_cities)
-            cities = sorted(
-                {
-                    hotel.get("lieu", "")
-                    for hotel in self.hotels
-                    if hotel.get("lieu") and hotel.get("lieu") in allowed_set
-                }
-            )
-        else:
-            cities = sorted(
-                {hotel.get("lieu", "") for hotel in self.hotels if hotel.get("lieu")}
-            )
-        return [""] + cities
+    def _normalize_city(self, value):
+        """Normalize city names for matching."""
+        if not value:
+            return ""
+        import unicodedata
+
+        text = str(value).strip()
+        text = "".join(
+            ch
+            for ch in unicodedata.normalize("NFD", text)
+            if unicodedata.category(ch) != "Mn"
+        )
+        text = text.lower()
+        text = re.sub(r"\\s+", " ", text)
+        return text
 
     def _refresh_city_and_hotel_options(self, preserve_city=False):
         """Refresh city/hotel combobox options after filters changed."""
@@ -160,6 +167,14 @@ class HotelQuotation:
             self.city_var.set("")
 
         self._on_city_selected()
+        self._update_itinerary_summary()
+
+    def _update_itinerary_summary(self):
+        cities = self.allowed_itinerary_cities or []
+        if not cities:
+            self.itinerary_summary_var.set("Villes itinéraire: -")
+            return
+        self.itinerary_summary_var.set(f\"Villes itinéraire: {', '.join(cities)}\")
 
     def _parse_int_value(self, value, default=0):
         """Extract first integer from a value string."""
@@ -369,7 +384,6 @@ class HotelQuotation:
         )
         hotel_frame.pack(fill="x", pady=(0, 10))
 
-        # City selection + Hotel selection (city first)
         tk.Label(
             hotel_frame, text="Ville:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR
         ).grid(row=0, column=0, sticky="w", pady=5)
@@ -391,7 +405,6 @@ class HotelQuotation:
         ).grid(row=0, column=2, sticky="w", pady=5)
 
         self.hotel_var = tk.StringVar()
-        # Initially empty; will be populated when a city is selected
         self.hotel_combo = ttk.Combobox(
             hotel_frame,
             textvariable=self.hotel_var,
@@ -400,8 +413,22 @@ class HotelQuotation:
             width=40,
             state="readonly",
         )
-        self.hotel_combo.grid(row=0, column=3, padx=(10, 0), pady=5)
+        self.hotel_combo.grid(row=0, column=3, padx=(10, 0), pady=5, sticky="w")
         self.hotel_combo.bind("<<ComboboxSelected>>", self._on_hotel_selected)
+
+        self.itinerary_summary_var = tk.StringVar(value="Villes itinéraire: -")
+        self.itinerary_summary_label = tk.Label(
+            hotel_frame,
+            textvariable=self.itinerary_summary_var,
+            font=("Arial", 9),
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+            wraplength=750,
+            justify="left",
+        )
+        self.itinerary_summary_label.grid(
+            row=1, column=0, columnspan=4, sticky="w", pady=(5, 0)
+        )
 
         # Parameters section
         params_frame = tk.LabelFrame(
@@ -672,6 +699,17 @@ class HotelQuotation:
 
         tk.Button(
             action_frame,
+            text="➕ Ajouter hôtel",
+            command=self._add_to_batch,
+            bg=BUTTON_ORANGE,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=15,
+            pady=8,
+        ).pack(side="left", padx=5)
+
+        tk.Button(
+            action_frame,
             text="📄 Générer devis",
             command=self._generate_quote,
             bg=BUTTON_GREEN,
@@ -686,6 +724,81 @@ class HotelQuotation:
             text="🔄 Nouvelle cotation",
             command=self._reset_form,
             bg=BUTTON_BLUE,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=15,
+            pady=8,
+        ).pack(side="left", padx=5)
+
+        # Batch quotation section
+        batch_frame = tk.LabelFrame(
+            main_frame,
+            text="Hôtels sélectionnés",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+            padx=10,
+            pady=10,
+        )
+        batch_frame.pack(fill="both", expand=True, pady=(0, 10))
+
+        batch_columns = ("designation", "nights", "unit", "total")
+        self.batch_tree = ttk.Treeview(
+            batch_frame, columns=batch_columns, height=6, show="headings"
+        )
+        self.batch_tree.heading("designation", text="Désignation")
+        self.batch_tree.heading("nights", text="Nuits")
+        self.batch_tree.heading("unit", text="Prix Unitaire")
+        self.batch_tree.heading("total", text="Total")
+
+        self.batch_tree.column("designation", width=320)
+        self.batch_tree.column("nights", width=60)
+        self.batch_tree.column("unit", width=120)
+        self.batch_tree.column("total", width=120)
+        self.batch_tree.pack(fill="both", expand=True)
+
+        batch_totals = tk.Frame(batch_frame, bg=MAIN_BG_COLOR)
+        batch_totals.pack(fill="x", pady=(10, 0))
+
+        self.batch_total_label = tk.Label(
+            batch_totals,
+            text="Total lot: 0",
+            font=("Arial", 11, "bold"),
+            fg=BUTTON_GREEN,
+            bg=MAIN_BG_COLOR,
+        )
+        self.batch_total_label.pack(side="right")
+
+        batch_buttons = tk.Frame(batch_frame, bg=MAIN_BG_COLOR)
+        batch_buttons.pack(fill="x", pady=(10, 0))
+
+        tk.Button(
+            batch_buttons,
+            text="📄 Générer devis groupé",
+            command=self._generate_batch_quote,
+            bg=BUTTON_GREEN,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=15,
+            pady=8,
+        ).pack(side="left", padx=5)
+
+        tk.Button(
+            batch_buttons,
+            text="🗑️ Retirer",
+            command=self._remove_batch_item,
+            bg=BUTTON_RED,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=15,
+            pady=8,
+        ).pack(side="left", padx=5)
+
+        tk.Button(
+            batch_buttons,
+            text="🧹 Vider",
+            command=self._clear_batch,
+            bg=BUTTON_GRAY,
             fg="white",
             font=BUTTON_FONT,
             padx=15,
@@ -785,24 +898,50 @@ class HotelQuotation:
                             self.room_type_var.set(self.preferred_room_type_label)
                     break
 
+    def _get_city_values(self):
+        """Build city values according to current itinerary filter."""
+        if self.allowed_itinerary_cities:
+            allowed_set = {self._normalize_city(c) for c in self.allowed_itinerary_cities}
+            cities_map = {}
+            for hotel in self.hotels:
+                lieu = hotel.get("lieu", "")
+                if not lieu:
+                    continue
+                norm = self._normalize_city(lieu)
+                if norm in allowed_set and norm not in cities_map:
+                    cities_map[norm] = lieu
+            cities = sorted(cities_map.values())
+        else:
+            cities = sorted(
+                {hotel.get("lieu", "") for hotel in self.hotels if hotel.get("lieu")}
+            )
+        return [""] + cities
+
     def _on_city_selected(self, event=None):
         """Filter hotels when a city is selected"""
         city = self.city_var.get()
+        selected_city_norm = self._normalize_city(city)
         allowed_set = (
-            set(self.allowed_itinerary_cities) if self.allowed_itinerary_cities else None
+            {self._normalize_city(c) for c in self.allowed_itinerary_cities}
+            if self.allowed_itinerary_cities
+            else None
         )
         candidates = self.hotels
         if allowed_set:
-            candidates = [h for h in candidates if h.get("lieu") in allowed_set]
+            candidates = [
+                h
+                for h in candidates
+                if self._normalize_city(h.get("lieu")) in allowed_set
+            ]
 
-        # Filter hotels by city and update hotel combobox
         if city:
             filtered = [
-                self._hotel_display(h) for h in candidates if h.get("lieu") == city
+                self._hotel_display(h)
+                for h in candidates
+                if self._normalize_city(h.get("lieu")) == selected_city_norm
             ]
         else:
             filtered = [self._hotel_display(h) for h in candidates]
-        # Update combobox values and clear previous selection
         self.hotel_combo["values"] = filtered
         self.hotel_var.set("")
         self.selected_hotel = None
@@ -901,9 +1040,11 @@ class HotelQuotation:
 
                     # Restrict available hotels to client's itinerary
                     depart_city = (client.get("ville_depart") or "").strip()
-                    itinerary_cities = self._parse_itinerary_cities(
-                        client.get("ville_arrivee", "")
-                    )
+                    itinerary_cities = []
+                    for field in ("ville_arrivee", "itineraire_circuit"):
+                        itinerary_cities.extend(
+                            self._parse_itinerary_cities(client.get(field, ""))
+                        )
                     allowed = []
                     seen = set()
                     for city_name in [depart_city] + itinerary_cities:
@@ -1225,6 +1366,100 @@ class HotelQuotation:
 
         self.results_text.insert(tk.END, result_text.strip())
 
+    def _add_to_batch(self):
+        if not self.selected_hotel or not self.last_pricing:
+            messagebox.showwarning(
+                "Calcul manquant",
+                "Veuillez sélectionner un hôtel et calculer le prix avant d'ajouter.",
+            )
+            return
+
+        currency = self.last_pricing.get("currency", "Ariary")
+        if self.batch_currency and self.batch_currency != currency:
+            messagebox.showwarning(
+                "Devise différente",
+                "Toutes les lignes doivent être dans la même devise.",
+            )
+            return
+
+        try:
+            nights = int(self.nights_var.get()) if self.nights_var.get() else 1
+        except (ValueError, TypeError):
+            nights = 1
+
+        try:
+            adults = int(self.adults_var.get()) if self.adults_var.get() else 1
+        except (ValueError, TypeError):
+            adults = 1
+
+        try:
+            children = int(self.children_var.get()) if self.children_var.get() else 0
+        except (ValueError, TypeError):
+            children = 0
+
+        room_type = self._get_room_display() or "Standard"
+        hotel_name = self.selected_hotel.get("nom", "")
+        city = self.selected_hotel.get("lieu", "")
+        designation = f"{hotel_name} - {city} - {room_type}".strip(" -")
+
+        price_per_night = float(self.last_pricing.get("price_per_night", 0.0))
+        total_price = float(self.last_pricing.get("total_price", 0.0))
+
+        item = {
+            "designation": designation,
+            "nights": nights,
+            "unit_price": price_per_night,
+            "total": total_price,
+            "hotel_name": hotel_name,
+            "city": city,
+            "room_type": room_type,
+            "adults": adults,
+            "children": children,
+            "meal_plan": self.meal_var.get() if hasattr(self, "meal_var") else "",
+            "period": self.period_var.get() if hasattr(self, "period_var") else "",
+            "currency": currency,
+        }
+
+        self.batch_items.append(item)
+        self.batch_currency = currency
+
+        self.batch_tree.insert(
+            "",
+            "end",
+            values=(
+                designation,
+                nights,
+                f"{price_per_night:,.2f} {currency}",
+                f"{total_price:,.2f} {currency}",
+            ),
+        )
+        self._update_batch_total()
+
+    def _update_batch_total(self):
+        total = sum(item["total"] for item in self.batch_items)
+        currency = self.batch_currency or "Ariary"
+        self.batch_total_label.config(text=f"Total lot: {total:,.2f} {currency}")
+
+    def _remove_batch_item(self):
+        selection = self.batch_tree.selection()
+        if not selection:
+            messagebox.showwarning("Aucune ligne", "Sélectionnez une ligne à retirer.")
+            return
+        index = self.batch_tree.index(selection[0])
+        self.batch_tree.delete(selection[0])
+        if 0 <= index < len(self.batch_items):
+            self.batch_items.pop(index)
+        if not self.batch_items:
+            self.batch_currency = None
+        self._update_batch_total()
+
+    def _clear_batch(self):
+        for item in self.batch_tree.get_children():
+            self.batch_tree.delete(item)
+        self.batch_items = []
+        self.batch_currency = None
+        self._update_batch_total()
+
     def _generate_quote(self):
         """Generate a formal quote"""
         if not self.selected_hotel:
@@ -1335,7 +1570,7 @@ class HotelQuotation:
                     "client_id": (
                         self.client_var.get().split(" - ")[0]
                         if " - " in self.client_var.get()
-                        else ""
+                        else (self.client_var.get().strip() or client_name)
                     ),
                     "client_name": client_name,
                     "hotel_name": self.selected_hotel["nom"],
@@ -1393,6 +1628,82 @@ class HotelQuotation:
             messagebox.showerror("❌ Erreur lors de la génération", error_msg)
             logger.error(f"Error generating quotation: {e}", exc_info=True)
 
+    def _generate_batch_quote(self):
+        if not self.batch_items:
+            messagebox.showwarning(
+                "Aucun hôtel", "Veuillez ajouter au moins un hôtel."
+            )
+            return
+
+        if not REPORTLAB_AVAILABLE:
+            messagebox.showwarning(
+                "⚠️ Génération PDF non disponible",
+                "ReportLab n'est pas installé. Veuillez installer le package:\n\npip install reportlab",
+            )
+            return
+
+        client_name = self.client_name_var.get().strip() or "Client"
+        client_email = self.client_email_var.get().strip()
+        client_phone = self.client_phone_var.get().strip()
+
+        currency = self.batch_currency or "Ariary"
+        subtotal = sum(item["total"] for item in self.batch_items)
+
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        quote_number = f"DEVIS_HOTEL_MULTI_{timestamp}"
+
+        filename = generate_multi_hotel_quotation_pdf(
+            client_name=client_name,
+            client_email=client_email,
+            client_phone=client_phone,
+            quote_number=quote_number,
+            quote_date=datetime.datetime.now().strftime("%d/%m/%Y"),
+            items=self.batch_items,
+            currency=currency,
+            subtotal=subtotal,
+            total=subtotal,
+            output_dir=DEVIS_FOLDER,
+        )
+
+        for item in self.batch_items:
+            try:
+                quotation_data = {
+                    "client_id": (
+                        self.client_var.get().split(" - ")[0]
+                        if " - " in self.client_var.get()
+                        else (self.client_var.get().strip() or client_name)
+                    ),
+                    "client_name": client_name,
+                    "hotel_name": item.get("hotel_name", ""),
+                    "city": item.get("city", ""),
+                    "total_price": item.get("total", 0),
+                    "currency": item.get("currency", currency),
+                    "nights": item.get("nights", 0),
+                    "adults": item.get("adults", 0),
+                    "children": item.get("children", 0),
+                    "room_type": item.get("room_type", ""),
+                    "meal_plan": item.get("meal_plan", ""),
+                    "period": item.get("period", ""),
+                    "quote_date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                }
+                save_hotel_quotation_to_excel(quotation_data)
+            except Exception as e:
+                logger.warning(f"Could not save batch quotation to Excel: {e}")
+
+        messagebox.showinfo(
+            "✅ Devis groupé généré",
+            f"Le devis PDF a été sauvegardé :\n{filename}",
+        )
+        self._refresh_quotations_list()
+
+        try:
+            if os.name == "nt":
+                os.startfile(filename)
+            elif os.name == "posix":
+                subprocess.run(["xdg-open", filename])
+        except Exception as e:
+            logger.warning(f"Could not open quotation file automatically: {e}")
+
     def _reset_form(self):
         """Reset the form for a new quotation"""
         self.hotel_var.set("")
@@ -1415,6 +1726,7 @@ class HotelQuotation:
         self.client_email_var.set("")
         self.client_phone_var.set("")
         self.results_text.delete(1.0, tk.END)
+        self._clear_batch()
 
     def _refresh_quotations_list(self):
         """Load and display all quotation files from devis folder"""

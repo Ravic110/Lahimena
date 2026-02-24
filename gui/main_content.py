@@ -55,6 +55,10 @@ class MainContent:
             self._show_hotel_quotation()
         elif content_type == "hotel_quotation_summary":
             self._show_hotel_quotation_summary()
+        elif content_type == "current_quotes":
+            self._show_client_quotation()
+        elif content_type == "quote_history":
+            self._show_client_quotation_history()
         elif content_type in ("welcome", "home"):
             self._show_welcome()
         else:
@@ -106,6 +110,18 @@ class MainContent:
         from gui.forms.hotel_quotation_summary import HotelQuotationSummary
 
         HotelQuotationSummary(self.main_scroll)
+
+    def _show_client_quotation(self):
+        """Show client quotation form"""
+        from gui.forms.client_quotation import ClientQuotation
+
+        ClientQuotation(self.main_scroll)
+
+    def _show_client_quotation_history(self):
+        """Show client quotation history"""
+        from gui.forms.client_quotation_history import ClientQuotationHistory
+
+        ClientQuotationHistory(self.main_scroll)
 
     def _show_placeholder(self, content_type):
         """Show placeholder for unimplemented features"""

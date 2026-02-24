@@ -151,6 +151,27 @@ class QuotationPDF:
 
         logger.debug("Quotation info added to PDF")
 
+    def add_client_contact(self, client_phone):
+        """Add optional client phone line"""
+        if not client_phone:
+            return
+        info_data = [["Téléphone:", client_phone]]
+        table = Table(info_data, colWidths=[4 * cm, 12 * cm])
+        table.setStyle(
+            TableStyle(
+                [
+                    ("FONT", (0, 0), (0, -1), "Helvetica-Bold", 10),
+                    ("FONT", (1, 0), (1, -1), "Helvetica", 10),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("BOTTOMMARGIN", (0, 0), (-1, -1), 5),
+                ]
+            )
+        )
+        self.elements.append(table)
+        self.elements.append(Spacer(1, 0.2 * inch))
+        logger.debug("Client contact added to PDF")
+
     def add_section_title(self, title):
         """Add section title"""
         self.elements.append(Paragraph(title, self.styles["CustomHeader"]))
@@ -203,6 +224,44 @@ class QuotationPDF:
 
         logger.debug("Quotation details added to PDF")
 
+    def add_line_items_table(self, items, currency="MGA"):
+        """Add a line items table for client quotations"""
+        details_data = [["Description", "Quantité", "Prix Unitaire", "Total"]]
+
+        for item in items:
+            details_data.append(
+                [
+                    item.get("designation", ""),
+                    f"{item.get('nights', 0)} nuits",
+                    f"{item.get('unit_price', 0):,.2f} {currency}",
+                    f"{item.get('total', 0):,.2f} {currency}",
+                ]
+            )
+
+        table = Table(details_data, colWidths=[8 * cm, 3 * cm, 4 * cm, 4 * cm])
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#27AE60")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                    ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, 0), 11),
+                    ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+                    ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+                    ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 1), (-1, -1), 10),
+                    ("BOTTOMPADDING", (0, 1), (-1, -1), 8),
+                    ("GRID", (0, 0), (-1, -1), 1, colors.grey),
+                ]
+            )
+        )
+
+        self.elements.append(table)
+        self.elements.append(Spacer(1, 0.2 * inch))
+
+        logger.debug("Line items table added to PDF")
+
     def add_totals_table(self, subtotal, tax=0, total=None, currency="MGA"):
         """Add totals summary table"""
         if total is None:
@@ -237,6 +296,43 @@ class QuotationPDF:
         self.elements.append(Spacer(1, 0.3 * inch))
 
         logger.debug("Totals table added to PDF")
+
+    def add_totals_table_with_breakdown(
+        self, subtotal, margin_amount, tva_amount, total, currency="MGA"
+    ):
+        """Add totals table with margin and TVA breakdown"""
+        totals_data = [
+            ["", ""],
+            ["Sous-Total:", f"{subtotal:,.2f} {currency}"],
+        ]
+
+        if margin_amount:
+            totals_data.append(["Marge:", f"{margin_amount:,.2f} {currency}"])
+
+        if tva_amount:
+            totals_data.append(["TVA:", f"{tva_amount:,.2f} {currency}"])
+
+        totals_data.append(["TOTAL:", f"{total:,.2f} {currency}"])
+
+        table = Table(totals_data, colWidths=[13 * cm, 5 * cm])
+        table.setStyle(
+            TableStyle(
+                [
+                    ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                    ("FONTNAME", (0, -1), (0, -1), "Helvetica-Bold"),
+                    ("FONTNAME", (1, -1), (1, -1), "Helvetica-Bold"),
+                    ("FONTSIZE", (1, -1), (1, -1), 12),
+                    ("TEXTCOLOR", (0, -1), (1, -1), colors.HexColor("#27AE60")),
+                    ("LINEABOVE", (0, -1), (-1, -1), 2, colors.HexColor("#27AE60")),
+                    ("BOTTOMPADDING", (0, -1), (-1, -1), 12),
+                ]
+            )
+        )
+
+        self.elements.append(table)
+        self.elements.append(Spacer(1, 0.3 * inch))
+
+        logger.debug("Totals breakdown table added to PDF")
 
     def add_terms(self, terms_text=""):
         """Add terms and conditions section"""
@@ -389,4 +485,114 @@ def generate_hotel_quotation_pdf(
 
     except Exception as e:
         logger.error(f"Error generating hotel quotation PDF: {e}", exc_info=True)
+        raise
+
+
+def generate_client_quotation_pdf(
+    client_name,
+    client_email,
+    client_phone,
+    quote_number,
+    quote_date,
+    items,
+    currency,
+    margin_pct,
+    margin_amount,
+    tva_pct,
+    tva_amount,
+    subtotal,
+    total,
+    output_dir="devis",
+):
+    """
+    Generate a client quotation PDF with itemized hotel lines.
+    """
+    if not REPORTLAB_AVAILABLE:
+        logger.error("ReportLab not available")
+        raise ImportError("ReportLab required for PDF generation")
+
+    try:
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        filename = os.path.join(output_dir, f"{quote_number}.pdf")
+        pdf = QuotationPDF(filename)
+
+        pdf.add_header("Lahimena Tours", "Madagascar - Tours & Travel")
+        pdf.add_quotation_info(quote_number, quote_date, client_name, client_email)
+        pdf.add_client_contact(client_phone)
+
+        pdf.add_section_title("Détails du devis")
+        pdf.add_line_items_table(items, currency=currency)
+
+        pdf.add_totals_table_with_breakdown(
+            subtotal=subtotal,
+            margin_amount=margin_amount,
+            tva_amount=tva_amount,
+            total=total,
+            currency=currency,
+        )
+
+        terms = (
+            f"Marge appliquée: {margin_pct:.2f}% | TVA: {tva_pct:.2f}%\\n"
+            "Conditions: Tarifs sujets à modification. Validité du devis: 30 jours."
+        )
+        pdf.add_terms(terms)
+        pdf.add_footer("Lahimena Tours | Madagascar | Tel: +261-32-XXXX-XXXX")
+
+        filepath = pdf.generate()
+        logger.info(f"Client quotation PDF created: {filepath}")
+        return filepath
+
+    except Exception as e:
+        logger.error(f"Error generating client quotation PDF: {e}", exc_info=True)
+        raise
+
+
+def generate_multi_hotel_quotation_pdf(
+    client_name,
+    client_email,
+    client_phone,
+    quote_number,
+    quote_date,
+    items,
+    currency,
+    subtotal,
+    total,
+    output_dir="devis",
+):
+    """
+    Generate a multi-hotel quotation PDF (one line per hotel).
+    """
+    if not REPORTLAB_AVAILABLE:
+        logger.error("ReportLab not available")
+        raise ImportError("ReportLab required for PDF generation")
+
+    try:
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        filename = os.path.join(output_dir, f"{quote_number}.pdf")
+        pdf = QuotationPDF(filename)
+
+        pdf.add_header("Lahimena Tours", "Madagascar - Tours & Travel")
+        pdf.add_quotation_info(quote_number, quote_date, client_name, client_email)
+        pdf.add_client_contact(client_phone)
+
+        pdf.add_section_title("Détails des hôtels")
+        pdf.add_line_items_table(items, currency=currency)
+
+        pdf.add_totals_table(subtotal=subtotal, tax=0, total=total, currency=currency)
+
+        pdf.add_terms(
+            "Conditions: Tarifs sujets à modification. Validité du devis: 30 jours."
+        )
+        pdf.add_footer("Lahimena Tours | Madagascar | Tel: +261-32-XXXX-XXXX")
+
+        filepath = pdf.generate()
+        logger.info(f"Multi-hotel quotation PDF created: {filepath}")
+        return filepath
+
+    except Exception as e:
+        logger.error(f"Error generating multi-hotel quotation PDF: {e}", exc_info=True)
         raise
