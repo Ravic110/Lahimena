@@ -167,6 +167,14 @@ class HotelQuotation:
             self.city_var.set("")
 
         self._on_city_selected()
+        self._update_itinerary_summary()
+
+    def _update_itinerary_summary(self):
+        cities = self.allowed_itinerary_cities or []
+        if not cities:
+            self.itinerary_summary_var.set("Villes itinéraire: -")
+            return
+        self.itinerary_summary_var.set(f\"Villes itinéraire: {', '.join(cities)}\")
 
     def _parse_int_value(self, value, default=0):
         """Extract first integer from a value string."""
@@ -407,6 +415,20 @@ class HotelQuotation:
         )
         self.hotel_combo.grid(row=0, column=3, padx=(10, 0), pady=5, sticky="w")
         self.hotel_combo.bind("<<ComboboxSelected>>", self._on_hotel_selected)
+
+        self.itinerary_summary_var = tk.StringVar(value="Villes itinéraire: -")
+        self.itinerary_summary_label = tk.Label(
+            hotel_frame,
+            textvariable=self.itinerary_summary_var,
+            font=("Arial", 9),
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+            wraplength=750,
+            justify="left",
+        )
+        self.itinerary_summary_label.grid(
+            row=1, column=0, columnspan=4, sticky="w", pady=(5, 0)
+        )
 
         # Parameters section
         params_frame = tk.LabelFrame(
