@@ -129,8 +129,13 @@ class Sidebar:
         )
 
         # Service Frais collectifs
-        btn3 = self._create_button(
-            "🎯 Frais collectifs", self._show_service_quotation
+        btn3 = self._create_button("🎯 Frais collectifs ▶", None)
+        submenu3_frame = self._create_submenu(
+            btn3,
+            [
+                ("🆕 Nouvelle cotation", self._show_collective_expense_quotation),
+                ("📊 Résumé cotations", self._show_collective_expense_summary),
+            ],
         )
 
         # Service Transport
@@ -140,7 +145,7 @@ class Sidebar:
 
         # Service Visite & Excursions
         btn3 = self._create_button(
-            "🎯 Visite&Excursions", self._show_service_quotation
+            "🎯 Visite&Excursions",  self._show_service_quotation
         )
 
         # Service Quotation
@@ -322,6 +327,12 @@ class Sidebar:
 
     def _show_service_quotation(self):
         self.main_content_callback("service_quotation")
+
+    def _show_collective_expense_quotation(self):
+        self.main_content_callback("collective_expense_quotation")
+
+    def _show_collective_expense_summary(self):
+        self.main_content_callback("collective_expense_summary")
 
     def _show_current_quotes(self):
         self.main_content_callback("current_quotes")

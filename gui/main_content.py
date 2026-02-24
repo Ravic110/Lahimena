@@ -57,8 +57,15 @@ class MainContent:
             self._show_hotel_quotation_summary()
         elif content_type == "current_quotes":
             self._show_client_quotation()
+<<<<<<< HEAD
         elif content_type == "quote_history":
             self._show_client_quotation_history()
+=======
+        elif content_type == "collective_expense_quotation":
+            self._show_collective_expense_quotation()
+        elif content_type == "collective_expense_summary":
+            self._show_collective_expense_summary()
+>>>>>>> Fenosoa
         elif content_type in ("welcome", "home"):
             self._show_welcome()
         else:
@@ -117,11 +124,51 @@ class MainContent:
 
         ClientQuotation(self.main_scroll)
 
+<<<<<<< HEAD
     def _show_client_quotation_history(self):
         """Show client quotation history"""
         from gui.forms.client_quotation_history import ClientQuotationHistory
 
         ClientQuotationHistory(self.main_scroll)
+=======
+    def _show_collective_expense_quotation(self):
+        """Show collective expense quotation form"""
+        from gui.forms.collective_expense_quotation import CollectiveExpenseQuotation
+
+        CollectiveExpenseQuotation(self.main_scroll)
+
+    def _show_collective_expense_quotation_for_edit(self, data, row_number):
+        """Show collective expense quotation form in edit mode"""
+        from gui.forms.collective_expense_quotation import CollectiveExpenseQuotation
+
+        def on_edit_done():
+            # Refresh summary after edit
+            self.update_content("collective_expense_summary")
+
+        # Create form in edit mode with callback
+        CollectiveExpenseQuotation(
+            self.main_scroll,
+            edit_data=data,
+            row_number=row_number,
+            callback_on_save=on_edit_done
+        )
+
+    def _on_add_collective_expense(self):
+        """Navigate to add collective expense form"""
+        self.update_content("collective_expense_quotation")
+
+    def _show_collective_expense_summary(self):
+        """Show collective expense quotations summary"""
+        from gui.forms.collective_expense_quotation_summary import (
+            CollectiveExpenseQuotationSummary,
+        )
+
+        CollectiveExpenseQuotationSummary(
+            self.main_scroll,
+            callback_edit=self._show_collective_expense_quotation_for_edit,
+            callback_add=self._on_add_collective_expense,
+        )
+>>>>>>> Fenosoa
 
     def _show_placeholder(self, content_type):
         """Show placeholder for unimplemented features"""
