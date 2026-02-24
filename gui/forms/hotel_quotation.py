@@ -174,7 +174,7 @@ class HotelQuotation:
         if not cities:
             self.itinerary_summary_var.set("Villes itinéraire: -")
             return
-        self.itinerary_summary_var.set(f\"Villes itinéraire: {', '.join(cities)}\")
+        self.itinerary_summary_var.set(f"Villes itinéraire: {', '.join(cities)}")
 
     def _parse_int_value(self, value, default=0):
         """Extract first integer from a value string."""

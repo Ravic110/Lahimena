@@ -57,15 +57,12 @@ class MainContent:
             self._show_hotel_quotation_summary()
         elif content_type == "current_quotes":
             self._show_client_quotation()
-<<<<<<< HEAD
         elif content_type == "quote_history":
             self._show_client_quotation_history()
-=======
         elif content_type == "collective_expense_quotation":
             self._show_collective_expense_quotation()
         elif content_type == "collective_expense_summary":
             self._show_collective_expense_summary()
->>>>>>> Fenosoa
         elif content_type in ("welcome", "home"):
             self._show_welcome()
         else:
@@ -124,13 +121,11 @@ class MainContent:
 
         ClientQuotation(self.main_scroll)
 
-<<<<<<< HEAD
     def _show_client_quotation_history(self):
         """Show client quotation history"""
         from gui.forms.client_quotation_history import ClientQuotationHistory
 
         ClientQuotationHistory(self.main_scroll)
-=======
     def _show_collective_expense_quotation(self):
         """Show collective expense quotation form"""
         from gui.forms.collective_expense_quotation import CollectiveExpenseQuotation
@@ -168,7 +163,6 @@ class MainContent:
             callback_edit=self._show_collective_expense_quotation_for_edit,
             callback_add=self._on_add_collective_expense,
         )
->>>>>>> Fenosoa
 
     def _show_placeholder(self, content_type):
         """Show placeholder for unimplemented features"""
