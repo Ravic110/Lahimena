@@ -3,7 +3,8 @@ Hotel data model
 """
 
 from datetime import datetime
-from config import *
+
+# Models do not depend on UI configuration constants
 
 
 class HotelData:
@@ -39,24 +40,24 @@ class HotelData:
             dict: Hotel data as dictionary
         """
         return {
-            'ID': self.id,
-            'Nom': self.nom,
-            'Lieu': self.lieu,
-            'Type_Hébergement': self.type_hebergement,
-            'Catégorie': self.categorie,
-            'Chambre_Single': self.chambre_single,
-            'Chambre_Double': self.chambre_double,
-            'Chambre_Familiale': self.chambre_familiale,
-            'Lit_Supp': self.lit_supp,
-            'Day_Use': self.day_use,
-            'Vignette': self.vignette,
-            'Taxe_Séjour': self.taxe_sejour,
-            'Petit_Déjeuner': self.petit_dejeuner,
-            'Déjeuner': self.dejeuner,
-            'Dîner': self.diner,
-            'Description': self.description,
-            'Contact': self.contact,
-            'Email': self.email
+            "ID": self.id,
+            "Nom": self.nom,
+            "Lieu": self.lieu,
+            "Type_Hébergement": self.type_hebergement,
+            "Catégorie": self.categorie,
+            "Chambre_Single": self.chambre_single,
+            "Chambre_Double": self.chambre_double,
+            "Chambre_Familiale": self.chambre_familiale,
+            "Lit_Supp": self.lit_supp,
+            "Day_Use": self.day_use,
+            "Vignette": self.vignette,
+            "Taxe_Séjour": self.taxe_sejour,
+            "Petit_Déjeuner": self.petit_dejeuner,
+            "Déjeuner": self.dejeuner,
+            "Dîner": self.diner,
+            "Description": self.description,
+            "Contact": self.contact,
+            "Email": self.email,
         }
 
     @classmethod
@@ -71,24 +72,24 @@ class HotelData:
             HotelData: HotelData instance
         """
         hotel = cls()
-        hotel.id = data.get('ID', '')
-        hotel.nom = data.get('Nom', '')
-        hotel.lieu = data.get('Lieu', '')
-        hotel.type_hebergement = data.get('Type_Hébergement', '')
-        hotel.categorie = data.get('Catégorie', '')
-        hotel.chambre_single = data.get('Chambre_Single', 0) or 0
-        hotel.chambre_double = data.get('Chambre_Double', 0) or 0
-        hotel.chambre_familiale = data.get('Chambre_Familiale', 0) or 0
-        hotel.lit_supp = data.get('Lit_Supp', 0) or 0
-        hotel.day_use = data.get('Day_Use', 0) or 0
-        hotel.vignette = data.get('Vignette', 0) or 0
-        hotel.taxe_sejour = data.get('Taxe_Séjour', 0) or 0
-        hotel.petit_dejeuner = data.get('Petit_Déjeuner', 0) or 0
-        hotel.dejeuner = data.get('Déjeuner', 0) or 0
-        hotel.diner = data.get('Dîner', 0) or 0
-        hotel.description = data.get('Description', '')
-        hotel.contact = data.get('Contact', '')
-        hotel.email = data.get('Email', '')
+        hotel.id = data.get("ID", "")
+        hotel.nom = data.get("Nom", "")
+        hotel.lieu = data.get("Lieu", "")
+        hotel.type_hebergement = data.get("Type_Hébergement", "")
+        hotel.categorie = data.get("Catégorie", "")
+        hotel.chambre_single = data.get("Chambre_Single", 0) or 0
+        hotel.chambre_double = data.get("Chambre_Double", 0) or 0
+        hotel.chambre_familiale = data.get("Chambre_Familiale", 0) or 0
+        hotel.lit_supp = data.get("Lit_Supp", 0) or 0
+        hotel.day_use = data.get("Day_Use", 0) or 0
+        hotel.vignette = data.get("Vignette", 0) or 0
+        hotel.taxe_sejour = data.get("Taxe_Séjour", 0) or 0
+        hotel.petit_dejeuner = data.get("Petit_Déjeuner", 0) or 0
+        hotel.dejeuner = data.get("Déjeuner", 0) or 0
+        hotel.diner = data.get("Dîner", 0) or 0
+        hotel.description = data.get("Description", "")
+        hotel.contact = data.get("Contact", "")
+        hotel.email = data.get("Email", "")
         return hotel
 
     def validate(self):

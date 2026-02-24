@@ -3,13 +3,27 @@ Hotel quotation summary and grouping GUI component
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox, ttk
+
 import customtkinter as ctk
-from config import *
+
+from config import (
+    ACCENT_TEXT_COLOR,
+    BUTTON_BLUE,
+    BUTTON_FONT,
+    BUTTON_GREEN,
+    CARD_BG_COLOR,
+    ENTRY_FONT,
+    INPUT_BG_COLOR,
+    LABEL_FONT,
+    MAIN_BG_COLOR,
+    TEXT_COLOR,
+    TITLE_FONT,
+)
 from utils.excel_handler import (
-    load_all_hotel_quotations, 
+    get_quotations_by_city,
     get_quotations_grouped_by_client,
-    get_quotations_by_city
+    load_all_hotel_quotations,
 )
 from utils.logger import logger
 
@@ -64,7 +78,7 @@ class HotelQuotationSummary:
             text="RÉSUMÉ DES COTATIONS HÔTEL",
             font=TITLE_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         )
         title.pack(pady=(20, 10), fill="x")
 
@@ -81,7 +95,7 @@ class HotelQuotationSummary:
             "Treeview",
             background=INPUT_BG_COLOR,
             foreground=TEXT_COLOR,
-            fieldbackground=INPUT_BG_COLOR
+            fieldbackground=INPUT_BG_COLOR,
         )
         style.map("Treeview", background=[("selected", BUTTON_GREEN)])
 
@@ -90,7 +104,7 @@ class HotelQuotationSummary:
             text="Afficher par:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).pack(side="left")
 
         self.view_var = tk.StringVar(value="by_client")
@@ -100,7 +114,7 @@ class HotelQuotationSummary:
             values=["Par client", "Par ville", "Par hôtel"],
             font=ENTRY_FONT,
             width=20,
-            state="readonly"
+            state="readonly",
         )
         view_combo.pack(side="left", padx=(10, 20))
         view_combo.bind("<<ComboboxSelected>>", self._on_view_changed)
@@ -114,7 +128,7 @@ class HotelQuotationSummary:
             text="Recherche:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).pack(side="left")
 
         self.search_var = tk.StringVar()
@@ -124,7 +138,7 @@ class HotelQuotationSummary:
             font=ENTRY_FONT,
             width=30,
             bg=INPUT_BG_COLOR,
-            fg=TEXT_COLOR
+            fg=TEXT_COLOR,
         )
         search_entry.pack(side="left", padx=(10, 20))
         self.search_var.trace("w", self._on_search_changed)
@@ -137,7 +151,7 @@ class HotelQuotationSummary:
             fg="white",
             font=BUTTON_FONT,
             padx=15,
-            pady=5
+            pady=5,
         )
         refresh_btn.pack(side="left")
 
@@ -152,15 +166,15 @@ class HotelQuotationSummary:
         """Group quotations by hotel with subtotals"""
         grouped = {}
         for quotation in self.quotations:
-            hotel_name = quotation.get('hotel_name') or ''
+            hotel_name = quotation.get("hotel_name") or ""
             if hotel_name not in grouped:
                 grouped[hotel_name] = {
-                    'quotations': [],
-                    'total': 0,
-                    'currency': quotation.get('currency') or 'Ariary'
+                    "quotations": [],
+                    "total": 0,
+                    "currency": quotation.get("currency") or "Ariary",
                 }
-            grouped[hotel_name]['quotations'].append(quotation)
-            grouped[hotel_name]['total'] += quotation.get('total_price', 0)
+            grouped[hotel_name]["quotations"].append(quotation)
+            grouped[hotel_name]["total"] += quotation.get("total_price", 0)
         return grouped
 
     def _get_search_query(self):
@@ -201,7 +215,7 @@ class HotelQuotationSummary:
                 text="Aucune cotation trouvée",
                 font=LABEL_FONT,
                 fg=TEXT_COLOR,
-                bg=MAIN_BG_COLOR
+                bg=MAIN_BG_COLOR,
             ).pack(pady=20)
             return
 
@@ -211,7 +225,7 @@ class HotelQuotationSummary:
             if not query:
                 filtered_clients.append((client_id, client_data))
                 continue
-            client_name = (client_data.get('client_name') or '').lower()
+            client_name = (client_data.get("client_name") or "").lower()
             client_ref = str(client_id).lower()
             if query in client_name or query in client_ref:
                 filtered_clients.append((client_id, client_data))
@@ -222,7 +236,7 @@ class HotelQuotationSummary:
                 text="Aucun résultat pour cette recherche",
                 font=LABEL_FONT,
                 fg=TEXT_COLOR,
-                bg=MAIN_BG_COLOR
+                bg=MAIN_BG_COLOR,
             ).pack(pady=20)
             return
 
@@ -230,10 +244,12 @@ class HotelQuotationSummary:
         scrollable_frame = self.content_frame
 
         # Grand total
-        grand_total = sum(client_data['total'] for _, client_data in filtered_clients)
-        currency = filtered_clients[0][1]['currency'] if filtered_clients else 'Ariary'
+        grand_total = sum(client_data["total"] for _, client_data in filtered_clients)
+        currency = filtered_clients[0][1]["currency"] if filtered_clients else "Ariary"
 
-        grand_total_frame = tk.Frame(scrollable_frame, bg=CARD_BG_COLOR, bd=2, relief="ridge")
+        grand_total_frame = tk.Frame(
+            scrollable_frame, bg=CARD_BG_COLOR, bd=2, relief="ridge"
+        )
         grand_total_frame.pack(fill="x", pady=(0, 10), padx=0)
 
         tk.Label(
@@ -241,7 +257,7 @@ class HotelQuotationSummary:
             text="TOTAL GÉNÉRAL",
             font=("Arial", 12, "bold"),
             fg=ACCENT_TEXT_COLOR,
-            bg=CARD_BG_COLOR
+            bg=CARD_BG_COLOR,
         ).pack(side="left", padx=15, pady=5)
 
         tk.Label(
@@ -249,7 +265,7 @@ class HotelQuotationSummary:
             text=f"{grand_total:,.2f} {currency}",
             font=("Arial", 12, "bold"),
             fg=ACCENT_TEXT_COLOR,
-            bg=CARD_BG_COLOR
+            bg=CARD_BG_COLOR,
         ).pack(side="right", padx=15, pady=5)
 
         # Display each client's quotations
@@ -267,7 +283,7 @@ class HotelQuotationSummary:
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
             padx=10,
-            pady=10
+            pady=10,
         )
         client_frame.pack(fill="x", pady=10, padx=0)
 
@@ -275,12 +291,20 @@ class HotelQuotationSummary:
         tree_frame = tk.Frame(client_frame, bg=MAIN_BG_COLOR)
         tree_frame.pack(fill="both", expand=True)
 
-        columns = ("hotel", "city", "nights", "adults", "children", "meal_plan", "price")
+        columns = (
+            "hotel",
+            "city",
+            "nights",
+            "adults",
+            "children",
+            "meal_plan",
+            "price",
+        )
         tree = ttk.Treeview(
             tree_frame,
             columns=columns,
-            height=min(8, len(client_data['quotations'])),
-            show="headings"
+            height=min(8, len(client_data["quotations"])),
+            show="headings",
         )
 
         # Define column headings
@@ -302,19 +326,19 @@ class HotelQuotationSummary:
         tree.column("price", width=100)
 
         # Add data to tree
-        for quotation in client_data['quotations']:
+        for quotation in client_data["quotations"]:
             tree.insert(
                 "",
                 "end",
                 values=(
-                    quotation['hotel_name'],
-                    quotation['city'],
-                    quotation['nights'],
-                    quotation['adults'],
-                    quotation['children'],
-                    quotation['meal_plan'],
-                    f"{quotation['total_price']:,.2f} {quotation['currency']}"
-                )
+                    quotation["hotel_name"],
+                    quotation["city"],
+                    quotation["nights"],
+                    quotation["adults"],
+                    quotation["children"],
+                    quotation["meal_plan"],
+                    f"{quotation['total_price']:,.2f} {quotation['currency']}",
+                ),
             )
 
         tree.pack(fill="both", expand=True)
@@ -328,7 +352,7 @@ class HotelQuotationSummary:
             text=f"Sous-total {client_data['client_name']}:",
             font=("Arial", 10, "bold"),
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).pack(side="left")
 
         tk.Label(
@@ -336,7 +360,7 @@ class HotelQuotationSummary:
             text=f"{client_data['total']:,.2f} {client_data['currency']}",
             font=("Arial", 10, "bold"),
             fg=BUTTON_GREEN,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).pack(side="right")
 
     def _display_by_city(self):
@@ -351,7 +375,7 @@ class HotelQuotationSummary:
                 text="Aucune cotation trouvée",
                 font=LABEL_FONT,
                 fg=TEXT_COLOR,
-                bg=MAIN_BG_COLOR
+                bg=MAIN_BG_COLOR,
             ).pack(pady=20)
             return
 
@@ -361,7 +385,7 @@ class HotelQuotationSummary:
             if not query:
                 filtered_cities.append((city, city_data))
                 continue
-            if query in (city or '').lower():
+            if query in (city or "").lower():
                 filtered_cities.append((city, city_data))
 
         if not filtered_cities:
@@ -370,7 +394,7 @@ class HotelQuotationSummary:
                 text="Aucun résultat pour cette recherche",
                 font=LABEL_FONT,
                 fg=TEXT_COLOR,
-                bg=MAIN_BG_COLOR
+                bg=MAIN_BG_COLOR,
             ).pack(pady=20)
             return
 
@@ -378,10 +402,12 @@ class HotelQuotationSummary:
         scrollable_frame = self.content_frame
 
         # Grand total
-        grand_total = sum(city_data['total'] for _, city_data in filtered_cities)
-        currency = filtered_cities[0][1]['currency'] if filtered_cities else 'Ariary'
+        grand_total = sum(city_data["total"] for _, city_data in filtered_cities)
+        currency = filtered_cities[0][1]["currency"] if filtered_cities else "Ariary"
 
-        grand_total_frame = tk.Frame(scrollable_frame, bg=CARD_BG_COLOR, bd=2, relief="ridge")
+        grand_total_frame = tk.Frame(
+            scrollable_frame, bg=CARD_BG_COLOR, bd=2, relief="ridge"
+        )
         grand_total_frame.pack(fill="x", pady=(0, 10), padx=0)
 
         tk.Label(
@@ -389,7 +415,7 @@ class HotelQuotationSummary:
             text="TOTAL GÉNÉRAL",
             font=("Arial", 12, "bold"),
             fg=ACCENT_TEXT_COLOR,
-            bg=CARD_BG_COLOR
+            bg=CARD_BG_COLOR,
         ).pack(side="left", padx=15, pady=5)
 
         tk.Label(
@@ -397,7 +423,7 @@ class HotelQuotationSummary:
             text=f"{grand_total:,.2f} {currency}",
             font=("Arial", 12, "bold"),
             fg=ACCENT_TEXT_COLOR,
-            bg=CARD_BG_COLOR
+            bg=CARD_BG_COLOR,
         ).pack(side="right", padx=15, pady=5)
 
         # Display each city's quotations
@@ -415,7 +441,7 @@ class HotelQuotationSummary:
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
             padx=10,
-            pady=10
+            pady=10,
         )
         city_frame.pack(fill="x", pady=10, padx=0)
 
@@ -427,8 +453,8 @@ class HotelQuotationSummary:
         tree = ttk.Treeview(
             tree_frame,
             columns=columns,
-            height=min(8, len(city_data['quotations'])),
-            show="headings"
+            height=min(8, len(city_data["quotations"])),
+            show="headings",
         )
 
         # Define column headings
@@ -448,18 +474,18 @@ class HotelQuotationSummary:
         tree.column("price", width=100)
 
         # Add data to tree
-        for quotation in city_data['quotations']:
+        for quotation in city_data["quotations"]:
             tree.insert(
                 "",
                 "end",
                 values=(
-                    quotation['hotel_name'],
-                    quotation['client_name'],
-                    quotation['nights'],
-                    quotation['adults'],
-                    quotation['meal_plan'],
-                    f"{quotation['total_price']:,.2f} {quotation['currency']}"
-                )
+                    quotation["hotel_name"],
+                    quotation["client_name"],
+                    quotation["nights"],
+                    quotation["adults"],
+                    quotation["meal_plan"],
+                    f"{quotation['total_price']:,.2f} {quotation['currency']}",
+                ),
             )
 
         tree.pack(fill="both", expand=True)
@@ -473,7 +499,7 @@ class HotelQuotationSummary:
             text=f"Sous-total {city}:",
             font=("Arial", 10, "bold"),
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).pack(side="left")
 
         tk.Label(
@@ -481,7 +507,7 @@ class HotelQuotationSummary:
             text=f"{city_data['total']:,.2f} {city_data['currency']}",
             font=("Arial", 10, "bold"),
             fg=BUTTON_GREEN,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).pack(side="right")
 
     def _display_by_hotel(self):
@@ -496,7 +522,7 @@ class HotelQuotationSummary:
                 text="Aucune cotation trouvée",
                 font=LABEL_FONT,
                 fg=TEXT_COLOR,
-                bg=MAIN_BG_COLOR
+                bg=MAIN_BG_COLOR,
             ).pack(pady=20)
             return
 
@@ -506,7 +532,7 @@ class HotelQuotationSummary:
             if not query:
                 filtered_hotels.append((hotel, hotel_data))
                 continue
-            if query in (hotel or '').lower():
+            if query in (hotel or "").lower():
                 filtered_hotels.append((hotel, hotel_data))
 
         if not filtered_hotels:
@@ -515,7 +541,7 @@ class HotelQuotationSummary:
                 text="Aucun résultat pour cette recherche",
                 font=LABEL_FONT,
                 fg=TEXT_COLOR,
-                bg=MAIN_BG_COLOR
+                bg=MAIN_BG_COLOR,
             ).pack(pady=20)
             return
 
@@ -523,10 +549,12 @@ class HotelQuotationSummary:
         scrollable_frame = self.content_frame
 
         # Grand total
-        grand_total = sum(hotel_data['total'] for _, hotel_data in filtered_hotels)
-        currency = filtered_hotels[0][1]['currency'] if filtered_hotels else 'Ariary'
+        grand_total = sum(hotel_data["total"] for _, hotel_data in filtered_hotels)
+        currency = filtered_hotels[0][1]["currency"] if filtered_hotels else "Ariary"
 
-        grand_total_frame = tk.Frame(scrollable_frame, bg=CARD_BG_COLOR, bd=2, relief="ridge")
+        grand_total_frame = tk.Frame(
+            scrollable_frame, bg=CARD_BG_COLOR, bd=2, relief="ridge"
+        )
         grand_total_frame.pack(fill="x", pady=(0, 10), padx=0)
 
         tk.Label(
@@ -534,7 +562,7 @@ class HotelQuotationSummary:
             text="TOTAL GÉNÉRAL",
             font=("Arial", 12, "bold"),
             fg=ACCENT_TEXT_COLOR,
-            bg=CARD_BG_COLOR
+            bg=CARD_BG_COLOR,
         ).pack(side="left", padx=15, pady=5)
 
         tk.Label(
@@ -542,7 +570,7 @@ class HotelQuotationSummary:
             text=f"{grand_total:,.2f} {currency}",
             font=("Arial", 12, "bold"),
             fg=ACCENT_TEXT_COLOR,
-            bg=CARD_BG_COLOR
+            bg=CARD_BG_COLOR,
         ).pack(side="right", padx=15, pady=5)
 
         # Display each hotel's quotations
@@ -558,7 +586,7 @@ class HotelQuotationSummary:
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
             padx=10,
-            pady=10
+            pady=10,
         )
         hotel_frame.pack(fill="x", pady=10, padx=0)
 
@@ -566,12 +594,20 @@ class HotelQuotationSummary:
         tree_frame = tk.Frame(hotel_frame, bg=MAIN_BG_COLOR)
         tree_frame.pack(fill="both", expand=True)
 
-        columns = ("client", "city", "nights", "adults", "children", "meal_plan", "price")
+        columns = (
+            "client",
+            "city",
+            "nights",
+            "adults",
+            "children",
+            "meal_plan",
+            "price",
+        )
         tree = ttk.Treeview(
             tree_frame,
             columns=columns,
-            height=min(8, len(hotel_data['quotations'])),
-            show="headings"
+            height=min(8, len(hotel_data["quotations"])),
+            show="headings",
         )
 
         # Define column headings
@@ -593,19 +629,19 @@ class HotelQuotationSummary:
         tree.column("price", width=100)
 
         # Add data to tree
-        for quotation in hotel_data['quotations']:
+        for quotation in hotel_data["quotations"]:
             tree.insert(
                 "",
                 "end",
                 values=(
-                    quotation.get('client_name', ''),
-                    quotation.get('city', ''),
-                    quotation.get('nights', ''),
-                    quotation.get('adults', ''),
-                    quotation.get('children', ''),
-                    quotation.get('meal_plan', ''),
-                    f"{quotation.get('total_price', 0):,.2f} {quotation.get('currency', '')}"
-                )
+                    quotation.get("client_name", ""),
+                    quotation.get("city", ""),
+                    quotation.get("nights", ""),
+                    quotation.get("adults", ""),
+                    quotation.get("children", ""),
+                    quotation.get("meal_plan", ""),
+                    f"{quotation.get('total_price', 0):,.2f} {quotation.get('currency', '')}",
+                ),
             )
 
         tree.pack(fill="both", expand=True)
@@ -619,7 +655,7 @@ class HotelQuotationSummary:
             text=f"Sous-total {hotel}:",
             font=("Arial", 10, "bold"),
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).pack(side="left")
 
         tk.Label(
@@ -627,7 +663,7 @@ class HotelQuotationSummary:
             text=f"{hotel_data['total']:,.2f} {hotel_data['currency']}",
             font=("Arial", 10, "bold"),
             fg=BUTTON_GREEN,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).pack(side="right")
 
     def _refresh_data(self):

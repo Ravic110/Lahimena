@@ -2,10 +2,11 @@
 Pytest configuration and fixtures for Lahimena Tours tests
 """
 
-import pytest
-import sys
 import os
+import sys
 from pathlib import Path
+
+import pytest
 
 # Add the project root to the Python path
 project_root = Path(__file__).parent.parent
@@ -16,19 +17,19 @@ sys.path.insert(0, str(project_root))
 def client_data_dict():
     """Fixture providing sample client data"""
     return {
-        'ref_client': 'CLI-2026-001',
-        'nom': 'Test Client',
-        'telephone': '0301234567',
-        'email': 'test@example.com',
-        'code_pays': 'MG',
-        'periode': '5 jours',
-        'restauration': 'Petit-déjeuner',
-        'hebergement': 'Hôtel 3*',
-        'chambre': 'Double',
-        'enfant': 'Non',
-        'age_enfant': '',
-        'forfait': 'Standard',
-        'circuit': 'Côte Est'
+        "ref_client": "CLI-2026-001",
+        "nom": "Test Client",
+        "telephone": "0301234567",
+        "email": "test@example.com",
+        "code_pays": "MG",
+        "periode": "5 jours",
+        "restauration": "Petit-déjeuner",
+        "hebergement": "Hôtel 3*",
+        "chambre": "Double",
+        "enfant": "Non",
+        "age_enfant": "",
+        "forfait": "Standard",
+        "circuit": "Côte Est",
     }
 
 
@@ -36,13 +37,13 @@ def client_data_dict():
 def hotel_data_dict():
     """Fixture providing sample hotel data"""
     return {
-        'nom': 'Test Hotel',
-        'adresse': '123 Test Street',
-        'email': 'hotel@test.mg',
-        'telephone': '0302345678',
-        'code_pays': 'MG',
-        'etoiles': '3',
-        'region': 'Centre'
+        "nom": "Test Hotel",
+        "adresse": "123 Test Street",
+        "email": "hotel@test.mg",
+        "telephone": "0302345678",
+        "code_pays": "MG",
+        "etoiles": "3",
+        "region": "Centre",
     }
 
 
@@ -56,14 +57,15 @@ def temp_excel_file(tmp_path):
 def mock_logger(monkeypatch):
     """Fixture providing a mock logger"""
     from unittest.mock import MagicMock
+
     mock = MagicMock()
-    
+
     # Mock the logger functions
     mock.info = MagicMock()
     mock.warning = MagicMock()
     mock.error = MagicMock()
     mock.debug = MagicMock()
-    
+
     return mock
 
 

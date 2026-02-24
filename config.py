@@ -26,12 +26,22 @@ THEMES = {
         "TEXT_COLOR": "#F8FAFC",
         "MUTED_TEXT_COLOR": "#CBD5E1",
         "ACCENT_TEXT_COLOR": "#93C5FD",
+            "SIDEBAR_BG_COLOR": "#071026",
+            "MAIN_BG_COLOR": "#0B1226",
+            "PANEL_BG_COLOR": "#0F1B2B",
+            "CARD_BG_COLOR": "#0F1724",
+            "CARD_HOVER_BG_COLOR": "#172033",
+            "INPUT_BG_COLOR": "#0B1220",
+            "READONLY_BG_COLOR": "#08101A",
+            "TEXT_COLOR": "#FFFFFF",
+            "MUTED_TEXT_COLOR": "#9AA8B8",
+            "ACCENT_TEXT_COLOR": "#A0D2FF",
         "BUTTON_GREEN": "#059669",
         "BUTTON_GREEN_HOVER": "#047857",
         "BUTTON_BLUE": "#0284C7",
         "BUTTON_RED": "#DC2626",
         "BUTTON_ORANGE": "#F59E0B",
-        "BUTTON_GRAY": "#64748B"
+        "BUTTON_GRAY": "#64748B",
     },
     "light": {
         "SIDEBAR_BG_COLOR": "#FFFFFF",
@@ -49,8 +59,8 @@ THEMES = {
         "BUTTON_BLUE": "#2563EB",
         "BUTTON_RED": "#DC2626",
         "BUTTON_ORANGE": "#F59E0B",
-        "BUTTON_GRAY": "#64748B"
-    }
+        "BUTTON_GRAY": "#64748B",
+    },
 }
 
 # Colors (active theme)
@@ -138,6 +148,7 @@ def apply_theme(theme_name):
     BUTTON_GRAY = theme["BUTTON_GRAY"]
     _propagate_theme()
 
+
 # Fonts
 TITLE_FONT = ("Arial", 16, "bold")
 LABEL_FONT = ("Arial", 10, "bold")
@@ -157,18 +168,38 @@ COTATION_H_SHEET_NAME = "COTATION_H"
 
 # Form constants
 PERIODES = ["Haute saison", "Moyenne saison", "Basse saison"]
-RESTAURATIONS = ["Sans restauration", "Petit déjeuner", "Demi-pension",
-                "Pension complète", "All inclusive soft", "All inclusive",
-                "Ultra all inclusive"]
-TYPE_HEBERGEMENTS = ["Bivouac", "Hôtel 3*", "Hôtel 2*", "Hôtel 4*",
-                    "Hôtel 5*", "Maison d'hôte", "Auberge de vacances",
-                    "Bâteau", "Gîte"]
+RESTAURATIONS = [
+    "Sans restauration",
+    "Petit déjeuner",
+    "Demi-pension",
+    "Pension complète",
+    "All inclusive soft",
+    "All inclusive",
+    "Ultra all inclusive",
+]
+TYPE_HEBERGEMENTS = [
+    "Bivouac",
+    "Hôtel 3*",
+    "Hôtel 2*",
+    "Hôtel 4*",
+    "Hôtel 5*",
+    "Maison d'hôte",
+    "Auberge de vacances",
+    "Bâteau",
+    "Gîte",
+]
 TYPE_CHAMBRES = ["Single", "Double/twin", "Triple", "Familliale"]
 AGES_ENFANTS = ["0 à 2 ans", "2 à 6 ans", "6 à 12 ans"]
 FORFAITS = ["À la carte", "Sur mesure"]
-CIRCUITS = ["Circuits nature", "Circuits aventure", "Circuit Tourisme Solidaire",
-           "Circuit Culturel", "Circuits trek et randonnées", "Circuits détente",
-           "Voyages de noce"]
+CIRCUITS = [
+    "Circuits nature",
+    "Circuits aventure",
+    "Circuit Tourisme Solidaire",
+    "Circuit Culturel",
+    "Circuits trek et randonnées",
+    "Circuits détente",
+    "Voyages de noce",
+]
 HOTEL_ARRIVAL_TYPES = ["1*", "2*", "3*", "4*", "5*", "Luxe", "Eco"]
 
 # Phone codes

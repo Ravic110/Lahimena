@@ -2,8 +2,9 @@
 Home page view for the main content area.
 """
 
-import customtkinter as ctk
 from datetime import datetime
+
+import customtkinter as ctk
 
 
 class HomePage:
@@ -15,7 +16,7 @@ class HomePage:
         self._tips = [
             "Astuce: commencez par creer un client avant la cotation.",
             "Astuce: verifiez la liste hotels pour reutiliser une fiche existante.",
-            "Astuce: utilisez le resume des cotations pour un suivi rapide."
+            "Astuce: utilisez le resume des cotations pour un suivi rapide.",
         ]
         self._tip_index = 0
         self.clock_label = None
@@ -37,14 +38,14 @@ class HomePage:
             hero,
             text="Bienvenue sur Lahimena Tours",
             font=ctk.CTkFont(size=32, weight="bold"),
-            text_color="#F8FAFC"
+            text_color="#F8FAFC",
         ).grid(row=0, column=0, sticky="w", padx=24, pady=(20, 6))
 
         ctk.CTkLabel(
             hero,
             text="Un espace clair pour vos clients, hotels et devis.",
             font=ctk.CTkFont(size=15),
-            text_color="#CBD5E1"
+            text_color="#CBD5E1",
         ).grid(row=1, column=0, sticky="w", padx=24, pady=(0, 20))
 
         clock_box = ctk.CTkFrame(hero, fg_color="#1E293B", corner_radius=14)
@@ -54,14 +55,14 @@ class HomePage:
             clock_box,
             text="Heure locale",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#93C5FD"
+            text_color="#93C5FD",
         ).pack(padx=14, pady=(10, 4))
 
         self.clock_label = ctk.CTkLabel(
             clock_box,
             text="--/--/----\n--:--:--",
             font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="#F8FAFC"
+            text_color="#F8FAFC",
         )
         self.clock_label.pack(padx=14, pady=(0, 10))
 
@@ -69,25 +70,13 @@ class HomePage:
         quick_actions.pack(fill="x", pady=(0, 14))
 
         self._add_quick_action(
-            quick_actions,
-            "Nouveau client",
-            "client_form",
-            "#059669",
-            "#047857"
+            quick_actions, "Nouveau client", "client_form", "#059669", "#047857"
         )
         self._add_quick_action(
-            quick_actions,
-            "Nouvelle cotation",
-            "hotel_quotation",
-            "#0284C7",
-            "#0369A1"
+            quick_actions, "Nouvelle cotation", "hotel_quotation", "#0284C7", "#0369A1"
         )
         self._add_quick_action(
-            quick_actions,
-            "Liste hotels",
-            "hotel_list",
-            "#6D28D9",
-            "#5B21B6"
+            quick_actions, "Liste hotels", "hotel_list", "#6D28D9", "#5B21B6"
         )
 
         cards_container = ctk.CTkFrame(shell, fg_color="transparent")
@@ -96,18 +85,16 @@ class HomePage:
         self._add_card(
             cards_container,
             "Demarrage rapide",
-            "1) Creez un client\n2) Ajoutez ou choisissez un hotel\n3) Lancez une cotation"
+            "1) Creez un client\n2) Ajoutez ou choisissez un hotel\n3) Lancez une cotation",
         )
         self._add_card(
             cards_container,
             "Raccourcis utiles",
-            "Client, cotation hotel, resume de cotations et liste hotels."
+            "Client, cotation hotel, resume de cotations et liste hotels.",
         )
 
         tip_card = self._add_card(
-            cards_container,
-            "Astuce du moment",
-            self._tips[self._tip_index]
+            cards_container, "Astuce du moment", self._tips[self._tip_index]
         )
         self.tip_label = tip_card["body_label"]
         tip_card["frame"].configure(fg_color="#172554")
@@ -124,7 +111,7 @@ class HomePage:
             card,
             text=title,
             font=ctk.CTkFont(size=17, weight="bold"),
-            text_color="#F8FAFC"
+            text_color="#F8FAFC",
         )
         title_label.pack(anchor="w", padx=16, pady=(12, 4))
 
@@ -134,7 +121,7 @@ class HomePage:
             justify="left",
             anchor="w",
             font=ctk.CTkFont(size=14),
-            text_color="#E2E8F0"
+            text_color="#E2E8F0",
         )
         body_label.pack(anchor="w", padx=16, pady=(0, 12))
 
@@ -158,7 +145,7 @@ class HomePage:
             fg_color=color,
             hover_color=hover,
             corner_radius=12,
-            height=42
+            height=42,
         )
         btn.pack(side="left", padx=(0, 10), pady=4)
 
@@ -169,9 +156,7 @@ class HomePage:
     def _start_clock(self):
         if not self.clock_label or not self.clock_label.winfo_exists():
             return
-        self.clock_label.configure(
-            text=datetime.now().strftime("%d/%m/%Y\n%H:%M:%S")
-        )
+        self.clock_label.configure(text=datetime.now().strftime("%d/%m/%Y\n%H:%M:%S"))
         self.parent.after(1000, self._start_clock)
 
     def _start_tip_rotation(self):

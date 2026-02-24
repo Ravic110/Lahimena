@@ -3,10 +3,24 @@ Hotel list GUI component
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox, ttk
+
 import customtkinter as ctk
-from config import *
-from utils.excel_handler import load_all_hotels, delete_hotel_from_excel
+
+from config import (
+    BUTTON_BLUE,
+    BUTTON_FONT,
+    BUTTON_GREEN,
+    BUTTON_ORANGE,
+    BUTTON_RED,
+    ENTRY_FONT,
+    INPUT_BG_COLOR,
+    LABEL_FONT,
+    MAIN_BG_COLOR,
+    TEXT_COLOR,
+    TITLE_FONT,
+)
+from utils.excel_handler import delete_hotel_from_excel, load_all_hotels
 
 
 class HotelList:
@@ -43,7 +57,7 @@ class HotelList:
             text="LISTE DES HÔTELS",
             font=TITLE_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         )
         title.pack(pady=(20, 10))
 
@@ -57,7 +71,7 @@ class HotelList:
             text="Rechercher:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).pack(side="left")
 
         self.search_var = tk.StringVar()
@@ -68,7 +82,7 @@ class HotelList:
             font=ENTRY_FONT,
             width=25,
             bg=INPUT_BG_COLOR,
-            fg=TEXT_COLOR
+            fg=TEXT_COLOR,
         )
         search_entry.pack(side="left", padx=(10, 20))
 
@@ -78,7 +92,7 @@ class HotelList:
             text="Ville:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).pack(side="left")
 
         self.city_var = tk.StringVar()
@@ -88,10 +102,10 @@ class HotelList:
             textvariable=self.city_var,
             font=ENTRY_FONT,
             width=20,
-            state="readonly"
+            state="readonly",
         )
         self.city_combo.pack(side="left", padx=(10, 0))
-        self.city_combo['values'] = ["Toutes les villes"]
+        self.city_combo["values"] = ["Toutes les villes"]
 
         # Buttons frame
         btn_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
@@ -103,7 +117,7 @@ class HotelList:
             command=self._load_hotels,
             bg=BUTTON_BLUE,
             fg="white",
-            font=BUTTON_FONT
+            font=BUTTON_FONT,
         ).pack(side="left", padx=5)
 
         tk.Button(
@@ -112,7 +126,7 @@ class HotelList:
             command=self._new_hotel,
             bg=BUTTON_GREEN,
             fg="white",
-            font=BUTTON_FONT
+            font=BUTTON_FONT,
         ).pack(side="left", padx=5)
 
         self.btn_edit = tk.Button(
@@ -122,7 +136,7 @@ class HotelList:
             bg=BUTTON_ORANGE,
             fg="white",
             font=BUTTON_FONT,
-            state="disabled"
+            state="disabled",
         )
         self.btn_edit.pack(side="left", padx=5)
 
@@ -133,7 +147,7 @@ class HotelList:
             bg=BUTTON_RED,
             fg="white",
             font=BUTTON_FONT,
-            state="disabled"
+            state="disabled",
         )
         self.btn_delete.pack(side="left", padx=5)
 
@@ -151,20 +165,29 @@ class HotelList:
             "Treeview",
             background=INPUT_BG_COLOR,
             foreground=TEXT_COLOR,
-            fieldbackground=INPUT_BG_COLOR
+            fieldbackground=INPUT_BG_COLOR,
         )
         style.map("Treeview", background=[("selected", BUTTON_GREEN)])
 
         # Treeview
-        columns = ("row", "id", "nom", "lieu", "type_hebergement", "categorie",
-                  "chambre_single", "chambre_double", "contact")
+        columns = (
+            "row",
+            "id",
+            "nom",
+            "lieu",
+            "type_hebergement",
+            "categorie",
+            "chambre_single",
+            "chambre_double",
+            "contact",
+        )
         self.tree = ttk.Treeview(
             tree_frame,
             columns=columns,
             show="headings",
             yscrollcommand=v_scrollbar.set,
             xscrollcommand=h_scrollbar.set,
-            style="Treeview"
+            style="Treeview",
         )
 
         v_scrollbar.config(command=self.tree.yview)
@@ -180,7 +203,7 @@ class HotelList:
             "categorie": "Catégorie",
             "chambre_single": "Single",
             "chambre_double": "Double",
-            "contact": "Contact"
+            "contact": "Contact",
         }
 
         column_widths = {
@@ -192,7 +215,7 @@ class HotelList:
             "categorie": 80,
             "chambre_single": 80,
             "chambre_double": 80,
-            "contact": 120
+            "contact": 120,
         }
 
         for col in columns:
@@ -217,11 +240,7 @@ class HotelList:
 
         # Status label
         self.status_label = tk.Label(
-            self.parent,
-            text="",
-            font=("Arial", 10),
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            self.parent, text="", font=("Arial", 10), fg=TEXT_COLOR, bg=MAIN_BG_COLOR
         )
         self.status_label.pack(anchor="w", padx=20, pady=(0, 10))
 
@@ -231,13 +250,13 @@ class HotelList:
     def _load_hotels(self):
         """Load and display all hotels"""
         self.hotels = load_all_hotels()
-        
+
         # Extract unique cities for filter
-        cities = sorted(set(hotel['lieu'] for hotel in self.hotels if hotel['lieu']))
-        self.city_combo['values'] = ["Toutes les villes"] + cities
+        cities = sorted(set(hotel["lieu"] for hotel in self.hotels if hotel["lieu"]))
+        self.city_combo["values"] = ["Toutes les villes"] + cities
         if not self.city_var.get():
             self.city_var.set("Toutes les villes")
-        
+
         self.filtered_hotels = self.hotels.copy()
         self._apply_filters()
         self._update_treeview()
@@ -266,31 +285,33 @@ class HotelList:
         # Add filtered hotels
         for hotel in self.filtered_hotels:
             values = (
-                hotel['row_number'],
-                hotel['id'],
-                hotel['nom'],
-                hotel['lieu'],
-                hotel['type_hebergement'],
-                hotel['categorie'],
-                self._fmt_ar(hotel.get('chambre_single')),
-                self._fmt_ar(hotel.get('chambre_double')),
-                hotel['contact']
+                hotel["row_number"],
+                hotel["id"],
+                hotel["nom"],
+                hotel["lieu"],
+                hotel["type_hebergement"],
+                hotel["categorie"],
+                self._fmt_ar(hotel.get("chambre_single")),
+                self._fmt_ar(hotel.get("chambre_double")),
+                hotel["contact"],
             )
-            self.tree.insert("", "end", values=values, tags=(str(hotel['row_number']),))
+            self.tree.insert("", "end", values=values, tags=(str(hotel["row_number"]),))
 
         # Update status label
         total_hotels = len(self.hotels)
         filtered_count = len(self.filtered_hotels)
-        
+
         status_parts = []
         if self.search_var.get():
             status_parts.append(f"recherche: '{self.search_var.get()}'")
         if self.city_var.get() != "Toutes les villes":
             status_parts.append(f"ville: {self.city_var.get()}")
-        
+
         if status_parts:
             filter_text = " | ".join(status_parts)
-            self.status_label.config(text=f"Affichage de {filtered_count} hôtel(s) sur {total_hotels} (filtré: {filter_text})")
+            self.status_label.config(
+                text=f"Affichage de {filtered_count} hôtel(s) sur {total_hotels} (filtré: {filter_text})"
+            )
         else:
             self.status_label.config(text=f"Total: {total_hotels} hôtel(s)")
 
@@ -303,20 +324,23 @@ class HotelList:
         """Apply search and city filters"""
         search_text = self.search_var.get().lower()
         selected_city = self.city_var.get()
-        
+
         self.filtered_hotels = []
         for hotel in self.hotels:
             # City filter
-            city_match = (selected_city == "Toutes les villes" or 
-                         hotel['lieu'] == selected_city)
-            
+            city_match = (
+                selected_city == "Toutes les villes" or hotel["lieu"] == selected_city
+            )
+
             # Search filter
-            search_match = (not search_text or
-                           search_text in hotel['nom'].lower() or
-                           search_text in hotel['lieu'].lower() or
-                           search_text in hotel['id'].lower() or
-                           search_text in hotel['contact'].lower())
-            
+            search_match = (
+                not search_text
+                or search_text in hotel["nom"].lower()
+                or search_text in hotel["lieu"].lower()
+                or search_text in hotel["id"].lower()
+                or search_text in hotel["contact"].lower()
+            )
+
             if city_match and search_match:
                 self.filtered_hotels.append(hotel)
 
@@ -351,7 +375,7 @@ class HotelList:
 
         # Find hotel by row number
         for hotel in self.hotels:
-            if hotel['row_number'] == row_number:
+            if hotel["row_number"] == row_number:
                 return hotel
         return None
 
@@ -361,22 +385,30 @@ class HotelList:
         if hotel and self.on_edit_hotel:
             self.on_edit_hotel(hotel)
         else:
-            messagebox.showwarning("Aucun hôtel sélectionné", "Veuillez sélectionner un hôtel à modifier.")
+            messagebox.showwarning(
+                "Aucun hôtel sélectionné", "Veuillez sélectionner un hôtel à modifier."
+            )
 
     def _delete_selected(self):
         """Delete the selected hotel"""
         hotel = self._get_selected_hotel()
         if not hotel:
-            messagebox.showwarning("Aucun hôtel sélectionné", "Veuillez sélectionner un hôtel à supprimer.")
+            messagebox.showwarning(
+                "Aucun hôtel sélectionné", "Veuillez sélectionner un hôtel à supprimer."
+            )
             return
 
-        if messagebox.askyesno("Confirmation",
-                              f"Êtes-vous sûr de vouloir supprimer l'hôtel {hotel['nom']} ?"):
-            if delete_hotel_from_excel(hotel['row_number']):
+        if messagebox.askyesno(
+            "Confirmation",
+            f"Êtes-vous sûr de vouloir supprimer l'hôtel {hotel['nom']} ?",
+        ):
+            if delete_hotel_from_excel(hotel["row_number"]):
                 messagebox.showinfo("Succès", "Hôtel supprimé avec succès !")
                 self._load_hotels()
             else:
-                messagebox.showerror("Erreur", "Erreur lors de la suppression de l'hôtel")
+                messagebox.showerror(
+                    "Erreur", "Erreur lors de la suppression de l'hôtel"
+                )
 
     def _view_details(self):
         """View detailed information of selected hotel"""

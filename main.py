@@ -4,11 +4,18 @@ Lahimena Tours Devis Generation Application
 Main entry point for the application
 """
 
-import customtkinter as ctk
 from tkinter import messagebox
-from config import *
-from gui.sidebar import Sidebar
+
+import customtkinter as ctk
+
+from config import (
+    APP_GEOMETRY,
+    APP_TITLE,
+    APPEARANCE_MODE,
+    DEFAULT_COLOR_THEME,
+)
 from gui.main_content import MainContent
+from gui.sidebar import Sidebar
 from utils.logger import logger
 
 
@@ -16,7 +23,7 @@ def main():
     """Main application entry point"""
     try:
         logger.info(f"Starting {APP_TITLE}")
-        
+
         # Set appearance theme
         ctk.set_appearance_mode(APPEARANCE_MODE)
         ctk.set_default_color_theme(DEFAULT_COLOR_THEME)
@@ -42,20 +49,24 @@ def main():
         logger.debug("Sidebar initialized")
 
         logger.info("Application started successfully")
-        
+
         # Start the application loop
         app.mainloop()
-        
+
         logger.info("Application closed")
-        
+
     except Exception as e:
         error_msg = f"Application error: {e}"
         logger.error(error_msg, exc_info=True)
         # Show error dialog to user
         try:
-            messagebox.showerror("❌ Erreur Application", f"Une erreur est survenue:\n\n{str(e)}\n\nVoir les logs pour plus de détails.")
-        except:
+            messagebox.showerror(
+                "❌ Erreur Application",
+                f"Une erreur est survenue:\n\n{str(e)}\n\nVoir les logs pour plus de détails.",
+            )
+        except Exception as dialog_error:
             print(f"CRITICAL ERROR: {error_msg}")
+            print(f"Dialog error: {dialog_error}")
         raise
 
 

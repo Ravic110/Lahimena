@@ -3,7 +3,8 @@ Client data model
 """
 
 from datetime import datetime
-from config import *
+
+# No config constants required in the model; keep models independent of UI config
 
 
 class ClientData:
@@ -37,6 +38,12 @@ class ClientData:
         self.forfait = ""
         self.circuit = ""
         self.type_circuit = ""
+        self.id_circuit = ""
+        self.itineraire_circuit = ""
+        self.activite_circuit = ""
+        self.duree_circuit = ""
+        self.condition_physique_circuit = ""
+        self.type_voiture_circuit = ""
         self.ville_depart = ""
         self.ville_arrivee = ""
         self.type_hotel_arrivee = ""
@@ -55,39 +62,45 @@ class ClientData:
             dict: Client data as dictionary
         """
         return {
-            'Timestamp': self.timestamp,
-            'Ref_Client': self.ref_client,
-            'Numero_Dossier': self.numero_dossier,
-            'Type_Client': self.type_client,
-            'Prénom': self.prenom,
-            'Nom': self.nom,
-            'Date_Arrivée': self.date_arrivee,
-            'Date_Départ': self.date_depart,
-            'Durée_Séjour': self.duree_sejour,
-            'Nombre_Participants': self.nombre_participants,
-            'Nombre_Adultes': self.nombre_adultes,
-            'Enfants_2_12_ans': self.nombre_enfants_2_12,
-            'Bébés_0_2_ans': self.nombre_bebes_0_2,
-            'Téléphone': self.telephone,
-            'Téléphone_WhatsApp': self.telephone_whatsapp,
-            'Email': self.email,
-            'Période': self.periode,
-            'Restauration': self.restauration,
-            'Hébergement': self.hebergement,
-            'Chambre': self.chambre,
-            'Enfant': self.enfant,
-            'Âge_Enfant': self.age_enfant,
-            'Forfait': self.forfait,
-            'Circuit': self.circuit,
-            'Type_Circuit': self.type_circuit,
-            'Ville_Depart': self.ville_depart,
-            'Ville_Arrivee': self.ville_arrivee,
-            'Type_Hotel_Arrivee': self.type_hotel_arrivee,
-            'SGL_Count': self.sgl_count,
-            'DBL_Count': self.dbl_count,
-            'TWN_Count': self.twn_count,
-            'TPL_Count': self.tpl_count,
-            'FML_Count': self.fml_count
+            "Timestamp": self.timestamp,
+            "Ref_Client": self.ref_client,
+            "Numero_Dossier": self.numero_dossier,
+            "Type_Client": self.type_client,
+            "Prénom": self.prenom,
+            "Nom": self.nom,
+            "Date_Arrivée": self.date_arrivee,
+            "Date_Départ": self.date_depart,
+            "Durée_Séjour": self.duree_sejour,
+            "Nombre_Participants": self.nombre_participants,
+            "Nombre_Adultes": self.nombre_adultes,
+            "Enfants_2_12_ans": self.nombre_enfants_2_12,
+            "Bébés_0_2_ans": self.nombre_bebes_0_2,
+            "Téléphone": self.telephone,
+            "Téléphone_WhatsApp": self.telephone_whatsapp,
+            "Email": self.email,
+            "Période": self.periode,
+            "Restauration": self.restauration,
+            "Hébergement": self.hebergement,
+            "Chambre": self.chambre,
+            "Enfant": self.enfant,
+            "Âge_Enfant": self.age_enfant,
+            "Forfait": self.forfait,
+            "Circuit": self.circuit,
+            "Type_Circuit": self.type_circuit,
+            "ID_Circuit": self.id_circuit,
+            "Itineraire_Circuit": self.itineraire_circuit,
+            "Activite_Circuit": self.activite_circuit,
+            "Duree_Circuit": self.duree_circuit,
+            "Condition_Physique_Circuit": self.condition_physique_circuit,
+            "Type_Voiture_Circuit": self.type_voiture_circuit,
+            "Ville_Depart": self.ville_depart,
+            "Ville_Arrivee": self.ville_arrivee,
+            "Type_Hotel_Arrivee": self.type_hotel_arrivee,
+            "SGL_Count": self.sgl_count,
+            "DBL_Count": self.dbl_count,
+            "TWN_Count": self.twn_count,
+            "TPL_Count": self.tpl_count,
+            "FML_Count": self.fml_count,
         }
 
     @classmethod
@@ -102,39 +115,49 @@ class ClientData:
             ClientData: ClientData instance
         """
         client = cls()
-        client.timestamp = form_data.get('timestamp', datetime.now().strftime('%d/%m/%Y %H:%M'))
-        client.ref_client = form_data.get('ref_client', '').strip()
-        client.numero_dossier = form_data.get('numero_dossier', '').strip()
-        client.type_client = form_data.get('type_client', '').strip()
-        client.prenom = form_data.get('prenom', '').strip()
-        client.nom = form_data.get('nom', '').strip()
-        client.date_arrivee = form_data.get('date_arrivee', '').strip()
-        client.date_depart = form_data.get('date_depart', '').strip()
-        client.duree_sejour = form_data.get('duree_sejour', '').strip()
-        client.nombre_participants = form_data.get('nombre_participants', '').strip()
-        client.nombre_adultes = form_data.get('nombre_adultes', '').strip()
-        client.nombre_enfants_2_12 = form_data.get('nombre_enfants_2_12', '').strip()
-        client.nombre_bebes_0_2 = form_data.get('nombre_bebes_0_2', '').strip()
-        client.telephone = form_data.get('telephone', '')
-        client.telephone_whatsapp = form_data.get('telephone_whatsapp', '')
-        client.email = form_data.get('email', '').strip()
-        client.periode = form_data.get('periode', '')
-        client.restauration = form_data.get('restauration', '')
-        client.hebergement = form_data.get('hebergement', '')
-        client.chambre = form_data.get('chambre', '')
-        client.enfant = form_data.get('enfant', '')
-        client.age_enfant = form_data.get('age_enfant', '')
-        client.forfait = form_data.get('forfait', '')
-        client.circuit = form_data.get('circuit', '')
-        client.type_circuit = form_data.get('type_circuit', '')
-        client.ville_depart = form_data.get('ville_depart', '')
-        client.ville_arrivee = form_data.get('ville_arrivee', '')
-        client.type_hotel_arrivee = form_data.get('type_hotel_arrivee', '')
-        client.sgl_count = form_data.get('sgl_count', '').strip()
-        client.dbl_count = form_data.get('dbl_count', '').strip()
-        client.twn_count = form_data.get('twn_count', '').strip()
-        client.tpl_count = form_data.get('tpl_count', '').strip()
-        client.fml_count = form_data.get('fml_count', '').strip()
+        client.timestamp = form_data.get(
+            "timestamp", datetime.now().strftime("%d/%m/%Y %H:%M")
+        )
+        client.ref_client = form_data.get("ref_client", "").strip()
+        client.numero_dossier = form_data.get("numero_dossier", "").strip()
+        client.type_client = form_data.get("type_client", "").strip()
+        client.prenom = form_data.get("prenom", "").strip()
+        client.nom = form_data.get("nom", "").strip()
+        client.date_arrivee = form_data.get("date_arrivee", "").strip()
+        client.date_depart = form_data.get("date_depart", "").strip()
+        client.duree_sejour = form_data.get("duree_sejour", "").strip()
+        client.nombre_participants = form_data.get("nombre_participants", "").strip()
+        client.nombre_adultes = form_data.get("nombre_adultes", "").strip()
+        client.nombre_enfants_2_12 = form_data.get("nombre_enfants_2_12", "").strip()
+        client.nombre_bebes_0_2 = form_data.get("nombre_bebes_0_2", "").strip()
+        client.telephone = form_data.get("telephone", "")
+        client.telephone_whatsapp = form_data.get("telephone_whatsapp", "")
+        client.email = form_data.get("email", "").strip()
+        client.periode = form_data.get("periode", "")
+        client.restauration = form_data.get("restauration", "")
+        client.hebergement = form_data.get("hebergement", "")
+        client.chambre = form_data.get("chambre", "")
+        client.enfant = form_data.get("enfant", "")
+        client.age_enfant = form_data.get("age_enfant", "")
+        client.forfait = form_data.get("forfait", "")
+        client.circuit = form_data.get("circuit", "")
+        client.type_circuit = form_data.get("type_circuit", "")
+        client.id_circuit = form_data.get("id_circuit", "")
+        client.itineraire_circuit = form_data.get("itineraire_circuit", "")
+        client.activite_circuit = form_data.get("activite_circuit", "")
+        client.duree_circuit = form_data.get("duree_circuit", "")
+        client.condition_physique_circuit = form_data.get(
+            "condition_physique_circuit", ""
+        )
+        client.type_voiture_circuit = form_data.get("type_voiture_circuit", "")
+        client.ville_depart = form_data.get("ville_depart", "")
+        client.ville_arrivee = form_data.get("ville_arrivee", "")
+        client.type_hotel_arrivee = form_data.get("type_hotel_arrivee", "")
+        client.sgl_count = form_data.get("sgl_count", "").strip()
+        client.dbl_count = form_data.get("dbl_count", "").strip()
+        client.twn_count = form_data.get("twn_count", "").strip()
+        client.tpl_count = form_data.get("tpl_count", "").strip()
+        client.fml_count = form_data.get("fml_count", "").strip()
         return client
 
     def validate(self):

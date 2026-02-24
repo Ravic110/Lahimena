@@ -2,24 +2,47 @@
 Hotel quotation GUI component
 """
 
-import tkinter as tk
-from tkinter import ttk, messagebox
-import customtkinter as ctk
-from config import *
-from utils.excel_handler import load_all_hotels, load_all_clients, save_hotel_quotation_to_excel
-from utils.logger import logger
-from utils.pdf_generator import generate_hotel_quotation_pdf, REPORTLAB_AVAILABLE
-import os
 import datetime
+import os
+import re
 import subprocess
-from utils.validators import get_exchange_rates, convert_currency
+import tkinter as tk
+from tkinter import messagebox, ttk
 
+import customtkinter as ctk
+
+from config import (
+    BUTTON_BLUE,
+    BUTTON_FONT,
+    BUTTON_GRAY,
+    BUTTON_GREEN,
+    BUTTON_ORANGE,
+    BUTTON_RED,
+    DEVIS_FOLDER,
+    ENTRY_FONT,
+    INPUT_BG_COLOR,
+    LABEL_FONT,
+    MAIN_BG_COLOR,
+    PERIODES,
+    RESTAURATIONS,
+    TEXT_COLOR,
+    TITLE_FONT,
+    TYPE_HEBERGEMENTS,
+)
+from utils.excel_handler import (
+    load_all_clients,
+    load_all_hotels,
+    save_hotel_quotation_to_excel,
+)
+from utils.logger import logger
+from utils.pdf_generator import REPORTLAB_AVAILABLE, generate_hotel_quotation_pdf
+from utils.validators import convert_currency, get_exchange_rates
 
 ROOM_GROUP_LABELS = {
     "standard": "Standard",
     "bungalows": "Bungalows",
     "deluxe": "De luxe",
-    "suite": "Suite"
+    "suite": "Suite",
 }
 ROOM_GROUP_KEYS = {label: key for key, label in ROOM_GROUP_LABELS.items()}
 
@@ -33,7 +56,7 @@ ROOM_TYPE_LABELS = {
     "dortoir": "Dortoir",
     "supp": "Suppl.",
     "studios": "Studio",
-    "vip": "VIP"
+    "vip": "VIP",
 }
 ROOM_TYPE_KEYS = {label: key for key, label in ROOM_TYPE_LABELS.items()}
 
@@ -54,32 +77,35 @@ class HotelQuotation:
         self.hotels = self._load_and_filter_hotels()
         self.clients = self._load_clients()
         self.selected_hotel = None
+        self.last_pricing = None
+        self.allowed_itinerary_cities = []
+        self.preferred_room_type_label = ""
 
         self._create_quotation_form()
 
         # Bind client type change to update hotel list
-        if hasattr(self, 'client_type_var'):
-            self.client_type_var.trace('w', self._on_client_type_changed)
+        if hasattr(self, "client_type_var"):
+            self.client_type_var.trace("w", self._on_client_type_changed)
 
     def _load_and_filter_hotels(self, client_type=None):
         """Load hotels and filter duplicates"""
         hotels = load_all_hotels(client_type)
-        
+
         # Remove duplicates based on nom, lieu, and categorie
         unique_hotels = {}
         for hotel in hotels:
-            categorie = (hotel.get('categorie') or '').strip()
+            categorie = (hotel.get("categorie") or "").strip()
             key = f"{hotel['nom']}_{hotel['lieu']}_{categorie}"
             if key not in unique_hotels:
                 unique_hotels[key] = hotel
-        
+
         return list(unique_hotels.values())
 
     def _hotel_display(self, hotel):
         """Build display label for hotel choice"""
-        nom = (hotel.get('nom') or '').strip()
-        lieu = (hotel.get('lieu') or '').strip()
-        categorie = (hotel.get('categorie') or '').strip()
+        nom = (hotel.get("nom") or "").strip()
+        lieu = (hotel.get("lieu") or "").strip()
+        categorie = (hotel.get("categorie") or "").strip()
         if categorie:
             return f"{nom} - {lieu} ({categorie})"
         return f"{nom} - {lieu}"
@@ -87,6 +113,115 @@ class HotelQuotation:
     def _load_clients(self):
         """Load all clients from Excel"""
         return load_all_clients()
+
+    def _parse_itinerary_cities(self, cities_value):
+        """Parse itinerary city values from saved client data."""
+        if not cities_value:
+            return []
+        cities = [
+            c.strip() for c in re.split(r"[;,>\n]+", str(cities_value)) if c.strip()
+        ]
+        parsed = []
+        seen = set()
+        for city in cities:
+            if " - " in city:
+                city = city.split(" - ", 1)[1].strip()
+            if city and city not in seen:
+                seen.add(city)
+                parsed.append(city)
+        return parsed
+
+    def _get_city_values(self):
+        """Build city values according to current itinerary filter."""
+        if self.allowed_itinerary_cities:
+            allowed_set = set(self.allowed_itinerary_cities)
+            cities = sorted(
+                {
+                    hotel.get("lieu", "")
+                    for hotel in self.hotels
+                    if hotel.get("lieu") and hotel.get("lieu") in allowed_set
+                }
+            )
+        else:
+            cities = sorted(
+                {hotel.get("lieu", "") for hotel in self.hotels if hotel.get("lieu")}
+            )
+        return [""] + cities
+
+    def _refresh_city_and_hotel_options(self, preserve_city=False):
+        """Refresh city/hotel combobox options after filters changed."""
+        previous_city = self.city_var.get().strip() if preserve_city else ""
+        city_values = self._get_city_values()
+        self.city_combo["values"] = city_values
+
+        if previous_city and previous_city in city_values:
+            self.city_var.set(previous_city)
+        else:
+            self.city_var.set("")
+
+        self._on_city_selected()
+
+    def _parse_int_value(self, value, default=0):
+        """Extract first integer from a value string."""
+        if value is None:
+            return default
+        if isinstance(value, (int, float)):
+            return int(value)
+        match = re.search(r"\d+", str(value))
+        return int(match.group(0)) if match else default
+
+    def _apply_client_stay_defaults(self, client):
+        """Auto-fill stay parameters from selected client data."""
+        nights = self._parse_int_value(client.get("duree_sejour"), 1)
+        adults = self._parse_int_value(client.get("nombre_adultes"), 2)
+        enfants_2_12 = self._parse_int_value(client.get("nombre_enfants_2_12"), 0)
+        bebes_0_2 = self._parse_int_value(client.get("nombre_bebes_0_2"), 0)
+
+        self.nights_var.set(str(max(1, nights)))
+        self.adults_var.set(str(max(1, adults)))
+        self.children_var.set(str(max(0, enfants_2_12 + bebes_0_2)))
+
+        period = (client.get("periode") or "").strip()
+        if period:
+            try:
+                self.period_var.set(period)
+            except Exception:
+                pass
+
+        resta = (client.get("restauration") or "").strip()
+        if resta and resta in RESTAURATIONS:
+            try:
+                self.meal_var.set(resta)
+            except Exception:
+                pass
+
+        # Map client type to quotation pricing mode when available
+        type_client = (client.get("type_client") or "").strip().lower()
+        if type_client == "individuel":
+            self.client_type_var.set("PBC")
+        elif type_client == "groupe":
+            self.client_type_var.set("TO")
+
+        # Save preferred room type to be applied once a hotel is selected
+        room_value = str(client.get("chambre") or "").strip().lower()
+        self.preferred_room_type_label = ""
+        if room_value:
+            synonyms = {
+                "single": ["single", "sgl"],
+                "double": ["double", "dbl", "double/twin", "twin", "twn"],
+                "twin": ["twin", "twn", "double/twin", "double", "dbl"],
+                "familiale": ["familiale", "familliale", "fml", "family"],
+                "triple": ["triple", "tpl"],
+                "chauffeur": ["chauffeur"],
+                "dortoir": ["dortoir", "dormitory"],
+                "supp": ["supp", "suppl", "suppl."],
+                "studios": ["studio", "studios"],
+                "vip": ["vip"],
+            }
+            for key, terms in synonyms.items():
+                if any(term in room_value for term in terms):
+                    self.preferred_room_type_label = ROOM_TYPE_LABELS.get(key, "")
+                    break
 
     def _create_quotation_form(self):
         """Create the hotel quotation interface"""
@@ -100,7 +235,7 @@ class HotelQuotation:
             text="COTATION HÔTEL",
             font=TITLE_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         )
         title.pack(pady=(20, 10))
 
@@ -113,7 +248,7 @@ class HotelQuotation:
             "Treeview",
             background=INPUT_BG_COLOR,
             foreground=TEXT_COLOR,
-            fieldbackground=INPUT_BG_COLOR
+            fieldbackground=INPUT_BG_COLOR,
         )
         style.map("Treeview", background=[("selected", BUTTON_GREEN)])
 
@@ -125,7 +260,7 @@ class HotelQuotation:
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
             padx=10,
-            pady=10
+            pady=10,
         )
         client_frame.pack(fill="x", pady=(0, 10))
 
@@ -135,25 +270,29 @@ class HotelQuotation:
             text="Sélectionner client:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).grid(row=0, column=0, sticky="w", pady=5)
 
         self.client_var = tk.StringVar()
         client_names = [""]
         for client in self.clients:
-            nom = (client.get('nom') or '').strip()
-            prenom = (client.get('prenom') or '').strip()
+            nom = (client.get("nom") or "").strip()
+            prenom = (client.get("prenom") or "").strip()
             full_name = f"{nom} {prenom}".strip()
-            client_names.append(full_name if full_name else (client.get('ref_client') or ''))
+            client_names.append(
+                full_name if full_name else (client.get("ref_client") or "")
+            )
         self.client_combo = ttk.Combobox(
             client_frame,
             textvariable=self.client_var,
             values=client_names,
             font=ENTRY_FONT,
             width=30,
-            state="readonly"
+            state="readonly",
         )
-        self.client_combo.grid(row=0, column=1, columnspan=3, padx=(10, 0), pady=5, sticky="w")
+        self.client_combo.grid(
+            row=0, column=1, columnspan=3, padx=(10, 0), pady=5, sticky="w"
+        )
         self.client_combo.bind("<<ComboboxSelected>>", self._on_client_selected)
 
         # Row 1: Name and surname
@@ -162,7 +301,7 @@ class HotelQuotation:
             text="Nom et Prénom:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).grid(row=1, column=0, sticky="w", pady=5)
 
         self.client_name_var = tk.StringVar()
@@ -173,9 +312,11 @@ class HotelQuotation:
             font=ENTRY_FONT,
             width=40,
             bg=INPUT_BG_COLOR,
-            fg=TEXT_COLOR
+            fg=TEXT_COLOR,
         )
-        self.client_name_entry.grid(row=1, column=1, columnspan=3, padx=(10, 0), pady=5, sticky="w")
+        self.client_name_entry.grid(
+            row=1, column=1, columnspan=3, padx=(10, 0), pady=5, sticky="w"
+        )
 
         # Row 2: Email and phone
         tk.Label(
@@ -183,7 +324,7 @@ class HotelQuotation:
             text="Email:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).grid(row=2, column=0, sticky="w", pady=5)
 
         self.client_email_var = tk.StringVar()
@@ -193,7 +334,7 @@ class HotelQuotation:
             font=ENTRY_FONT,
             width=20,
             bg=INPUT_BG_COLOR,
-            fg=TEXT_COLOR
+            fg=TEXT_COLOR,
         )
         self.client_email_entry.grid(row=2, column=1, padx=(10, 20), pady=5)
 
@@ -202,7 +343,7 @@ class HotelQuotation:
             text="Téléphone:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).grid(row=2, column=2, sticky="w", pady=5)
 
         self.client_phone_var = tk.StringVar()
@@ -212,7 +353,7 @@ class HotelQuotation:
             font=ENTRY_FONT,
             width=20,
             bg=INPUT_BG_COLOR,
-            fg=TEXT_COLOR
+            fg=TEXT_COLOR,
         )
         self.client_phone_entry.grid(row=2, column=3, padx=(10, 0), pady=5)
 
@@ -224,39 +365,29 @@ class HotelQuotation:
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
             padx=10,
-            pady=10
+            pady=10,
         )
         hotel_frame.pack(fill="x", pady=(0, 10))
 
         # City selection + Hotel selection (city first)
         tk.Label(
-            hotel_frame,
-            text="Ville:",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            hotel_frame, text="Ville:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR
         ).grid(row=0, column=0, sticky="w", pady=5)
 
-        # Build unique city list from hotels
-        cities = sorted(list({hotel.get('lieu', '') for hotel in self.hotels if hotel.get('lieu')}))
         self.city_var = tk.StringVar()
         self.city_combo = ttk.Combobox(
             hotel_frame,
             textvariable=self.city_var,
-            values=[""] + cities,
+            values=self._get_city_values(),
             font=ENTRY_FONT,
             width=20,
-            state="readonly"
+            state="readonly",
         )
         self.city_combo.grid(row=0, column=1, padx=(10, 10), pady=5, sticky="w")
         self.city_combo.bind("<<ComboboxSelected>>", self._on_city_selected)
 
         tk.Label(
-            hotel_frame,
-            text="Hôtel:",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            hotel_frame, text="Hôtel:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR
         ).grid(row=0, column=2, sticky="w", pady=5)
 
         self.hotel_var = tk.StringVar()
@@ -267,7 +398,7 @@ class HotelQuotation:
             values=[],
             font=ENTRY_FONT,
             width=40,
-            state="readonly"
+            state="readonly",
         )
         self.hotel_combo.grid(row=0, column=3, padx=(10, 0), pady=5)
         self.hotel_combo.bind("<<ComboboxSelected>>", self._on_hotel_selected)
@@ -280,7 +411,7 @@ class HotelQuotation:
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
             padx=10,
-            pady=10
+            pady=10,
         )
         params_frame.pack(fill="x", pady=(0, 10))
 
@@ -290,7 +421,7 @@ class HotelQuotation:
             text="Nombre de nuits:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).grid(row=0, column=0, sticky="w", pady=5)
 
         self.nights_var = tk.StringVar(value="1")
@@ -300,7 +431,7 @@ class HotelQuotation:
             font=ENTRY_FONT,
             width=10,
             bg=INPUT_BG_COLOR,
-            fg=TEXT_COLOR
+            fg=TEXT_COLOR,
         )
         self.nights_entry.grid(row=0, column=1, padx=(10, 20), pady=5)
 
@@ -309,7 +440,7 @@ class HotelQuotation:
             text="Gamme:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).grid(row=0, column=2, sticky="w", pady=5)
 
         self.room_group_var = tk.StringVar(value="")
@@ -319,7 +450,7 @@ class HotelQuotation:
             values=[],
             font=ENTRY_FONT,
             width=15,
-            state="readonly"
+            state="readonly",
         )
         self.room_group_combo.grid(row=0, column=3, padx=(10, 0), pady=5)
         self.room_group_combo.bind("<<ComboboxSelected>>", self._on_room_group_selected)
@@ -330,7 +461,7 @@ class HotelQuotation:
             text="Type de chambre:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).grid(row=1, column=0, sticky="w", pady=5)
 
         self.room_type_var = tk.StringVar(value="")
@@ -340,7 +471,7 @@ class HotelQuotation:
             values=[],
             font=ENTRY_FONT,
             width=15,
-            state="readonly"
+            state="readonly",
         )
         self.room_type_combo.grid(row=1, column=1, padx=(10, 20), pady=5)
 
@@ -349,7 +480,7 @@ class HotelQuotation:
             text="Adultes:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).grid(row=1, column=2, sticky="w", pady=5)
 
         self.adults_var = tk.StringVar(value="2")
@@ -359,7 +490,7 @@ class HotelQuotation:
             font=ENTRY_FONT,
             width=10,
             bg=INPUT_BG_COLOR,
-            fg=TEXT_COLOR
+            fg=TEXT_COLOR,
         )
         self.adults_entry.grid(row=1, column=3, padx=(10, 0), pady=5)
 
@@ -369,7 +500,7 @@ class HotelQuotation:
             text="Enfants:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).grid(row=2, column=0, sticky="w", pady=5)
 
         self.children_var = tk.StringVar(value="0")
@@ -379,7 +510,7 @@ class HotelQuotation:
             font=ENTRY_FONT,
             width=10,
             bg=INPUT_BG_COLOR,
-            fg=TEXT_COLOR
+            fg=TEXT_COLOR,
         )
         self.children_entry.grid(row=2, column=1, padx=(10, 20), pady=5)
 
@@ -388,7 +519,7 @@ class HotelQuotation:
             text="Type de client:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).grid(row=2, column=2, sticky="w", pady=5)
 
         self.client_type_var = tk.StringVar(value="PBC")
@@ -398,7 +529,7 @@ class HotelQuotation:
             values=["TO", "PBC"],
             font=ENTRY_FONT,
             width=10,
-            state="readonly"
+            state="readonly",
         )
         self.client_type_combo.grid(row=2, column=3, padx=(10, 0), pady=5)
 
@@ -408,7 +539,7 @@ class HotelQuotation:
             text="Période:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).grid(row=3, column=0, sticky="w", pady=5)
 
         self.period_var = tk.StringVar(value="Moyenne saison")
@@ -418,7 +549,7 @@ class HotelQuotation:
             values=PERIODES,
             font=ENTRY_FONT,
             width=15,
-            state="readonly"
+            state="readonly",
         )
         self.period_combo.grid(row=3, column=1, padx=(10, 20), pady=5)
 
@@ -427,7 +558,7 @@ class HotelQuotation:
             text="Restauration:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).grid(row=3, column=2, sticky="w", pady=5)
 
         self.meal_var = tk.StringVar(value="Petit déjeuner")
@@ -437,7 +568,7 @@ class HotelQuotation:
             values=RESTAURATIONS,
             font=ENTRY_FONT,
             width=20,
-            state="readonly"
+            state="readonly",
         )
         self.meal_combo.grid(row=3, column=3, padx=(10, 0), pady=5)
 
@@ -447,7 +578,7 @@ class HotelQuotation:
             text="Devise:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).grid(row=4, column=0, sticky="w", pady=5)
 
         self.currency_var = tk.StringVar(value="Ariary")
@@ -457,24 +588,26 @@ class HotelQuotation:
             values=["Ariary", "Euro", "Dollar US"],
             font=ENTRY_FONT,
             width=10,
-            state="readonly"
+            state="readonly",
         )
         self.currency_combo.grid(row=4, column=1, padx=(10, 0), pady=5)
 
         # Exchange rates display
         rates_frame = tk.Frame(params_frame, bg=MAIN_BG_COLOR)
-        rates_frame.grid(row=4, column=2, columnspan=2, padx=(20, 0), pady=5, sticky="w")
-        
+        rates_frame.grid(
+            row=4, column=2, columnspan=2, padx=(20, 0), pady=5, sticky="w"
+        )
+
         self.rates_label = tk.Label(
             rates_frame,
             text="Taux de change :\nChargement...",
             font=("Arial", 10, "bold"),
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
-            justify="left"
+            justify="left",
         )
         self.rates_label.pack(side="left")
-        
+
         # Refresh rates button
         self.refresh_rates_button = tk.Button(
             rates_frame,
@@ -484,7 +617,7 @@ class HotelQuotation:
             fg=TEXT_COLOR,
             font=("Arial", 10),
             padx=5,
-            pady=2
+            pady=2,
         )
         self.refresh_rates_button.pack(side="left", padx=(10, 0))
 
@@ -492,7 +625,7 @@ class HotelQuotation:
         self._update_exchange_rates()
 
         # Bind currency change to update rates display
-        self.currency_var.trace('w', self._on_currency_changed)
+        self.currency_var.trace("w", self._on_currency_changed)
 
         # Calculate button
         calc_frame = tk.Frame(main_frame, bg=MAIN_BG_COLOR)
@@ -506,7 +639,7 @@ class HotelQuotation:
             fg="white",
             font=BUTTON_FONT,
             padx=20,
-            pady=10
+            pady=10,
         )
         self.calc_button.pack()
 
@@ -518,7 +651,7 @@ class HotelQuotation:
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
             padx=10,
-            pady=10
+            pady=10,
         )
         self.results_frame.pack(fill="both", expand=True, pady=(0, 10))
 
@@ -529,7 +662,7 @@ class HotelQuotation:
             bg=INPUT_BG_COLOR,
             fg=TEXT_COLOR,
             height=15,
-            wrap=tk.WORD
+            wrap=tk.WORD,
         )
         self.results_text.pack(fill="both", expand=True)
 
@@ -545,7 +678,7 @@ class HotelQuotation:
             fg="white",
             font=BUTTON_FONT,
             padx=15,
-            pady=8
+            pady=8,
         ).pack(side="left", padx=5)
 
         tk.Button(
@@ -556,7 +689,7 @@ class HotelQuotation:
             fg="white",
             font=BUTTON_FONT,
             padx=15,
-            pady=8
+            pady=8,
         ).pack(side="left", padx=5)
 
         # Quotation history section
@@ -567,37 +700,36 @@ class HotelQuotation:
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
             padx=10,
-            pady=10
+            pady=10,
         )
         history_frame.pack(fill="both", expand=True, pady=(0, 10))
 
         # Treeview for quotations
         columns = ("filename", "date", "size")
         self.quotations_tree = ttk.Treeview(
-            history_frame,
-            columns=columns,
-            height=8,
-            show="tree headings"
+            history_frame, columns=columns, height=8, show="tree headings"
         )
         self.quotations_tree.heading("#0", text="Nom du fichier")
         self.quotations_tree.heading("date", text="Date")
         self.quotations_tree.heading("size", text="Taille")
-        
+
         self.quotations_tree.column("#0", width=250)
         self.quotations_tree.column("date", width=120)
         self.quotations_tree.column("size", width=80)
-        
+
         self.quotations_tree.pack(fill="both", expand=True, side="left")
-        
+
         # Scrollbar for treeview
-        scrollbar = ttk.Scrollbar(history_frame, orient="vertical", command=self.quotations_tree.yview)
+        scrollbar = ttk.Scrollbar(
+            history_frame, orient="vertical", command=self.quotations_tree.yview
+        )
         scrollbar.pack(side="right", fill="y")
         self.quotations_tree.configure(yscroll=scrollbar.set)
-        
+
         # Buttons for quotation management
         history_buttons = tk.Frame(main_frame, bg=MAIN_BG_COLOR)
         history_buttons.pack(fill="x", pady=(0, 10))
-        
+
         tk.Button(
             history_buttons,
             text="🔄 Rafraîchir",
@@ -606,9 +738,9 @@ class HotelQuotation:
             fg="white",
             font=BUTTON_FONT,
             padx=15,
-            pady=8
+            pady=8,
         ).pack(side="left", padx=5)
-        
+
         tk.Button(
             history_buttons,
             text="📂 Ouvrir devis",
@@ -617,9 +749,9 @@ class HotelQuotation:
             fg="white",
             font=BUTTON_FONT,
             padx=15,
-            pady=8
+            pady=8,
         ).pack(side="left", padx=5)
-        
+
         tk.Button(
             history_buttons,
             text="🗑️ Supprimer devis",
@@ -628,9 +760,9 @@ class HotelQuotation:
             fg="white",
             font=BUTTON_FONT,
             padx=15,
-            pady=8
+            pady=8,
         ).pack(side="left", padx=5)
-        
+
         # Load initial quotation list
         self._refresh_quotations_list()
 
@@ -638,44 +770,60 @@ class HotelQuotation:
         """Handle hotel selection"""
         selection = self.hotel_var.get()
         if selection:
+            selected_city = self.city_var.get().strip()
             # Find the selected hotel
             for hotel in self.hotels:
+                if selected_city and (hotel.get("lieu", "").strip() != selected_city):
+                    continue
                 hotel_display = self._hotel_display(hotel)
                 if hotel_display == selection:
                     self.selected_hotel = hotel
                     self._update_room_group_options()
+                    if self.preferred_room_type_label:
+                        room_options = list(self.room_type_combo["values"])
+                        if self.preferred_room_type_label in room_options:
+                            self.room_type_var.set(self.preferred_room_type_label)
                     break
 
     def _on_city_selected(self, event=None):
         """Filter hotels when a city is selected"""
         city = self.city_var.get()
+        allowed_set = (
+            set(self.allowed_itinerary_cities) if self.allowed_itinerary_cities else None
+        )
+        candidates = self.hotels
+        if allowed_set:
+            candidates = [h for h in candidates if h.get("lieu") in allowed_set]
+
         # Filter hotels by city and update hotel combobox
         if city:
-            filtered = [self._hotel_display(h) for h in self.hotels if h.get('lieu') == city]
+            filtered = [
+                self._hotel_display(h) for h in candidates if h.get("lieu") == city
+            ]
         else:
-            filtered = [self._hotel_display(h) for h in self.hotels]
+            filtered = [self._hotel_display(h) for h in candidates]
         # Update combobox values and clear previous selection
-        self.hotel_combo['values'] = filtered
+        self.hotel_combo["values"] = filtered
         self.hotel_var.set("")
         self.selected_hotel = None
         self._clear_room_selections()
 
     def _clear_room_selections(self):
         """Reset room group/type selections"""
-        if hasattr(self, 'room_group_combo'):
-            self.room_group_combo['values'] = []
-        if hasattr(self, 'room_type_combo'):
-            self.room_type_combo['values'] = []
-        if hasattr(self, 'room_group_var'):
+        if hasattr(self, "room_group_combo"):
+            self.room_group_combo["values"] = []
+        if hasattr(self, "room_type_combo"):
+            self.room_type_combo["values"] = []
+        if hasattr(self, "room_group_var"):
             self.room_group_var.set("")
-        if hasattr(self, 'room_type_var'):
+        if hasattr(self, "room_type_var"):
             self.room_type_var.set("")
 
     def _get_room_group_options(self):
         """Get available room groups for the selected hotel"""
         if not self.selected_hotel:
             return []
-        rates = self.selected_hotel.get('room_rates', {})
+        rates = self.selected_hotel.get("room_rates", {})
         options = []
         for key, label in ROOM_GROUP_LABELS.items():
             group_rates = rates.get(key, {})
@@ -687,7 +835,7 @@ class HotelQuotation:
         """Get available room types for a room group"""
         if not self.selected_hotel or not group_key:
             return []
-        rates = self.selected_hotel.get('room_rates', {}).get(group_key, {})
+        rates = self.selected_hotel.get("room_rates", {}).get(group_key, {})
         options = []
         for key, label in ROOM_TYPE_LABELS.items():
             if rates.get(key):
@@ -702,7 +850,7 @@ class HotelQuotation:
     def _update_room_group_options(self):
         """Update room group and room type options based on selected hotel"""
         group_options = self._get_room_group_options()
-        self.room_group_combo['values'] = group_options
+        self.room_group_combo["values"] = group_options
         if group_options:
             self.room_group_var.set(group_options[0])
         else:
@@ -714,7 +862,7 @@ class HotelQuotation:
         group_label = self.room_group_var.get()
         group_key = ROOM_GROUP_KEYS.get(group_label, "")
         room_options = self._get_room_type_options(group_key)
-        self.room_type_combo['values'] = room_options
+        self.room_type_combo["values"] = room_options
         if room_options:
             self.room_type_var.set(room_options[0])
         else:
@@ -722,8 +870,12 @@ class HotelQuotation:
 
     def _get_room_display(self):
         """Build a display label for the selected room group/type"""
-        group_label = self.room_group_var.get().strip() if hasattr(self, 'room_group_var') else ""
-        room_label = self.room_type_var.get().strip() if hasattr(self, 'room_type_var') else ""
+        group_label = (
+            self.room_group_var.get().strip() if hasattr(self, "room_group_var") else ""
+        )
+        room_label = (
+            self.room_type_var.get().strip() if hasattr(self, "room_type_var") else ""
+        )
         if group_label and room_label:
             return f"{group_label} / {room_label}"
         return room_label or group_label or ""
@@ -734,85 +886,44 @@ class HotelQuotation:
         if selection:
             # Find the selected client
             for client in self.clients:
-                nom = (client.get('nom') or '').strip()
-                prenom = (client.get('prenom') or '').strip()
-                client_display = f"{nom} {prenom}".strip() or (client.get('ref_client') or '')
+                nom = (client.get("nom") or "").strip()
+                prenom = (client.get("prenom") or "").strip()
+                client_display = f"{nom} {prenom}".strip() or (
+                    client.get("ref_client") or ""
+                )
                 if client_display == selection:
                     # Auto-fill the fields
                     full_name = f"{nom} {prenom}".strip()
                     self.client_name_var.set(full_name)
-                    self.client_email_var.set(client['email'])
-                    self.client_phone_var.set(client['telephone'])
-                    self.client_var.set(client.get('ref_client', ''))
-                    # Auto-fill other quotation parameters from client data when available
-                    # Period
-                    period = client.get('periode')
-                    if period:
-                        try:
-                            self.period_var.set(period)
-                        except Exception:
-                            pass
+                    self.client_email_var.set(client["email"])
+                    self.client_phone_var.set(client["telephone"])
+                    self.client_var.set(client.get("ref_client", ""))
 
-                    # Meal plan / restauration
-                    resta = client.get('restauration')
-                    if resta and resta in RESTAURATIONS:
-                        try:
-                            self.meal_var.set(resta)
-                        except Exception:
-                            pass
+                    # Restrict available hotels to client's itinerary
+                    depart_city = (client.get("ville_depart") or "").strip()
+                    itinerary_cities = self._parse_itinerary_cities(
+                        client.get("ville_arrivee", "")
+                    )
+                    allowed = []
+                    seen = set()
+                    for city_name in [depart_city] + itinerary_cities:
+                        if city_name and city_name not in seen:
+                            seen.add(city_name)
+                            allowed.append(city_name)
+                    self.allowed_itinerary_cities = allowed
+                    self._refresh_city_and_hotel_options()
 
-                    # Room type: match against available options or keywords
-                    ch = client.get('chambre')
-                    if ch:
-                        try:
-                            ch_str = str(ch)
-                            room_options = list(self.room_type_combo['values']) if hasattr(self, 'room_type_combo') else []
-                            if not room_options:
-                                room_options = list(ROOM_TYPE_LABELS.values())
-                            # direct match
-                            if ch_str in room_options:
-                                self.room_type_var.set(ch_str)
-                            else:
-                                # try case-insensitive keyword match
-                                lower = ch_str.lower()
-                                for t in room_options:
-                                    if t.lower() in lower:
-                                        self.room_type_var.set(t)
-                                        break
-                        except Exception:
-                            pass
-
-                    # Children count
-                    enfants = client.get('enfant')
-                    if enfants:
-                        try:
-                            # try to convert to int
-                            self.children_var.set(str(int(enfants)))
-                        except (ValueError, TypeError):
-                            # if not numeric, check for common non-values
-                            enfants_str = str(enfants).lower()
-                            if enfants_str in ('non', 'no', 'n', '', '0'):
-                                self.children_var.set("0")
-                            else:
-                                # default to 0 for unknown values
-                                self.children_var.set("0")
-                    else:
-                        # Keep default value (0) if enfant field is empty
-                        self.children_var.set("0")
-                    
-                    # Ensure numeric fields are always initialized
-                    if not self.nights_var.get():
-                        self.nights_var.set("1")
-                    if not self.adults_var.get():
-                        self.adults_var.set("2")
-                    if not self.children_var.get():
-                        self.children_var.set("0")
+                    # Auto-fill stay parameters from client data
+                    self._apply_client_stay_defaults(client)
                     break
         else:
             # Clear fields if no client selected
             self.client_name_var.set("")
             self.client_email_var.set("")
             self.client_phone_var.set("")
+            self.preferred_room_type_label = ""
+            self.allowed_itinerary_cities = []
+            self._refresh_city_and_hotel_options()
             # Keep default values for numeric fields
             self.nights_var.set("1")
             self.adults_var.set("2")
@@ -820,41 +931,36 @@ class HotelQuotation:
 
     def _on_client_type_changed(self, *args):
         """Handle client type change to update hotel list"""
-        if not hasattr(self, 'client_type_var'):
+        if not hasattr(self, "client_type_var"):
             return
         client_type = self.client_type_var.get()
         self.hotels = self._load_and_filter_hotels(client_type)
-        
-        # Update hotel combobox
-        hotel_names = [self._hotel_display(hotel) for hotel in self.hotels]
-        self.hotel_combo['values'] = hotel_names
-        
-        # Reset hotel selection
-        self.hotel_var.set("")
-        self.selected_hotel = None
-        self._clear_room_selections()
+        self._refresh_city_and_hotel_options(preserve_city=True)
 
     def _update_exchange_rates(self):
         """Update the exchange rates display"""
         try:
             from utils.validators import get_exchange_rates
+
             rates = get_exchange_rates()
-            
+
             selected_currency = self.currency_var.get()
-            
+
             eur_text = f"1 EUR = {rates['EUR']:.4f} MGA"
             usd_text = f"1 USD = {rates['USD']:.4f} MGA"
-            
+
             # Highlight selected currency
             if selected_currency == "Euro":
                 eur_text = f"▶ {eur_text} ◀"
             elif selected_currency == "Dollar US":
                 usd_text = f"▶ {usd_text} ◀"
-            
+
             rates_text = f"Taux de change :\n{eur_text}\n{usd_text}"
             self.rates_label.config(text=rates_text, fg=TEXT_COLOR)
         except Exception as e:
-            self.rates_label.config(text=f"Taux de change :\nErreur: {str(e)}", fg="red")
+            self.rates_label.config(
+                text=f"Taux de change :\nErreur: {str(e)}", fg="red"
+            )
 
     def _on_currency_changed(self, *args):
         """Handle currency change to update rates display"""
@@ -864,15 +970,19 @@ class HotelQuotation:
     def _calculate_price(self):
         """Calculate the total price based on parameters"""
         if not self.selected_hotel:
-            messagebox.showwarning("Hôtel non sélectionné", "Veuillez d'abord sélectionner un hôtel.")
+            messagebox.showwarning(
+                "Hôtel non sélectionné", "Veuillez d'abord sélectionner un hôtel."
+            )
             return
 
         try:
             # Get and validate parameters with safe fallbacks
             nights_str = self.nights_var.get().strip() if self.nights_var.get() else "1"
             adults_str = self.adults_var.get().strip() if self.adults_var.get() else "2"
-            children_str = self.children_var.get().strip() if self.children_var.get() else "0"
-            
+            children_str = (
+                self.children_var.get().strip() if self.children_var.get() else "0"
+            )
+
             # Restore defaults if empty
             if not nights_str:
                 nights_str = "1"
@@ -883,7 +993,7 @@ class HotelQuotation:
             if not children_str:
                 children_str = "0"
                 self.children_var.set("0")
-            
+
             # Validate and convert to integers
             try:
                 nights = int(nights_str)
@@ -896,49 +1006,72 @@ class HotelQuotation:
                     f"- Nuits: '{nights_str}'\n"
                     f"- Adultes: '{adults_str}'\n"
                     f"- Enfants: '{children_str}'\n\n"
-                    "Exemple: 3, 2, 1"
+                    "Exemple: 3, 2, 1",
                 )
-                logger.warning(f"Invalid numeric input - Nuits: {nights_str}, Adultes: {adults_str}, Enfants: {children_str}")
+                logger.warning(
+                    f"Invalid numeric input - Nuits: {nights_str}, Adultes: {adults_str}, Enfants: {children_str}"
+                )
                 return
-            
+
             if nights <= 0 or adults <= 0:
-                messagebox.showerror("Erreur", "Le nombre de nuits et d'adultes doit être supérieur à 0.")
+                messagebox.showerror(
+                    "Erreur", "Le nombre de nuits et d'adultes doit être supérieur à 0."
+                )
                 return
-                
-            room_group_label = self.room_group_var.get().strip() if self.room_group_var.get() else ""
-            room_type_label = self.room_type_var.get().strip() if self.room_type_var.get() else ""
+
+            room_group_label = (
+                self.room_group_var.get().strip() if self.room_group_var.get() else ""
+            )
+            room_type_label = (
+                self.room_type_var.get().strip() if self.room_type_var.get() else ""
+            )
             room_group_key = ROOM_GROUP_KEYS.get(room_group_label, "standard")
             room_type_key = ROOM_TYPE_KEYS.get(room_type_label, "")
 
             # Get prices from hotel data
             room_price = 0
             if room_type_key:
-                group_rates = self.selected_hotel.get('room_rates', {}).get(room_group_key, {})
+                group_rates = self.selected_hotel.get("room_rates", {}).get(
+                    room_group_key, {}
+                )
                 room_price = group_rates.get(room_type_key, 0)
 
             if room_price == 0:
                 # Fallback to legacy fields if room_rates are not populated
-                if room_type_label == "Single" and self.selected_hotel.get('chambre_single'):
-                    room_price = self.selected_hotel['chambre_single']
-                elif room_type_label == "Double" and self.selected_hotel.get('chambre_double'):
-                    room_price = self.selected_hotel['chambre_double']
-                elif room_type_label == "Triple" and self.selected_hotel.get('chambre_double'):
-                    room_price = self.selected_hotel['chambre_double']
-                elif room_type_label == "Familliale" and self.selected_hotel.get('chambre_familiale'):
-                    room_price = self.selected_hotel['chambre_familiale']
+                if room_type_label == "Single" and self.selected_hotel.get(
+                    "chambre_single"
+                ):
+                    room_price = self.selected_hotel["chambre_single"]
+                elif room_type_label == "Double" and self.selected_hotel.get(
+                    "chambre_double"
+                ):
+                    room_price = self.selected_hotel["chambre_double"]
+                elif room_type_label == "Triple" and self.selected_hotel.get(
+                    "chambre_double"
+                ):
+                    room_price = self.selected_hotel["chambre_double"]
+                elif room_type_label == "Familliale" and self.selected_hotel.get(
+                    "chambre_familiale"
+                ):
+                    room_price = self.selected_hotel["chambre_familiale"]
 
             if room_price == 0:
-                messagebox.showwarning("Prix non disponible", f"Le prix pour {room_type_label} n'est pas disponible pour cet hôtel.")
+                messagebox.showwarning(
+                    "Prix non disponible",
+                    f"Le prix pour {room_type_label} n'est pas disponible pour cet hôtel.",
+                )
                 return
 
             # Calculate base price
             base_price = room_price * nights
 
             # Calculate meal supplements
-            meals = self.selected_hotel.get('meals', {})
-            petit_dej = meals.get('petit_dejeuner', self.selected_hotel.get('petit_dejeuner', 0))
-            dejeuner = meals.get('dejeuner', self.selected_hotel.get('dejeuner', 0))
-            diner = meals.get('diner', self.selected_hotel.get('diner', 0))
+            meals = self.selected_hotel.get("meals", {})
+            petit_dej = meals.get(
+                "petit_dejeuner", self.selected_hotel.get("petit_dejeuner", 0)
+            )
+            dejeuner = meals.get("dejeuner", self.selected_hotel.get("dejeuner", 0))
+            diner = meals.get("diner", self.selected_hotel.get("diner", 0))
             meal_price = 0
             meal_plan = self.meal_var.get()
             if meal_plan == "Petit déjeuner" and petit_dej:
@@ -946,7 +1079,9 @@ class HotelQuotation:
             elif meal_plan == "Demi-pension" and dejeuner and diner:
                 meal_price = (dejeuner + diner) * nights * (adults + children)
             elif meal_plan == "Pension complète" and petit_dej and dejeuner and diner:
-                meal_price = (petit_dej + dejeuner + diner) * nights * (adults + children)
+                meal_price = (
+                    (petit_dej + dejeuner + diner) * nights * (adults + children)
+                )
 
             # Calculate total
             total_price = base_price + meal_price
@@ -971,32 +1106,74 @@ class HotelQuotation:
             client_phone = self.client_phone_var.get()
             display_room = room_type_label
             if room_group_label:
-                display_room = f"{room_group_label} / {room_type_label}" if room_type_label else room_group_label
-            self._display_results(base_price, meal_price, total_price, nights, adults, children, display_room, meal_plan, client_type, currency, client_name, client_email, client_phone)
+                display_room = (
+                    f"{room_group_label} / {room_type_label}"
+                    if room_type_label
+                    else room_group_label
+                )
+            self._display_results(
+                base_price,
+                meal_price,
+                total_price,
+                nights,
+                adults,
+                children,
+                display_room,
+                meal_plan,
+                client_type,
+                currency,
+                client_name,
+                client_email,
+                client_phone,
+            )
 
         except ValueError as e:
             error_details = str(e)
             messagebox.showerror(
                 "❌ Erreur",
-                f"Une erreur est survenue:\n\n{error_details}\n\nVeuillez vérifier vos valeurs."
+                f"Une erreur est survenue:\n\n{error_details}\n\nVeuillez vérifier vos valeurs.",
             )
-            logger.error(f"ValueError in _calculate_price: {error_details}", exc_info=True)
+            logger.error(
+                f"ValueError in _calculate_price: {error_details}", exc_info=True
+            )
         except Exception as e:
             error_details = str(e)
             messagebox.showerror(
                 "❌ Erreur inattendue",
-                f"Une erreur inattendue s'est produite:\n\n{error_details}\n\nVérifiez les logs."
+                f"Une erreur inattendue s'est produite:\n\n{error_details}\n\nVérifiez les logs.",
             )
-            logger.error(f"Unexpected error in _calculate_price: {error_details}", exc_info=True)
+            logger.error(
+                f"Unexpected error in _calculate_price: {error_details}", exc_info=True
+            )
 
-    def _display_results(self, base_price, meal_price, total_price, nights, adults, children, room_type, meal_plan, client_type, currency, client_name, client_email, client_phone):
+    def _display_results(
+        self,
+        base_price,
+        meal_price,
+        total_price,
+        nights,
+        adults,
+        children,
+        room_type,
+        meal_plan,
+        client_type,
+        currency,
+        client_name,
+        client_email,
+        client_phone,
+    ):
         """Display calculation results"""
-        # Get currency symbol
-        currency_symbols = {
-            "Ariary": "Ar",
-            "Euro": "€",
-            "Dollar US": "$"
+        # Keep the latest computed pricing for PDF/export workflows
+        self.last_pricing = {
+            "base_price": float(base_price),
+            "meal_price": float(meal_price),
+            "total_price": float(total_price),
+            "price_per_night": float(total_price / nights) if nights else 0.0,
+            "currency": currency,
         }
+
+        # Get currency symbol
+        currency_symbols = {"Ariary": "Ar", "Euro": "€", "Dollar US": "$"}
         symbol = currency_symbols.get(currency, "Ar")
 
         # Format prices (format specifier strings should NOT include the leading ':')
@@ -1051,11 +1228,16 @@ class HotelQuotation:
     def _generate_quote(self):
         """Generate a formal quote"""
         if not self.selected_hotel:
-            messagebox.showwarning("Hôtel non sélectionné", "Veuillez d'abord sélectionner un hôtel et calculer le prix.")
+            messagebox.showwarning(
+                "Hôtel non sélectionné",
+                "Veuillez d'abord sélectionner un hôtel et calculer le prix.",
+            )
             return
 
         if not self.results_text.get(1.0, tk.END).strip():
-            messagebox.showwarning("Calcul manquant", "Veuillez d'abord calculer le prix.")
+            messagebox.showwarning(
+                "Calcul manquant", "Veuillez d'abord calculer le prix."
+            )
             return
 
         try:
@@ -1063,9 +1245,11 @@ class HotelQuotation:
             if not REPORTLAB_AVAILABLE:
                 messagebox.showwarning(
                     "⚠️ Génération PDF non disponible",
-                    "ReportLab n'est pas installé. Veuillez installer le package:\n\npip install reportlab\n\nFallback: Génération de fichier texte..."
+                    "ReportLab n'est pas installé. Veuillez installer le package:\n\npip install reportlab\n\nFallback: Génération de fichier texte...",
                 )
-                logger.warning("ReportLab not available, falling back to text generation")
+                logger.warning(
+                    "ReportLab not available, falling back to text generation"
+                )
 
             # Extract quote parameters
             currency = self.currency_var.get()
@@ -1073,16 +1257,20 @@ class HotelQuotation:
             currency_code = currency_map.get(currency, "MGA")
 
             # Get client info if available
-            client_name = self.client_var.get() if hasattr(self, 'client_var') else "Client"
+            client_name = (
+                self.client_name_var.get().strip()
+                if hasattr(self, "client_name_var") and self.client_name_var.get().strip()
+                else (self.client_var.get().strip() if hasattr(self, "client_var") else "Client")
+            )
             client_email = ""
-            
+
             # Try to get client email if client selected
             if client_name and client_name != "Sélectionner un client":
                 try:
                     clients = load_all_clients()
                     for client in clients:
-                        if client['client_name'] == client_name:
-                            client_email = client.get('email', '')
+                        if client["client_name"] == client_name:
+                            client_email = client.get("email", "")
                             break
                 except Exception as e:
                     logger.warning(f"Could not retrieve client email: {e}")
@@ -1090,35 +1278,40 @@ class HotelQuotation:
             # Extract pricing details from results
             room_type = self._get_room_display() or "Standard"
             try:
-                nights = int(self.nights_var.get()) if hasattr(self, 'nights_var') else 1
+                nights = (
+                    int(self.nights_var.get()) if hasattr(self, "nights_var") else 1
+                )
             except (ValueError, TypeError):
                 nights = 1
             try:
-                adults = int(self.adults_var.get()) if hasattr(self, 'adults_var') else 1
+                adults = (
+                    int(self.adults_var.get()) if hasattr(self, "adults_var") else 1
+                )
             except (ValueError, TypeError):
                 adults = 1
-            
-            # Extract price from results or calculate
-            try:
-                results_content = self.results_text.get(1.0, tk.END).strip()
-                # Extract total price from results text
-                price_per_night = float(self.total_price_per_night) if hasattr(self, 'total_price_per_night') else 0
-                total_price = price_per_night * nights
-            except:
-                price_per_night = 0
-                total_price = 0
+
+            # Extract latest computed pricing
+            if not self.last_pricing:
+                messagebox.showwarning(
+                    "Calcul manquant",
+                    "Veuillez recalculer le devis avant de générer le PDF.",
+                )
+                return
+
+            price_per_night = self.last_pricing.get("price_per_night", 0.0)
+            total_price = self.last_pricing.get("total_price", 0.0)
 
             # Generate PDF quotation
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             quote_number = f"DEVIS_HOTEL_{timestamp}"
             devis_folder = DEVIS_FOLDER
-            
+
             # Ensure devis folder exists
             if not os.path.exists(devis_folder):
                 os.makedirs(devis_folder)
 
             filename = generate_hotel_quotation_pdf(
-                hotel_name=self.selected_hotel['nom'],
+                hotel_name=self.selected_hotel["nom"],
                 client_name=client_name,
                 client_email=client_email,
                 quote_number=quote_number,
@@ -1129,39 +1322,53 @@ class HotelQuotation:
                 price_per_night=price_per_night,
                 total_price=total_price,
                 currency=currency_code,
-                hotel_location=self.selected_hotel.get('lieu', ''),
-                hotel_category=self.selected_hotel.get('categorie', ''),
-                hotel_contact=self.selected_hotel.get('contact', ''),
-                hotel_email=self.selected_hotel.get('email', ''),
-                output_dir=devis_folder
+                hotel_location=self.selected_hotel.get("lieu", ""),
+                hotel_category=self.selected_hotel.get("categorie", ""),
+                hotel_contact=self.selected_hotel.get("contact", ""),
+                hotel_email=self.selected_hotel.get("email", ""),
+                output_dir=devis_folder,
             )
 
             # Save quotation to COTATION_H sheet
             try:
                 quotation_data = {
-                    'client_id': self.client_var.get().split(' - ')[0] if ' - ' in self.client_var.get() else '',
-                    'client_name': client_name,
-                    'hotel_name': self.selected_hotel['nom'],
-                    'city': self.selected_hotel.get('lieu', ''),
-                    'total_price': total_price,
-                    'currency': currency,
-                    'nights': nights,
-                    'adults': adults,
-                    'children': int(self.children_var.get()) if hasattr(self, 'children_var') else 0,
-                    'room_type': room_type,
-                    'meal_plan': self.meal_var.get() if hasattr(self, 'meal_var') else '',
-                    'period': self.period_var.get() if hasattr(self, 'period_var') else '',
-                    'quote_date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    "client_id": (
+                        self.client_var.get().split(" - ")[0]
+                        if " - " in self.client_var.get()
+                        else ""
+                    ),
+                    "client_name": client_name,
+                    "hotel_name": self.selected_hotel["nom"],
+                    "city": self.selected_hotel.get("lieu", ""),
+                    "total_price": total_price,
+                    "currency": currency,
+                    "nights": nights,
+                    "adults": adults,
+                    "children": (
+                        int(self.children_var.get())
+                        if hasattr(self, "children_var")
+                        else 0
+                    ),
+                    "room_type": room_type,
+                    "meal_plan": (
+                        self.meal_var.get() if hasattr(self, "meal_var") else ""
+                    ),
+                    "period": (
+                        self.period_var.get() if hasattr(self, "period_var") else ""
+                    ),
+                    "quote_date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 }
                 save_hotel_quotation_to_excel(quotation_data)
-                logger.info(f"Quotation saved to COTATION_H sheet: {client_name} - {self.selected_hotel['nom']}")
+                logger.info(
+                    f"Quotation saved to COTATION_H sheet: {client_name} - {self.selected_hotel['nom']}"
+                )
             except Exception as e:
                 logger.warning(f"Could not save quotation to Excel: {e}")
 
             # Show success message with file location
             messagebox.showinfo(
                 "✅ Devis généré avec succès",
-                f"Le devis PDF a été sauvegardé :\n{filename}\n\nLe fichier va s'ouvrir automatiquement."
+                f"Le devis PDF a été sauvegardé :\n{filename}\n\nLe fichier va s'ouvrir automatiquement.",
             )
             logger.info(f"PDF quotation generated successfully: {filename}")
 
@@ -1170,32 +1377,35 @@ class HotelQuotation:
 
             # Try to open the file
             try:
-                if os.name == 'nt':  # Windows
+                if os.name == "nt":  # Windows
                     os.startfile(filename)
-                elif os.name == 'posix':  # macOS/Linux
-                    subprocess.run(['xdg-open', filename])
+                elif os.name == "posix":  # macOS/Linux
+                    subprocess.run(["xdg-open", filename])
             except Exception as e:
                 logger.warning(f"Could not open quotation file automatically: {e}")
                 messagebox.showwarning(
                     "⚠️ Ouverture automatique impossible",
-                    f"Le fichier a été créé mais n'a pas pu s'ouvrir automatiquement.\n\nVous pouvez l'ouvrir manuellement : {filename}"
+                    f"Le fichier a été créé mais n'a pas pu s'ouvrir automatiquement.\n\nVous pouvez l'ouvrir manuellement : {filename}",
                 )
 
         except Exception as e:
             error_msg = f"Une erreur s'est produite lors de la génération du devis :\n{str(e)}\n\nDétails dans les logs de l'application."
-            messagebox.showerror(
-                "❌ Erreur lors de la génération",
-                error_msg
-            )
+            messagebox.showerror("❌ Erreur lors de la génération", error_msg)
             logger.error(f"Error generating quotation: {e}", exc_info=True)
 
     def _reset_form(self):
         """Reset the form for a new quotation"""
         self.hotel_var.set("")
         self.selected_hotel = None
+        self.last_pricing = None
+        self.preferred_room_type_label = ""
+        self.allowed_itinerary_cities = []
         self.nights_var.set("1")
         self.adults_var.set("2")
         self.children_var.set("0")
+        self.client_var.set("")
+        self.city_var.set("")
+        self._refresh_city_and_hotel_options()
         self._clear_room_selections()
         self.client_type_var.set("PBC")
         self.currency_var.set("Ariary")
@@ -1211,17 +1421,17 @@ class HotelQuotation:
         # Clear existing items
         for item in self.quotations_tree.get_children():
             self.quotations_tree.delete(item)
-        
+
         try:
             devis_folder = DEVIS_FOLDER
             if not os.path.exists(devis_folder):
                 logger.warning(f"Devis folder not found: {devis_folder}")
                 return
-            
+
             # Get all PDF files
-            pdf_files = [f for f in os.listdir(devis_folder) if f.endswith('.pdf')]
+            pdf_files = [f for f in os.listdir(devis_folder) if f.endswith(".pdf")]
             pdf_files.sort(reverse=True)  # Most recent first
-            
+
             # Add files to treeview
             for filename in pdf_files:
                 filepath = os.path.join(devis_folder, filename)
@@ -1229,41 +1439,52 @@ class HotelQuotation:
                     # Get file info
                     file_stat = os.stat(filepath)
                     file_size = f"{file_stat.st_size / 1024:.1f} KB"
-                    file_date = datetime.datetime.fromtimestamp(file_stat.st_mtime).strftime("%d/%m/%Y %H:%M")
-                    
+                    file_date = datetime.datetime.fromtimestamp(
+                        file_stat.st_mtime
+                    ).strftime("%d/%m/%Y %H:%M")
+
                     # Add to treeview
-                    self.quotations_tree.insert("", "end", text=filename, values=(filename, file_date, file_size))
+                    self.quotations_tree.insert(
+                        "",
+                        "end",
+                        text=filename,
+                        values=(filename, file_date, file_size),
+                    )
                 except Exception as e:
                     logger.error(f"Error processing quotation file {filename}: {e}")
-        
+
         except Exception as e:
             logger.error(f"Error refreshing quotations list: {e}")
-            messagebox.showerror("Erreur", f"Erreur lors du chargement de la liste des devis:\n{str(e)}")
+            messagebox.showerror(
+                "Erreur", f"Erreur lors du chargement de la liste des devis:\n{str(e)}"
+            )
 
     def _open_selected_quotation(self):
         """Open the selected quotation file"""
         selection = self.quotations_tree.selection()
         if not selection:
-            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner un devis à ouvrir.")
+            messagebox.showwarning(
+                "Aucune sélection", "Veuillez sélectionner un devis à ouvrir."
+            )
             return
-        
+
         try:
             selected_item = selection[0]
-            filename = self.quotations_tree.item(selected_item)['text']
+            filename = self.quotations_tree.item(selected_item)["text"]
             filepath = os.path.join(DEVIS_FOLDER, filename)
-            
+
             if not os.path.exists(filepath):
                 messagebox.showerror("Erreur", f"Le fichier n'existe pas:\n{filepath}")
                 return
-            
+
             # Open the file
-            if os.name == 'nt':  # Windows
+            if os.name == "nt":  # Windows
                 os.startfile(filepath)
-            elif os.name == 'posix':  # macOS/Linux
-                subprocess.run(['xdg-open', filepath])
-            
+            elif os.name == "posix":  # macOS/Linux
+                subprocess.run(["xdg-open", filepath])
+
             logger.info(f"Opened quotation: {filename}")
-        
+
         except Exception as e:
             logger.error(f"Error opening quotation: {e}")
             messagebox.showerror("Erreur", f"Impossible d'ouvrir le devis:\n{str(e)}")
@@ -1272,25 +1493,36 @@ class HotelQuotation:
         """Delete the selected quotation file"""
         selection = self.quotations_tree.selection()
         if not selection:
-            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner un devis à supprimer.")
+            messagebox.showwarning(
+                "Aucune sélection", "Veuillez sélectionner un devis à supprimer."
+            )
             return
-        
+
         try:
             selected_item = selection[0]
-            filename = self.quotations_tree.item(selected_item)['text']
+            filename = self.quotations_tree.item(selected_item)["text"]
             filepath = os.path.join(DEVIS_FOLDER, filename)
-            
+
             # Confirm deletion
-            if messagebox.askyesno("Confirmer suppression", f"Êtes-vous sûr de vouloir supprimer:\n{filename}?"):
+            if messagebox.askyesno(
+                "Confirmer suppression",
+                f"Êtes-vous sûr de vouloir supprimer:\n{filename}?",
+            ):
                 if os.path.exists(filepath):
                     os.remove(filepath)
                     logger.info(f"Deleted quotation: {filename}")
-                    messagebox.showinfo("Succès", f"Le devis a été supprimé:\n{filename}")
+                    messagebox.showinfo(
+                        "Succès", f"Le devis a été supprimé:\n{filename}"
+                    )
                     # Refresh the list
                     self._refresh_quotations_list()
                 else:
-                    messagebox.showerror("Erreur", f"Le fichier n'existe pas:\n{filepath}")
-        
+                    messagebox.showerror(
+                        "Erreur", f"Le fichier n'existe pas:\n{filepath}"
+                    )
+
         except Exception as e:
             logger.error(f"Error deleting quotation: {e}")
-            messagebox.showerror("Erreur", f"Impossible de supprimer le devis:\n{str(e)}")
+            messagebox.showerror(
+                "Erreur", f"Impossible de supprimer le devis:\n{str(e)}"
+            )

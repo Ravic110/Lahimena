@@ -6,11 +6,21 @@ import customtkinter as ctk
 
 try:
     from PIL import Image
+
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
 
-from config import *
+from config import (
+    BUTTON_BLUE,
+    BUTTON_GREEN,
+    BUTTON_GREEN_HOVER,
+    CURRENT_THEME,
+    LOGO_PATH,
+    SIDEBAR_BG_COLOR,
+    TEXT_COLOR,
+    apply_theme,
+)
 
 
 class Sidebar:
@@ -41,10 +51,7 @@ class Sidebar:
             self.sidebar_scroll.destroy()
 
         self.sidebar_scroll = ctk.CTkScrollableFrame(
-            self.parent,
-            width=250,
-            fg_color=SIDEBAR_BG_COLOR,
-            corner_radius=0
+            self.parent, width=250, fg_color=SIDEBAR_BG_COLOR, corner_radius=0
         )
         self.sidebar_scroll.grid(row=0, column=0, sticky="nswe")
 
@@ -53,17 +60,19 @@ class Sidebar:
             if PIL_AVAILABLE:
                 logo_label = ctk.CTkLabel(
                     self.sidebar_scroll,
-                    image=ctk.CTkImage(light_image=Image.open(LOGO_PATH), size=(150, 150)),
-                    text=""
+                    image=ctk.CTkImage(
+                        light_image=Image.open(LOGO_PATH), size=(150, 150)
+                    ),
+                    text="",
                 )
             else:
                 raise ImportError
-        except:
+        except (ImportError, FileNotFoundError, Exception):
             # Fallback if logo not found or PIL not available
             logo_label = ctk.CTkLabel(
                 self.sidebar_scroll,
                 text="🏨 Lahimena Tours",
-                font=("Arial", 16, "bold")
+                font=("Arial", 16, "bold"),
             )
         logo_label.pack(pady=30)
 
@@ -74,7 +83,7 @@ class Sidebar:
             theme_frame,
             text="Thème sombre",
             text_color=TEXT_COLOR,
-            font=("Arial", 12, "bold")
+            font=("Arial", 12, "bold"),
         )
         theme_label.pack(side="left")
 
@@ -83,7 +92,7 @@ class Sidebar:
             text="",
             command=self._toggle_theme,
             fg_color=BUTTON_BLUE,
-            progress_color=BUTTON_GREEN
+            progress_color=BUTTON_GREEN,
         )
         if CURRENT_THEME == "dark":
             self.theme_switch.select()
@@ -101,82 +110,116 @@ class Sidebar:
 
         # Client Information
         btn1 = self._create_button("🏨 Information client ▶", self._show_client_form)
-        submenu1_frame = self._create_submenu(btn1, [
-            ("👤 Nouveau client", self._show_client_form),
-            ("📋 Liste clients", self._show_client_list)
-        ])
+        submenu1_frame = self._create_submenu(
+            btn1,
+            [
+                ("👤 Nouveau client", self._show_client_form),
+                ("📋 Liste clients", self._show_client_list),
+            ],
+        )
 
         # Hotel Quotation
         btn2 = self._create_button("🏨 Cotation hôtel ▶", None)
-        submenu2_frame = self._create_submenu(btn2, [
-            ("🆕 Nouvelle cotation", self._show_hotel_quotation),
-            ("📊 Résumé cotations", self._show_hotel_quotation_summary)
-        ])
+        submenu2_frame = self._create_submenu(
+            btn2,
+            [
+                ("🆕 Nouvelle cotation", self._show_hotel_quotation),
+                ("📊 Résumé cotations", self._show_hotel_quotation_summary),
+            ],
+        )
 
         # Service Quotation
-        btn3 = self._create_button("🎯 Cotation prestation", self._show_service_quotation)
+        btn3 = self._create_button(
+            "🎯 Cotation prestation", self._show_service_quotation
+        )
 
         # Client Quotations
         btn4 = self._create_button("👥 Devis clients ▶", None)
-        submenu4_frame = self._create_submenu(btn4, [
-            ("📄 Devis actuels", self._show_current_quotes),
-            ("✏️ Historiques devis", self._show_quote_history)
-        ])
+        submenu4_frame = self._create_submenu(
+            btn4,
+            [
+                ("📄 Devis actuels", self._show_current_quotes),
+                ("✏️ Historiques devis", self._show_quote_history),
+            ],
+        )
 
         # Client Invoices
         btn5 = self._create_button("💰 Facture clients ▶", None)
-        submenu5_frame = self._create_submenu(btn5, [
-            ("📄 Factures actuelles", self._show_current_invoices),
-            ("✏️ Historiques factures", self._show_invoice_history)
-        ])
+        submenu5_frame = self._create_submenu(
+            btn5,
+            [
+                ("📄 Factures actuelles", self._show_current_invoices),
+                ("✏️ Historiques factures", self._show_invoice_history),
+            ],
+        )
 
         # Expenses
         btn6 = self._create_button("📉 Dépenses ▶", None)
-        submenu6_frame = self._create_submenu(btn6, [
-            ("📄 Factures actuelles", self._show_current_expenses),
-            ("✏️ Historiques factures", self._show_expense_history)
-        ])
+        submenu6_frame = self._create_submenu(
+            btn6,
+            [
+                ("📄 Factures actuelles", self._show_current_expenses),
+                ("✏️ Historiques factures", self._show_expense_history),
+            ],
+        )
 
         # Hotel Database
         btn7 = self._create_button("🏨 Hôtel (DB) ▶", self._show_hotel_list)
-        submenu7_frame = self._create_submenu(btn7, [
-            ("📋 Liste hôtels", self._show_hotel_list),
-            ("➕ Ajout hôtel", self._show_add_hotel)
-        ])
+        submenu7_frame = self._create_submenu(
+            btn7,
+            [
+                ("📋 Liste hôtels", self._show_hotel_list),
+                ("➕ Ajout hôtel", self._show_add_hotel),
+            ],
+        )
 
         # Collective Expenses Database
         btn8 = self._create_button("🏨 Frais collectif (DB) ▶", None)
-        submenu8_frame = self._create_submenu(btn8, [
-            ("➕ Ajouter", self._show_add_collective_expense),
-            ("📝 Mettre à jour", self._show_update_collective_expense),
-            ("❌ Supprimer", self._show_delete_collective_expense)
-        ])
+        submenu8_frame = self._create_submenu(
+            btn8,
+            [
+                ("➕ Ajouter", self._show_add_collective_expense),
+                ("📝 Mettre à jour", self._show_update_collective_expense),
+                ("❌ Supprimer", self._show_delete_collective_expense),
+            ],
+        )
 
         # Transport Database
         btn9 = self._create_button("🏨 Transport (DB) ▶", None)
-        submenu9_frame = self._create_submenu(btn9, [
-            ("➕ Ajouter", self._show_add_transport),
-            ("📝 Mettre à jour", self._show_update_transport),
-            ("❌ Supprimer", self._show_delete_transport)
-        ])
+        submenu9_frame = self._create_submenu(
+            btn9,
+            [
+                ("➕ Ajouter", self._show_add_transport),
+                ("📝 Mettre à jour", self._show_update_transport),
+                ("❌ Supprimer", self._show_delete_transport),
+            ],
+        )
 
         # Financial Statements
         btn10 = self._create_button("📊 Etat Financier ▶", None)
-        submenu10_frame = self._create_submenu(btn10, [
-            ("📊 Compte de résultat", self._show_income_statement),
-            ("📊 Bilan", self._show_balance_sheet),
-            ("📊 Tableau Flux de trésorerie", self._show_cash_flow),
-            ("📊 Tableau d'amortissement", self._show_depreciation_table),
-            ("📊 Liste des immobilisations", self._show_fixed_assets),
-            ("📊 Prévisionnel sur 5 ans", self._show_5year_forecast),
-            ("📊 Prévisionnel trésorerie 12 mois", self._show_12month_cash_forecast)
-        ])
+        submenu10_frame = self._create_submenu(
+            btn10,
+            [
+                ("📊 Compte de résultat", self._show_income_statement),
+                ("📊 Bilan", self._show_balance_sheet),
+                ("📊 Tableau Flux de trésorerie", self._show_cash_flow),
+                ("📊 Tableau d'amortissement", self._show_depreciation_table),
+                ("📊 Liste des immobilisations", self._show_fixed_assets),
+                ("📊 Prévisionnel sur 5 ans", self._show_5year_forecast),
+                (
+                    "📊 Prévisionnel trésorerie 12 mois",
+                    self._show_12month_cash_forecast,
+                ),
+            ],
+        )
 
         # Accounting Entry
         btn11 = self._create_button("📊 Saisie comptable", self._show_accounting_entry)
 
         # Excel Editor
-        btn12 = self._create_button("📊 Éditeur Excel 'calcul' ▶", self._show_excel_editor)
+        btn12 = self._create_button(
+            "📊 Éditeur Excel 'calcul' ▶", self._show_excel_editor
+        )
 
     def _create_button(self, text, command=None):
         """Create a sidebar button"""
@@ -187,7 +230,7 @@ class Sidebar:
             hover_color=BUTTON_GREEN_HOVER,
             height=45,
             corner_radius=10,
-            command=command
+            command=command,
         )
         btn.pack(pady=8, padx=20, fill="x")
         return btn
@@ -201,8 +244,16 @@ class Sidebar:
                 submenu_frame,
                 text=text,
                 height=35,
-                fg_color="#10B981" if "➕" in text else "#007A93" if "📝" in text else "#D31F25" if "❌" in text else "#10B981",
-                command=command
+                fg_color=(
+                    "#10B981"
+                    if "➕" in text
+                    else (
+                        "#007A93"
+                        if "📝" in text
+                        else "#D31F25" if "❌" in text else "#10B981"
+                    )
+                ),
+                command=command,
             ).pack(pady=2, padx=10, fill="x")
 
         submenu_frame.pack_forget()
@@ -211,6 +262,7 @@ class Sidebar:
 
     def _create_toggle_menu(self, btn, submenu_frame):
         """Create toggle functionality for expandable menus"""
+
         def toggle():
             btn_key = id(btn)
             if not self.menu_states.get(btn_key, False):

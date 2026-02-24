@@ -3,27 +3,33 @@ Excel file handling utilities
 """
 
 try:
-    from openpyxl import load_workbook, Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl import Workbook, load_workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
     OPENPYXL_AVAILABLE = True
 except ImportError:
     OPENPYXL_AVAILABLE = False
 
 import os
+import re
 import shutil
 from datetime import datetime
+
 from config import (
     CLIENT_EXCEL_PATH,
-    HOTEL_EXCEL_PATH,
-    CLIENT_SHEET_NAME,
     CLIENT_INFOS_SHEET_NAME,
-    HOTEL_SHEET_NAME,
+    CLIENT_SHEET_NAME,
     COTATION_H_SHEET_NAME,
+    HOTEL_EXCEL_PATH,
+    HOTEL_SHEET_NAME,
+)
+from utils.cache import (
+    cached_client_data,
+    cached_hotel_data,
+    invalidate_client_cache,
+    invalidate_hotel_cache,
 )
 from utils.logger import logger
-from utils.cache import cached_hotel_data, cached_client_data, invalidate_hotel_cache, invalidate_client_cache
-
-import re
 
 
 def _parse_num(val):
@@ -37,12 +43,12 @@ def _parse_num(val):
         return val
     try:
         s = str(val).strip()
-        s = s.replace(',', '').replace(' ', '')
+        s = s.replace(",", "").replace(" ", "")
         m = re.search(r"-?\d+(?:\.\d+)?", s)
         if not m:
             return 0
         num_str = m.group(0)
-        if '.' in num_str:
+        if "." in num_str:
             return float(num_str)
         return int(num_str)
     except Exception:
@@ -52,31 +58,31 @@ def _parse_num(val):
 def create_backup(filepath):
     """
     Create a backup of Excel file before modification
-    
+
     Args:
         filepath (str): Path to the Excel file to backup
-        
+
     Returns:
         str: Path to backup file, or None if failed
     """
     if not os.path.exists(filepath):
         logger.warning(f"File not found for backup: {filepath}")
         return None
-    
+
     try:
         # Create backups directory
-        backup_dir = os.path.join(os.path.dirname(filepath), 'backups')
+        backup_dir = os.path.join(os.path.dirname(filepath), "backups")
         os.makedirs(backup_dir, exist_ok=True)
-        
+
         # Create backup filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = os.path.basename(filepath)
         backup_path = os.path.join(backup_dir, f"{filename}.{timestamp}.bak")
-        
+
         # Copy file
         shutil.copy2(filepath, backup_path)
         logger.info(f"Backup created: {backup_path}")
-        
+
         return backup_path
     except Exception as e:
         logger.error(f"Failed to create backup for {filepath}: {e}", exc_info=True)
@@ -143,6 +149,52 @@ def _first_available(data, keys, default=""):
     return default
 
 
+def _normalize_header_key(value):
+    """Normalize header labels for resilient matching."""
+    if value is None:
+        return ""
+    normalized = str(value).strip().lower()
+    replacements = str.maketrans(
+        {
+            "é": "e",
+            "è": "e",
+            "ê": "e",
+            "ë": "e",
+            "à": "a",
+            "â": "a",
+            "ä": "a",
+            "î": "i",
+            "ï": "i",
+            "ô": "o",
+            "ö": "o",
+            "ù": "u",
+            "û": "u",
+            "ü": "u",
+            "ç": "c",
+            "'": " ",
+            "_": " ",
+            "-": " ",
+        }
+    )
+    normalized = normalized.translate(replacements)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized
+
+
+def _find_header_column(header_map, *aliases):
+    """Find a header column using exact or normalized aliases."""
+    for alias in aliases:
+        if alias in header_map:
+            return header_map[alias]
+
+    normalized_map = {_normalize_header_key(k): v for k, v in header_map.items()}
+    for alias in aliases:
+        col = normalized_map.get(_normalize_header_key(alias))
+        if col:
+            return col
+    return None
+
+
 def save_client_to_excel(client_data):
     """
     Save client data to Excel file
@@ -154,24 +206,46 @@ def save_client_to_excel(client_data):
         int: Row number where data was saved, or -1 if failed
     """
     if not OPENPYXL_AVAILABLE:
-        logger.warning( "openpyxl not available. Cannot save to Excel.")
+        logger.warning("openpyxl not available. Cannot save to Excel.")
         return -1
 
     # Create file if it doesn't exist
     client_headers = [
-        "Date", "Réf. Client", "Type Client", "Prénom", "Nom",
-        "Date Arrivée", "Date Départ", "Durée Séjour",
-        "Nombre Participants", "Nombre Adultes",
-        "Enfants 2-12", "Bébés 0-2",
-        "Téléphone", "Téléphone WhatsApp", "Email",
-        "Période", "Restauration", "Hébergement", "Chambre",
-        "Enfant", "Âge Enfant", "Forfait", "Circuit",
-        "SGL", "DBL", "TWN", "TPL", "FML"
+        "Date",
+        "Réf. Client",
+        "Type Client",
+        "Prénom",
+        "Nom",
+        "Date Arrivée",
+        "Date Départ",
+        "Durée Séjour",
+        "Nombre Participants",
+        "Nombre Adultes",
+        "Enfants 2-12",
+        "Bébés 0-2",
+        "Téléphone",
+        "Téléphone WhatsApp",
+        "Email",
+        "Période",
+        "Restauration",
+        "Hébergement",
+        "Chambre",
+        "Enfant",
+        "Âge Enfant",
+        "Forfait",
+        "Circuit",
+        "SGL",
+        "DBL",
+        "TWN",
+        "TPL",
+        "FML",
     ]
     client_header_style = {
         "font": Font(bold=True, color="FFFFFF"),
-        "fill": PatternFill(start_color="27AE60", end_color="27AE60", fill_type="solid"),
-        "alignment": Alignment(horizontal="center")
+        "fill": PatternFill(
+            start_color="27AE60", end_color="27AE60", fill_type="solid"
+        ),
+        "alignment": Alignment(horizontal="center"),
     }
 
     if not os.path.exists(CLIENT_EXCEL_PATH):
@@ -194,7 +268,7 @@ def save_client_to_excel(client_data):
 
     # Find last empty row (column A)
     last_row = 2
-    while ws[f'A{last_row}'].value is not None:
+    while ws[f"A{last_row}"].value is not None:
         last_row += 1
 
     # Write data by headers for compatibility and extensibility
@@ -226,12 +300,14 @@ def save_client_to_excel(client_data):
         "DBL": ["DBL_Count", "dbl_count"],
         "TWN": ["TWN_Count", "twn_count"],
         "TPL": ["TPL_Count", "tpl_count"],
-        "FML": ["FML_Count", "fml_count"]
+        "FML": ["FML_Count", "fml_count"],
     }
     for header, keys in field_map.items():
         col = header_map.get(header)
         if col:
-            ws.cell(row=last_row, column=col, value=_first_available(client_data, keys, ""))
+            ws.cell(
+                row=last_row, column=col, value=_first_available(client_data, keys, "")
+            )
 
     # Auto-adjust column widths
     for column in ws.columns:
@@ -241,18 +317,18 @@ def save_client_to_excel(client_data):
             try:
                 if len(str(cell.value)) > max_length:
                     max_length = len(str(cell.value))
-            except:
+            except (TypeError, AttributeError):
                 pass
         ws.column_dimensions[column_letter].width = min(max_length + 2, 25)
 
     wb.save(CLIENT_EXCEL_PATH)
-    
+
     # Invalidate cache after modification
     invalidate_client_cache()
 
     # Also store extended infos in dedicated sheet
     _save_client_infos_to_excel(client_data)
-    
+
     return last_row
 
 
@@ -263,20 +339,52 @@ def _save_client_infos_to_excel(client_data):
         return False
 
     infos_headers = [
-        "Date", "Réf. Client", "Numéro Dossier", "Type Client", "Prénom", "Nom",
-        "Date Arrivée", "Date Départ", "Durée Séjour",
-        "Nombre Participants", "Nombre Adultes",
-        "Enfants 2-12", "Bébés 0-2",
-        "Téléphone", "Téléphone WhatsApp", "Email",
-        "Période", "Restauration", "Hébergement", "Chambre",
-        "Enfant", "Âge Enfant", "Forfait", "Circuit",
-        "Type Circuit", "Ville Départ", "Ville Arrivée", "Type Hôtel Arrivée",
-        "SGL", "DBL", "TWN", "TPL", "FML"
+        "Date",
+        "Réf. Client",
+        "Numéro Dossier",
+        "Type Client",
+        "Prénom",
+        "Nom",
+        "Date Arrivée",
+        "Date Départ",
+        "Durée Séjour",
+        "Nombre Participants",
+        "Nombre Adultes",
+        "Enfants 2-12",
+        "Bébés 0-2",
+        "Téléphone",
+        "Téléphone WhatsApp",
+        "Email",
+        "Période",
+        "Restauration",
+        "Hébergement",
+        "Chambre",
+        "Enfant",
+        "Âge Enfant",
+        "Forfait",
+        "Circuit",
+        "Type Circuit",
+        "ID Circuit",
+        "Itinéraire Circuit",
+        "Activité Circuit",
+        "Durée Circuit",
+        "Condition Physique Circuit",
+        "Type Voiture Circuit",
+        "Ville Départ",
+        "Ville Arrivée",
+        "Type Hôtel Arrivée",
+        "SGL",
+        "DBL",
+        "TWN",
+        "TPL",
+        "FML",
     ]
     infos_header_style = {
         "font": Font(bold=True, color="FFFFFF"),
-        "fill": PatternFill(start_color="27AE60", end_color="27AE60", fill_type="solid"),
-        "alignment": Alignment(horizontal="center")
+        "fill": PatternFill(
+            start_color="27AE60", end_color="27AE60", fill_type="solid"
+        ),
+        "alignment": Alignment(horizontal="center"),
     }
 
     if not os.path.exists(CLIENT_EXCEL_PATH):
@@ -302,7 +410,7 @@ def _save_client_infos_to_excel(client_data):
 
     if target_row is None:
         target_row = 2
-        while ws[f'A{target_row}'].value is not None:
+        while ws[f"A{target_row}"].value is not None:
             target_row += 1
 
     field_map = {
@@ -331,6 +439,15 @@ def _save_client_infos_to_excel(client_data):
         "Forfait": ["Forfait", "forfait"],
         "Circuit": ["Circuit", "circuit"],
         "Type Circuit": ["Type_Circuit", "type_circuit"],
+        "ID Circuit": ["ID_Circuit", "id_circuit"],
+        "Itinéraire Circuit": ["Itineraire_Circuit", "itineraire_circuit"],
+        "Activité Circuit": ["Activite_Circuit", "activite_circuit"],
+        "Durée Circuit": ["Duree_Circuit", "duree_circuit"],
+        "Condition Physique Circuit": [
+            "Condition_Physique_Circuit",
+            "condition_physique_circuit",
+        ],
+        "Type Voiture Circuit": ["Type_Voiture_Circuit", "type_voiture_circuit"],
         "Ville Départ": ["Ville_Depart", "ville_depart"],
         "Ville Arrivée": ["Ville_Arrivee", "ville_arrivee"],
         "Type Hôtel Arrivée": ["Type_Hotel_Arrivee", "type_hotel_arrivee"],
@@ -338,12 +455,16 @@ def _save_client_infos_to_excel(client_data):
         "DBL": ["DBL_Count", "dbl_count"],
         "TWN": ["TWN_Count", "twn_count"],
         "TPL": ["TPL_Count", "tpl_count"],
-        "FML": ["FML_Count", "fml_count"]
+        "FML": ["FML_Count", "fml_count"],
     }
     for header, keys in field_map.items():
         col = header_map.get(header)
         if col:
-            ws.cell(row=target_row, column=col, value=_first_available(client_data, keys, ""))
+            ws.cell(
+                row=target_row,
+                column=col,
+                value=_first_available(client_data, keys, ""),
+            )
 
     wb.save(CLIENT_EXCEL_PATH)
     return True
@@ -376,7 +497,7 @@ def load_all_clients():
     infos_map = _load_client_infos_map()
     # Start from row 2 (skip headers)
     for row in range(2, ws.max_row + 1):
-        if ws[f'A{row}'].value is None:
+        if ws[f"A{row}"].value is None:
             continue
 
         def _cell(header, fallback_cell=None):
@@ -388,37 +509,37 @@ def load_all_clients():
             return None
 
         client = {
-            'row_number': row,
-            'timestamp': _cell("Date", f'A{row}') or '',
-            'ref_client': _cell("Réf. Client", f'B{row}') or '',
-            'type_client': _cell("Type Client") or '',
-            'prenom': _cell("Prénom") or '',
-            'nom': _cell("Nom", f'C{row}') or '',
-            'date_arrivee': _cell("Date Arrivée") or '',
-            'date_depart': _cell("Date Départ") or '',
-            'duree_sejour': _cell("Durée Séjour") or '',
-            'nombre_participants': _cell("Nombre Participants") or '',
-            'nombre_adultes': _cell("Nombre Adultes") or '',
-            'nombre_enfants_2_12': _cell("Enfants 2-12") or '',
-            'nombre_bebes_0_2': _cell("Bébés 0-2") or '',
-            'telephone': _cell("Téléphone", f'D{row}') or '',
-            'telephone_whatsapp': _cell("Téléphone WhatsApp") or '',
-            'email': _cell("Email", f'E{row}') or '',
-            'periode': _cell("Période", f'F{row}') or '',
-            'restauration': _cell("Restauration", f'G{row}') or '',
-            'hebergement': _cell("Hébergement", f'H{row}') or '',
-            'chambre': _cell("Chambre", f'I{row}') or '',
-            'enfant': _cell("Enfant", f'J{row}') or '',
-            'age_enfant': _cell("Âge Enfant", f'K{row}') or '',
-            'forfait': _cell("Forfait", f'L{row}') or '',
-            'circuit': _cell("Circuit", f'M{row}') or '',
-            'sgl_count': _cell("SGL") or '',
-            'dbl_count': _cell("DBL") or '',
-            'twn_count': _cell("TWN") or '',
-            'tpl_count': _cell("TPL") or '',
-            'fml_count': _cell("FML") or ''
+            "row_number": row,
+            "timestamp": _cell("Date", f"A{row}") or "",
+            "ref_client": _cell("Réf. Client", f"B{row}") or "",
+            "type_client": _cell("Type Client") or "",
+            "prenom": _cell("Prénom") or "",
+            "nom": _cell("Nom", f"C{row}") or "",
+            "date_arrivee": _cell("Date Arrivée") or "",
+            "date_depart": _cell("Date Départ") or "",
+            "duree_sejour": _cell("Durée Séjour") or "",
+            "nombre_participants": _cell("Nombre Participants") or "",
+            "nombre_adultes": _cell("Nombre Adultes") or "",
+            "nombre_enfants_2_12": _cell("Enfants 2-12") or "",
+            "nombre_bebes_0_2": _cell("Bébés 0-2") or "",
+            "telephone": _cell("Téléphone", f"D{row}") or "",
+            "telephone_whatsapp": _cell("Téléphone WhatsApp") or "",
+            "email": _cell("Email", f"E{row}") or "",
+            "periode": _cell("Période", f"F{row}") or "",
+            "restauration": _cell("Restauration", f"G{row}") or "",
+            "hebergement": _cell("Hébergement", f"H{row}") or "",
+            "chambre": _cell("Chambre", f"I{row}") or "",
+            "enfant": _cell("Enfant", f"J{row}") or "",
+            "age_enfant": _cell("Âge Enfant", f"K{row}") or "",
+            "forfait": _cell("Forfait", f"L{row}") or "",
+            "circuit": _cell("Circuit", f"M{row}") or "",
+            "sgl_count": _cell("SGL") or "",
+            "dbl_count": _cell("DBL") or "",
+            "twn_count": _cell("TWN") or "",
+            "tpl_count": _cell("TPL") or "",
+            "fml_count": _cell("FML") or "",
         }
-        ref_key = client.get('ref_client')
+        ref_key = client.get("ref_client")
         if ref_key and ref_key in infos_map:
             client.update(infos_map[ref_key])
         clients.append(client)
@@ -453,19 +574,41 @@ def update_client_in_excel(row_number, client_data):
 
     ws = wb[CLIENT_SHEET_NAME]
     client_headers = [
-        "Date", "Réf. Client", "Type Client", "Prénom", "Nom",
-        "Date Arrivée", "Date Départ", "Durée Séjour",
-        "Nombre Participants", "Nombre Adultes",
-        "Enfants 2-12", "Bébés 0-2",
-        "Téléphone", "Téléphone WhatsApp", "Email",
-        "Période", "Restauration", "Hébergement", "Chambre",
-        "Enfant", "Âge Enfant", "Forfait", "Circuit",
-        "SGL", "DBL", "TWN", "TPL", "FML"
+        "Date",
+        "Réf. Client",
+        "Type Client",
+        "Prénom",
+        "Nom",
+        "Date Arrivée",
+        "Date Départ",
+        "Durée Séjour",
+        "Nombre Participants",
+        "Nombre Adultes",
+        "Enfants 2-12",
+        "Bébés 0-2",
+        "Téléphone",
+        "Téléphone WhatsApp",
+        "Email",
+        "Période",
+        "Restauration",
+        "Hébergement",
+        "Chambre",
+        "Enfant",
+        "Âge Enfant",
+        "Forfait",
+        "Circuit",
+        "SGL",
+        "DBL",
+        "TWN",
+        "TPL",
+        "FML",
     ]
     client_header_style = {
         "font": Font(bold=True, color="FFFFFF"),
-        "fill": PatternFill(start_color="27AE60", end_color="27AE60", fill_type="solid"),
-        "alignment": Alignment(horizontal="center")
+        "fill": PatternFill(
+            start_color="27AE60", end_color="27AE60", fill_type="solid"
+        ),
+        "alignment": Alignment(horizontal="center"),
     }
     header_map = _ensure_headers(ws, client_headers, client_header_style)
 
@@ -498,12 +641,16 @@ def update_client_in_excel(row_number, client_data):
         "DBL": ["DBL_Count", "dbl_count"],
         "TWN": ["TWN_Count", "twn_count"],
         "TPL": ["TPL_Count", "tpl_count"],
-        "FML": ["FML_Count", "fml_count"]
+        "FML": ["FML_Count", "fml_count"],
     }
     for header, keys in field_map.items():
         col = header_map.get(header)
         if col:
-            ws.cell(row=row_number, column=col, value=_first_available(client_data, keys, ""))
+            ws.cell(
+                row=row_number,
+                column=col,
+                value=_first_available(client_data, keys, ""),
+            )
 
     wb.save(CLIENT_EXCEL_PATH)
     invalidate_client_cache()
@@ -535,17 +682,24 @@ def _load_client_infos_map():
         return None
 
     for row in range(2, ws.max_row + 1):
-        if ws[f'A{row}'].value is None:
+        if ws[f"A{row}"].value is None:
             continue
-        ref_client = _cell(row, "Réf. Client", f'B{row}') or ''
+        ref_client = _cell(row, "Réf. Client", f"B{row}") or ""
         if not ref_client:
             continue
         infos_map[ref_client] = {
-            'numero_dossier': _cell(row, "Numéro Dossier") or '',
-            'type_circuit': _cell(row, "Type Circuit") or '',
-            'ville_depart': _cell(row, "Ville Départ") or '',
-            'ville_arrivee': _cell(row, "Ville Arrivée") or '',
-            'type_hotel_arrivee': _cell(row, "Type Hôtel Arrivée") or ''
+            "numero_dossier": _cell(row, "Numéro Dossier") or "",
+            "type_circuit": _cell(row, "Type Circuit") or "",
+            "id_circuit": _cell(row, "ID Circuit") or "",
+            "itineraire_circuit": _cell(row, "Itinéraire Circuit") or "",
+            "activite_circuit": _cell(row, "Activité Circuit") or "",
+            "duree_circuit": _cell(row, "Durée Circuit") or "",
+            "condition_physique_circuit": _cell(row, "Condition Physique Circuit")
+            or "",
+            "type_voiture_circuit": _cell(row, "Type Voiture Circuit") or "",
+            "ville_depart": _cell(row, "Ville Départ") or "",
+            "ville_arrivee": _cell(row, "Ville Arrivée") or "",
+            "type_hotel_arrivee": _cell(row, "Type Hôtel Arrivée") or "",
         }
 
     return infos_map
@@ -608,7 +762,11 @@ def load_all_hotels(client_type=None):
     ws = wb[HOTEL_SHEET_NAME]
     header_map_row1 = _get_header_map(ws, 1)
     header_map_row2 = _get_header_map(ws, 2)
-    use_grouped_format = "Ville" in header_map_row2 and "HTL" in header_map_row2 and "Ville" not in header_map_row1
+    use_grouped_format = (
+        "Ville" in header_map_row2
+        and "HTL" in header_map_row2
+        and "Ville" not in header_map_row1
+    )
 
     hotels = []
     if use_grouped_format:
@@ -622,7 +780,7 @@ def load_all_hotels(client_type=None):
             "OPTIONS": "options",
             "TAXE": "taxes",
             "REPAS": "meals",
-            "AUTRES INFORMATIONS ET REMARQUES": "extras"
+            "AUTRES INFORMATIONS ET REMARQUES": "extras",
         }
         room_key_map = {
             "SPL": "single",
@@ -634,55 +792,48 @@ def load_all_hotels(client_type=None):
             "DORTOIR": "dortoir",
             "SUPP": "supp",
             "STUDIOS": "studios",
-            "VIP": "vip"
+            "VIP": "vip",
         }
-        options_key_map = {
-            "CH. EVASION": "ch_evasion",
-            "MASSAGE": "massage"
-        }
+        options_key_map = {"CH. EVASION": "ch_evasion", "MASSAGE": "massage"}
         taxes_key_map = {
             "VIGNETTE": "vignette",
             "TAXE DE SEJOUR": "taxe_sejour",
-            "TAXE DE SÉJOUR": "taxe_sejour"
+            "TAXE DE SÉJOUR": "taxe_sejour",
         }
         meals_key_map = {
             "PDJ": "petit_dejeuner",
             "DJ": "dejeuner",
             "DR": "diner",
             "REPAS GUIDE": "repas_guide",
-            "REPAS CHAUFFEUR": "repas_chauffeur"
+            "REPAS CHAUFFEUR": "repas_chauffeur",
         }
-        extras_key_map = {
-            "INCLUE": "inclue",
-            "SPA": "spa",
-            "REMARQUES": "remarques"
-        }
+        extras_key_map = {"INCLUE": "inclue", "SPA": "spa", "REMARQUES": "remarques"}
 
         for row in range(3, ws.max_row + 1):
-            if ws[f'A{row}'].value is None:
+            if ws[f"A{row}"].value is None:
                 continue
 
             hotel = {
-                'row_number': row,
-                'id': "",
-                'nom': "",
-                'lieu': "",
-                'categorie': "",
-                'type_client': "",
-                'unite': "",
-                'type_hebergement': "Hôtel",
-                'room_rates': {
-                    'standard': {},
-                    'bungalows': {},
-                    'deluxe': {},
-                    'suite': {}
+                "row_number": row,
+                "id": "",
+                "nom": "",
+                "lieu": "",
+                "categorie": "",
+                "type_client": "",
+                "unite": "",
+                "type_hebergement": "Hôtel",
+                "room_rates": {
+                    "standard": {},
+                    "bungalows": {},
+                    "deluxe": {},
+                    "suite": {},
                 },
-                'options': {},
-                'taxes': {},
-                'meals': {},
-                'extras': {},
-                'contact': "",
-                'email': ""
+                "options": {},
+                "taxes": {},
+                "meals": {},
+                "extras": {},
+                "contact": "",
+                "email": "",
             }
 
             raw_category = ""
@@ -700,57 +851,66 @@ def load_all_hotels(client_type=None):
 
                 if group_key == "hotel":
                     if header_norm_upper == "VILLE":
-                        hotel['lieu'] = str(value).strip()
+                        hotel["lieu"] = str(value).strip()
                     elif header_norm_upper == "HTL":
-                        hotel['nom'] = str(value).strip()
-                    elif header_norm_upper == "CATÉGORIE" or header_norm_upper == "CATEGORIE":
+                        hotel["nom"] = str(value).strip()
+                    elif (
+                        header_norm_upper == "CATÉGORIE"
+                        or header_norm_upper == "CATEGORIE"
+                    ):
                         raw_category = str(value).strip()
                     elif header_norm_upper == "UNITÉ" or header_norm_upper == "UNITE":
-                        hotel['unite'] = str(value).strip()
+                        hotel["unite"] = str(value).strip()
                 elif group_key in ("standard", "bungalows", "deluxe", "suite"):
                     room_key = room_key_map.get(header_norm_upper)
                     if room_key:
-                        hotel['room_rates'][group_key][room_key] = _parse_num(value)
+                        hotel["room_rates"][group_key][room_key] = _parse_num(value)
                 elif group_key == "options":
                     opt_key = options_key_map.get(header_norm_upper)
                     if opt_key:
-                        hotel['options'][opt_key] = _parse_num(value)
+                        hotel["options"][opt_key] = _parse_num(value)
                 elif group_key == "taxes":
                     tax_key = taxes_key_map.get(header_norm_upper)
                     if tax_key:
-                        hotel['taxes'][tax_key] = _parse_num(value)
+                        hotel["taxes"][tax_key] = _parse_num(value)
                 elif group_key == "meals":
                     meal_key = meals_key_map.get(header_norm_upper)
                     if meal_key:
-                        hotel['meals'][meal_key] = _parse_num(value)
+                        hotel["meals"][meal_key] = _parse_num(value)
                 elif group_key == "extras":
                     extra_key = extras_key_map.get(header_norm_upper)
                     if extra_key:
-                        hotel['extras'][extra_key] = value
+                        hotel["extras"][extra_key] = value
 
             raw_category_norm = raw_category.strip().upper()
             if raw_category_norm in ("TO", "PBC", "DU"):
-                hotel['type_client'] = raw_category_norm
-                hotel['categorie'] = ""
+                hotel["type_client"] = raw_category_norm
+                hotel["categorie"] = ""
             else:
-                hotel['categorie'] = raw_category
-                hotel['type_client'] = ""
+                hotel["categorie"] = raw_category
+                hotel["type_client"] = ""
 
-            if not hotel['type_client']:
-                hotel['type_client'] = "TO"
+            if not hotel["type_client"]:
+                hotel["type_client"] = "TO"
 
-            hotel['id'] = f"{hotel['lieu']}_{hotel['nom']}_{hotel['type_client']}"
+            hotel["id"] = f"{hotel['lieu']}_{hotel['nom']}_{hotel['type_client']}"
 
-            standard_rates = hotel['room_rates'].get('standard', {})
-            hotel['chambre_single'] = standard_rates.get('single', 0)
-            hotel['chambre_double'] = standard_rates.get('double', 0) or standard_rates.get('twin', 0)
-            hotel['chambre_familiale'] = standard_rates.get('familiale', 0)
-            hotel['lit_supp'] = standard_rates.get('supp', 0)
-            hotel['petit_dejeuner'] = hotel['meals'].get('petit_dejeuner', 0)
-            hotel['dejeuner'] = hotel['meals'].get('dejeuner', 0)
-            hotel['diner'] = hotel['meals'].get('diner', 0)
+            standard_rates = hotel["room_rates"].get("standard", {})
+            hotel["chambre_single"] = standard_rates.get("single", 0)
+            hotel["chambre_double"] = standard_rates.get(
+                "double", 0
+            ) or standard_rates.get("twin", 0)
+            hotel["chambre_familiale"] = standard_rates.get("familiale", 0)
+            hotel["lit_supp"] = standard_rates.get("supp", 0)
+            hotel["petit_dejeuner"] = hotel["meals"].get("petit_dejeuner", 0)
+            hotel["dejeuner"] = hotel["meals"].get("dejeuner", 0)
+            hotel["diner"] = hotel["meals"].get("diner", 0)
 
-            if client_type and hotel['type_client'] and hotel['type_client'] != client_type:
+            if (
+                client_type
+                and hotel["type_client"]
+                and hotel["type_client"] != client_type
+            ):
                 continue
 
             hotels.append(hotel)
@@ -758,7 +918,7 @@ def load_all_hotels(client_type=None):
         header_map = _ensure_headers(ws, [])
         # Start from row 2 (skip headers)
         for row in range(2, ws.max_row + 1):
-            if ws[f'A{row}'].value is None:
+            if ws[f"A{row}"].value is None:
                 continue
 
             def _cell(header, fallback_cell=None):
@@ -770,47 +930,59 @@ def load_all_hotels(client_type=None):
                 return None
 
             hotel = {
-                'row_number': row,
-                'id': _cell("ID") or f"{_cell('Ville', f'A{row}')}_{_cell('HTL', f'B{row}')}",
-                'nom': _cell("HTL", f'B{row}') or '',
-                'lieu': _cell("Ville", f'A{row}') or '',
-                'type_hebergement': _cell("TYPE_HEBERGEMENT") or 'Hôtel',
-                'categorie': _cell("CATÉGORIE", f'C{row}') or '',
-                'type_client': _cell("TYPE_CLIENT", f'N{row}') or 'TO',
-                'chambre_single': _parse_num(_cell("SPL", f'E{row}')),
-                'chambre_double': _parse_num(_cell("DBL", f'F{row}')),
-                'chambre_familiale': _parse_num(_cell("FML", f'H{row}')),
-                'lit_supp': _parse_num(_cell("SUPP", f'I{row}')),
-                'day_use': _parse_num(_cell("DAY_USE")) if _cell("DAY_USE") is not None else 0,
-                'vignette': _parse_num(_cell("VIGNETTE")) if _cell("VIGNETTE") is not None else 0,
-                'taxe_sejour': _parse_num(_cell("TAXE_SEJOUR")) if _cell("TAXE_SEJOUR") is not None else 0,
-                'petit_dejeuner': _parse_num(_cell("PDJ", f'K{row}')),
-                'dejeuner': _parse_num(_cell("DJ", f'L{row}')),
-                'diner': _parse_num(_cell("DR", f'M{row}')),
-                'description': _cell("DESCRIPTION") or f"Unité: {_cell('UNITÉ', f'D{row}') or ''}, Suite: {_cell('SUITE', f'J{row}') or ''}",
-                'contact': _cell("CONTACT") or '',
-                'email': _cell("EMAIL") or '',
-                'room_rates': {
-                    'standard': {
-                        'single': _parse_num(_cell("SPL", f'E{row}')),
-                        'double': _parse_num(_cell("DBL", f'F{row}')),
-                        'twin': _parse_num(_cell("DBL", f'F{row}')),
-                        'familiale': _parse_num(_cell("FML", f'H{row}')),
-                        'supp': _parse_num(_cell("SUPP", f'I{row}'))
+                "row_number": row,
+                "id": _cell("ID")
+                or f"{_cell('Ville', f'A{row}')}_{_cell('HTL', f'B{row}')}",
+                "nom": _cell("HTL", f"B{row}") or "",
+                "lieu": _cell("Ville", f"A{row}") or "",
+                "type_hebergement": _cell("TYPE_HEBERGEMENT") or "Hôtel",
+                "categorie": _cell("CATÉGORIE", f"C{row}") or "",
+                "type_client": _cell("TYPE_CLIENT", f"N{row}") or "TO",
+                "chambre_single": _parse_num(_cell("SPL", f"E{row}")),
+                "chambre_double": _parse_num(_cell("DBL", f"F{row}")),
+                "chambre_familiale": _parse_num(_cell("FML", f"H{row}")),
+                "lit_supp": _parse_num(_cell("SUPP", f"I{row}")),
+                "day_use": (
+                    _parse_num(_cell("DAY_USE")) if _cell("DAY_USE") is not None else 0
+                ),
+                "vignette": (
+                    _parse_num(_cell("VIGNETTE"))
+                    if _cell("VIGNETTE") is not None
+                    else 0
+                ),
+                "taxe_sejour": (
+                    _parse_num(_cell("TAXE_SEJOUR"))
+                    if _cell("TAXE_SEJOUR") is not None
+                    else 0
+                ),
+                "petit_dejeuner": _parse_num(_cell("PDJ", f"K{row}")),
+                "dejeuner": _parse_num(_cell("DJ", f"L{row}")),
+                "diner": _parse_num(_cell("DR", f"M{row}")),
+                "description": _cell("DESCRIPTION")
+                or f"Unité: {_cell('UNITÉ', f'D{row}') or ''}, Suite: {_cell('SUITE', f'J{row}') or ''}",
+                "contact": _cell("CONTACT") or "",
+                "email": _cell("EMAIL") or "",
+                "room_rates": {
+                    "standard": {
+                        "single": _parse_num(_cell("SPL", f"E{row}")),
+                        "double": _parse_num(_cell("DBL", f"F{row}")),
+                        "twin": _parse_num(_cell("DBL", f"F{row}")),
+                        "familiale": _parse_num(_cell("FML", f"H{row}")),
+                        "supp": _parse_num(_cell("SUPP", f"I{row}")),
                     }
                 },
-                'meals': {
-                    'petit_dejeuner': _parse_num(_cell("PDJ", f'K{row}')),
-                    'dejeuner': _parse_num(_cell("DJ", f'L{row}')),
-                    'diner': _parse_num(_cell("DR", f'M{row}'))
+                "meals": {
+                    "petit_dejeuner": _parse_num(_cell("PDJ", f"K{row}")),
+                    "dejeuner": _parse_num(_cell("DJ", f"L{row}")),
+                    "diner": _parse_num(_cell("DR", f"M{row}")),
                 },
-                'options': {},
-                'taxes': {},
-                'extras': {}
+                "options": {},
+                "taxes": {},
+                "extras": {},
             }
 
             # Filter by client type if specified
-            if client_type and hotel['type_client'] != client_type:
+            if client_type and hotel["type_client"] != client_type:
                 continue
 
             hotels.append(hotel)
@@ -818,12 +990,12 @@ def load_all_hotels(client_type=None):
     return hotels
 
 
-def load_all_circuits():
+def load_circuit_catalog():
     """
-    Load circuit names from the Circuits sheet in data-hotel.xlsx.
+    Load circuit catalog from the Circuits sheet in data-hotel.xlsx.
 
     Returns:
-        list: List of circuit names
+        list[dict]: List of normalized circuit dictionaries
     """
     if not OPENPYXL_AVAILABLE:
         logger.warning("openpyxl not available. Cannot load circuits from Excel.")
@@ -838,21 +1010,89 @@ def load_all_circuits():
 
     ws = wb["Circuits"]
     header_map = _get_header_map(ws, 1)
-    name_col = header_map.get("Nom du circuit") or header_map.get("Nom") or 2
+
+    id_col = _find_header_column(header_map, "ID circuit", "ID", "Id")
+    name_col = _find_header_column(
+        header_map, "Nom du circuit", "Nom", "Circuit", "Type Circuit"
+    )
+    itinerary_col = _find_header_column(
+        header_map, "itinéraire", "itineraire", "Itinéraire"
+    )
+    activity_col = _find_header_column(header_map, "Activité", "Activite")
+    duration_col = _find_header_column(header_map, "Durée", "Duree")
+    fitness_col = _find_header_column(
+        header_map, "condition physique", "Condition Physique"
+    )
+    vehicle_col = _find_header_column(header_map, "Type de voiture", "Voiture")
+
+    if not name_col:
+        return []
 
     circuits = []
-    seen = set()
+    seen_names = set()
     for row in range(2, ws.max_row + 1):
-        value = ws.cell(row=row, column=name_col).value
-        if value is None or str(value).strip() == "":
+        raw_name = ws.cell(row=row, column=name_col).value
+        if raw_name is None or str(raw_name).strip() == "":
             continue
-        name = str(value).strip()
-        if name in seen:
+        name = str(raw_name).strip()
+        if name in seen_names:
             continue
-        seen.add(name)
-        circuits.append(name)
+        seen_names.add(name)
+
+        itinerary = (
+            str(ws.cell(row=row, column=itinerary_col).value).strip()
+            if itinerary_col and ws.cell(row=row, column=itinerary_col).value is not None
+            else ""
+        )
+        activity = (
+            str(ws.cell(row=row, column=activity_col).value).strip()
+            if activity_col and ws.cell(row=row, column=activity_col).value is not None
+            else ""
+        )
+        duration = (
+            str(ws.cell(row=row, column=duration_col).value).strip()
+            if duration_col and ws.cell(row=row, column=duration_col).value is not None
+            else ""
+        )
+        fitness = (
+            str(ws.cell(row=row, column=fitness_col).value).strip()
+            if fitness_col and ws.cell(row=row, column=fitness_col).value is not None
+            else ""
+        )
+        vehicle = (
+            str(ws.cell(row=row, column=vehicle_col).value).strip()
+            if vehicle_col and ws.cell(row=row, column=vehicle_col).value is not None
+            else ""
+        )
+        circuit_id = (
+            str(ws.cell(row=row, column=id_col).value).strip()
+            if id_col and ws.cell(row=row, column=id_col).value is not None
+            else ""
+        )
+
+        circuits.append(
+            {
+                "id_circuit": circuit_id,
+                "nom": name,
+                "itineraire": itinerary,
+                "activite": activity,
+                "duree": duration,
+                "condition_physique": fitness,
+                "type_voiture": vehicle,
+            }
+        )
 
     return circuits
+
+
+def load_all_circuits():
+    """
+    Load circuit names from the Circuits sheet in data-hotel.xlsx.
+
+    Returns:
+        list: List of circuit names
+    """
+    return [circuit["nom"] for circuit in load_circuit_catalog() if circuit.get("nom")]
 
 
 def save_hotel_to_excel(hotel_data):
@@ -873,15 +1113,35 @@ def save_hotel_to_excel(hotel_data):
     create_backup(HOTEL_EXCEL_PATH)
     # Create file if it doesn't exist
     hotel_headers = [
-        "Ville", "HTL", "CATÉGORIE", "UNITÉ", "SPL", "DBL", "TWINS",
-        "FML", "SUPP", "SUITE", "PDJ", "DJ", "DR",
-        "ID", "TYPE_HEBERGEMENT", "TYPE_CLIENT", "CONTACT", "EMAIL",
-        "DESCRIPTION", "DAY_USE", "VIGNETTE", "TAXE_SEJOUR"
+        "Ville",
+        "HTL",
+        "CATÉGORIE",
+        "UNITÉ",
+        "SPL",
+        "DBL",
+        "TWINS",
+        "FML",
+        "SUPP",
+        "SUITE",
+        "PDJ",
+        "DJ",
+        "DR",
+        "ID",
+        "TYPE_HEBERGEMENT",
+        "TYPE_CLIENT",
+        "CONTACT",
+        "EMAIL",
+        "DESCRIPTION",
+        "DAY_USE",
+        "VIGNETTE",
+        "TAXE_SEJOUR",
     ]
     hotel_header_style = {
         "font": Font(bold=True, color="FFFFFF"),
-        "fill": PatternFill(start_color="27AE60", end_color="27AE60", fill_type="solid"),
-        "alignment": Alignment(horizontal="center")
+        "fill": PatternFill(
+            start_color="27AE60", end_color="27AE60", fill_type="solid"
+        ),
+        "alignment": Alignment(horizontal="center"),
     }
 
     if not os.path.exists(HOTEL_EXCEL_PATH):
@@ -926,7 +1186,7 @@ def save_hotel_to_excel(hotel_data):
         "DESCRIPTION": ["Description", "description"],
         "DAY_USE": ["Day_Use", "day_use"],
         "VIGNETTE": ["Vignette", "vignette"],
-        "TAXE_SEJOUR": ["Taxe_Séjour", "taxe_sejour"]
+        "TAXE_SEJOUR": ["Taxe_Séjour", "taxe_sejour"],
     }
     for header, keys in field_map.items():
         col = header_map.get(header)
@@ -944,7 +1204,7 @@ def save_hotel_to_excel(hotel_data):
             try:
                 if len(str(cell.value)) > max_length:
                     max_length = len(str(cell.value))
-            except:
+            except (TypeError, AttributeError):
                 pass
         ws.column_dimensions[column_letter].width = min(max_length + 2, 25)
 
@@ -980,15 +1240,35 @@ def update_hotel_in_excel(row_number, hotel_data):
 
     ws = wb[HOTEL_SHEET_NAME]
     hotel_headers = [
-        "Ville", "HTL", "CATÉGORIE", "UNITÉ", "SPL", "DBL", "TWINS",
-        "FML", "SUPP", "SUITE", "PDJ", "DJ", "DR",
-        "ID", "TYPE_HEBERGEMENT", "TYPE_CLIENT", "CONTACT", "EMAIL",
-        "DESCRIPTION", "DAY_USE", "VIGNETTE", "TAXE_SEJOUR"
+        "Ville",
+        "HTL",
+        "CATÉGORIE",
+        "UNITÉ",
+        "SPL",
+        "DBL",
+        "TWINS",
+        "FML",
+        "SUPP",
+        "SUITE",
+        "PDJ",
+        "DJ",
+        "DR",
+        "ID",
+        "TYPE_HEBERGEMENT",
+        "TYPE_CLIENT",
+        "CONTACT",
+        "EMAIL",
+        "DESCRIPTION",
+        "DAY_USE",
+        "VIGNETTE",
+        "TAXE_SEJOUR",
     ]
     hotel_header_style = {
         "font": Font(bold=True, color="FFFFFF"),
-        "fill": PatternFill(start_color="27AE60", end_color="27AE60", fill_type="solid"),
-        "alignment": Alignment(horizontal="center")
+        "fill": PatternFill(
+            start_color="27AE60", end_color="27AE60", fill_type="solid"
+        ),
+        "alignment": Alignment(horizontal="center"),
     }
     header_map = _ensure_headers(ws, hotel_headers, hotel_header_style)
 
@@ -1014,7 +1294,7 @@ def update_hotel_in_excel(row_number, hotel_data):
         "DESCRIPTION": ["Description", "description"],
         "DAY_USE": ["Day_Use", "day_use"],
         "VIGNETTE": ["Vignette", "vignette"],
-        "TAXE_SEJOUR": ["Taxe_Séjour", "taxe_sejour"]
+        "TAXE_SEJOUR": ["Taxe_Séjour", "taxe_sejour"],
     }
     for header, keys in field_map.items():
         col = header_map.get(header)
@@ -1040,7 +1320,7 @@ def delete_hotel_from_excel(row_number):
         bool: True if successful, False otherwise
     """
     if not OPENPYXL_AVAILABLE:
-        logger.warning( "openpyxl not available. Cannot delete from Excel.")
+        logger.warning("openpyxl not available. Cannot delete from Excel.")
         return False
 
     if not os.path.exists(HOTEL_EXCEL_PATH):
@@ -1063,7 +1343,7 @@ def delete_hotel_from_excel(row_number):
 def save_hotel_quotation_to_excel(quotation_data):
     """
     Save hotel quotation to COTATION_H sheet in data.xlsx
-    
+
     Args:
         quotation_data (dict): Quotation data with keys:
             - client_id (str): ID/Ref of the client
@@ -1079,14 +1359,14 @@ def save_hotel_quotation_to_excel(quotation_data):
             - meal_plan (str): Meal plan selected
             - period (str): Period/season
             - quote_date (str): Date of the quotation
-            
+
     Returns:
         int: Row number where data was saved, or -1 if failed
     """
     if not OPENPYXL_AVAILABLE:
         logger.warning("openpyxl not available. Cannot save quotation to Excel.")
         return -1
-    
+
     try:
         # Create or load the file
         if not os.path.exists(CLIENT_EXCEL_PATH):
@@ -1099,59 +1379,73 @@ def save_hotel_quotation_to_excel(quotation_data):
                 ws = wb.create_sheet(COTATION_H_SHEET_NAME)
             else:
                 ws = wb[COTATION_H_SHEET_NAME]
-        
+
         # Add headers if this is the first row
-        if ws.max_row == 1 or ws[f'A1'].value is None:
+        if ws.max_row == 1 or ws[f"A1"].value is None:
             headers = [
-                'Date', 'ID_Client', 'Nom_Client', 'Hôtel', 'Ville', 
-                'Nuits', 'Type_Chambre', 'Adultes', 'Enfants', 
-                'Plan_Repas', 'Période', 'Total_Devise', 'Devise'
+                "Date",
+                "ID_Client",
+                "Nom_Client",
+                "Hôtel",
+                "Ville",
+                "Nuits",
+                "Type_Chambre",
+                "Adultes",
+                "Enfants",
+                "Plan_Repas",
+                "Période",
+                "Total_Devise",
+                "Devise",
             ]
             for col, header in enumerate(headers, start=1):
                 cell = ws.cell(row=1, column=col)
                 cell.value = header
                 cell.font = Font(bold=True)
-                cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+                cell.fill = PatternFill(
+                    start_color="4472C4", end_color="4472C4", fill_type="solid"
+                )
                 cell.font = Font(bold=True, color="FFFFFF")
                 cell.alignment = Alignment(horizontal="center", vertical="center")
-        
+
         # Find next row
         next_row = ws.max_row + 1
-        
+
         # Save data
-        ws[f'A{next_row}'] = quotation_data.get('quote_date', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        ws[f'B{next_row}'] = quotation_data.get('client_id', '')
-        ws[f'C{next_row}'] = quotation_data.get('client_name', '')
-        ws[f'D{next_row}'] = quotation_data.get('hotel_name', '')
-        ws[f'E{next_row}'] = quotation_data.get('city', '')
-        ws[f'F{next_row}'] = quotation_data.get('nights', 0)
-        ws[f'G{next_row}'] = quotation_data.get('room_type', '')
-        ws[f'H{next_row}'] = quotation_data.get('adults', 0)
-        ws[f'I{next_row}'] = quotation_data.get('children', 0)
-        ws[f'J{next_row}'] = quotation_data.get('meal_plan', '')
-        ws[f'K{next_row}'] = quotation_data.get('period', '')
-        ws[f'L{next_row}'] = _parse_num(quotation_data.get('total_price', 0))
-        ws[f'M{next_row}'] = quotation_data.get('currency', 'Ariary')
-        
+        ws[f"A{next_row}"] = quotation_data.get(
+            "quote_date", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+        ws[f"B{next_row}"] = quotation_data.get("client_id", "")
+        ws[f"C{next_row}"] = quotation_data.get("client_name", "")
+        ws[f"D{next_row}"] = quotation_data.get("hotel_name", "")
+        ws[f"E{next_row}"] = quotation_data.get("city", "")
+        ws[f"F{next_row}"] = quotation_data.get("nights", 0)
+        ws[f"G{next_row}"] = quotation_data.get("room_type", "")
+        ws[f"H{next_row}"] = quotation_data.get("adults", 0)
+        ws[f"I{next_row}"] = quotation_data.get("children", 0)
+        ws[f"J{next_row}"] = quotation_data.get("meal_plan", "")
+        ws[f"K{next_row}"] = quotation_data.get("period", "")
+        ws[f"L{next_row}"] = _parse_num(quotation_data.get("total_price", 0))
+        ws[f"M{next_row}"] = quotation_data.get("currency", "Ariary")
+
         # Adjust column widths
-        ws.column_dimensions['A'].width = 16
-        ws.column_dimensions['B'].width = 12
-        ws.column_dimensions['C'].width = 20
-        ws.column_dimensions['D'].width = 25
-        ws.column_dimensions['E'].width = 12
-        ws.column_dimensions['F'].width = 8
-        ws.column_dimensions['G'].width = 14
-        ws.column_dimensions['H'].width = 8
-        ws.column_dimensions['I'].width = 8
-        ws.column_dimensions['J'].width = 18
-        ws.column_dimensions['K'].width = 12
-        ws.column_dimensions['L'].width = 14
-        ws.column_dimensions['M'].width = 10
-        
+        ws.column_dimensions["A"].width = 16
+        ws.column_dimensions["B"].width = 12
+        ws.column_dimensions["C"].width = 20
+        ws.column_dimensions["D"].width = 25
+        ws.column_dimensions["E"].width = 12
+        ws.column_dimensions["F"].width = 8
+        ws.column_dimensions["G"].width = 14
+        ws.column_dimensions["H"].width = 8
+        ws.column_dimensions["I"].width = 8
+        ws.column_dimensions["J"].width = 18
+        ws.column_dimensions["K"].width = 12
+        ws.column_dimensions["L"].width = 14
+        ws.column_dimensions["M"].width = 10
+
         wb.save(CLIENT_EXCEL_PATH)
         logger.info(f"Quotation saved to row {next_row} in {COTATION_H_SHEET_NAME}")
         return next_row
-        
+
     except Exception as e:
         logger.error(f"Failed to save quotation to Excel: {e}", exc_info=True)
         return -1
@@ -1160,50 +1454,50 @@ def save_hotel_quotation_to_excel(quotation_data):
 def load_all_hotel_quotations():
     """
     Load all hotel quotations from COTATION_H sheet
-    
+
     Returns:
         list: List of quotation dictionaries
     """
     if not OPENPYXL_AVAILABLE:
         logger.warning("openpyxl not available. Cannot load from Excel.")
         return []
-    
+
     if not os.path.exists(CLIENT_EXCEL_PATH):
         return []
-    
+
     try:
         wb = load_workbook(CLIENT_EXCEL_PATH)
         if COTATION_H_SHEET_NAME not in wb.sheetnames:
             return []
-        
+
         ws = wb[COTATION_H_SHEET_NAME]
-        
+
         quotations = []
         # Start from row 2 (skip headers)
         for row in range(2, ws.max_row + 1):
-            if ws[f'A{row}'].value is None:
+            if ws[f"A{row}"].value is None:
                 continue
-            
+
             quotation = {
-                'row_number': row,
-                'quote_date': ws[f'A{row}'].value or '',
-                'client_id': ws[f'B{row}'].value or '',
-                'client_name': ws[f'C{row}'].value or '',
-                'hotel_name': ws[f'D{row}'].value or '',
-                'city': ws[f'E{row}'].value or '',
-                'nights': _parse_num(ws[f'F{row}'].value),
-                'room_type': ws[f'G{row}'].value or '',
-                'adults': _parse_num(ws[f'H{row}'].value),
-                'children': _parse_num(ws[f'I{row}'].value),
-                'meal_plan': ws[f'J{row}'].value or '',
-                'period': ws[f'K{row}'].value or '',
-                'total_price': _parse_num(ws[f'L{row}'].value),
-                'currency': ws[f'M{row}'].value or 'Ariary'
+                "row_number": row,
+                "quote_date": ws[f"A{row}"].value or "",
+                "client_id": ws[f"B{row}"].value or "",
+                "client_name": ws[f"C{row}"].value or "",
+                "hotel_name": ws[f"D{row}"].value or "",
+                "city": ws[f"E{row}"].value or "",
+                "nights": _parse_num(ws[f"F{row}"].value),
+                "room_type": ws[f"G{row}"].value or "",
+                "adults": _parse_num(ws[f"H{row}"].value),
+                "children": _parse_num(ws[f"I{row}"].value),
+                "meal_plan": ws[f"J{row}"].value or "",
+                "period": ws[f"K{row}"].value or "",
+                "total_price": _parse_num(ws[f"L{row}"].value),
+                "currency": ws[f"M{row}"].value or "Ariary",
             }
             quotations.append(quotation)
-        
+
         return quotations
-        
+
     except Exception as e:
         logger.error(f"Failed to load quotations from Excel: {e}", exc_info=True)
         return []
@@ -1212,51 +1506,51 @@ def load_all_hotel_quotations():
 def get_quotations_grouped_by_client():
     """
     Get all hotel quotations grouped by client with subtotals
-    
+
     Returns:
         dict: Dictionary with client_id as key and list of quotations as value,
               plus 'total' key with grand total per client
     """
     quotations = load_all_hotel_quotations()
     grouped = {}
-    
+
     for quotation in quotations:
-        client_id = quotation['client_id']
+        client_id = quotation["client_id"]
         if client_id not in grouped:
             grouped[client_id] = {
-                'client_name': quotation['client_name'],
-                'quotations': [],
-                'total': 0,
-                'currency': quotation['currency']
+                "client_name": quotation["client_name"],
+                "quotations": [],
+                "total": 0,
+                "currency": quotation["currency"],
             }
-        
-        grouped[client_id]['quotations'].append(quotation)
-        grouped[client_id]['total'] += quotation['total_price']
-    
+
+        grouped[client_id]["quotations"].append(quotation)
+        grouped[client_id]["total"] += quotation["total_price"]
+
     return grouped
 
 
 def get_quotations_by_city():
     """
     Get all hotel quotations grouped by city with subtotals
-    
+
     Returns:
         dict: Dictionary with city as key and list of quotations as value,
               plus 'total' key with grand total per city
     """
     quotations = load_all_hotel_quotations()
     grouped = {}
-    
+
     for quotation in quotations:
-        city = quotation['city']
+        city = quotation["city"]
         if city not in grouped:
             grouped[city] = {
-                'quotations': [],
-                'total': 0,
-                'currency': quotation['currency']
+                "quotations": [],
+                "total": 0,
+                "currency": quotation["currency"],
             }
-        
-        grouped[city]['quotations'].append(quotation)
-        grouped[city]['total'] += quotation['total_price']
-    
+
+        grouped[city]["quotations"].append(quotation)
+        grouped[city]["total"] += quotation["total_price"]
+
     return grouped

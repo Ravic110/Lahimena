@@ -3,11 +3,25 @@ Client list GUI component
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox, ttk
+
 import customtkinter as ctk
-from config import *
-from utils.excel_handler import load_all_clients, delete_client_from_excel
+
+from config import (
+    BUTTON_BLUE,
+    BUTTON_FONT,
+    BUTTON_GREEN,
+    BUTTON_ORANGE,
+    BUTTON_RED,
+    ENTRY_FONT,
+    INPUT_BG_COLOR,
+    LABEL_FONT,
+    MAIN_BG_COLOR,
+    TEXT_COLOR,
+    TITLE_FONT,
+)
 from models.client_data import ClientData
+from utils.excel_handler import delete_client_from_excel, load_all_clients
 
 
 class ClientList:
@@ -44,7 +58,7 @@ class ClientList:
             text="LISTE DES CLIENTS",
             font=TITLE_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         )
         title.pack(pady=(20, 10))
 
@@ -57,7 +71,7 @@ class ClientList:
             text="Rechercher:",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            bg=MAIN_BG_COLOR,
         ).pack(side="left")
 
         self.search_var = tk.StringVar()
@@ -68,7 +82,7 @@ class ClientList:
             font=ENTRY_FONT,
             width=30,
             bg=INPUT_BG_COLOR,
-            fg=TEXT_COLOR
+            fg=TEXT_COLOR,
         )
         search_entry.pack(side="left", padx=(10, 0))
 
@@ -82,7 +96,7 @@ class ClientList:
             command=self._load_clients,
             bg=BUTTON_BLUE,
             fg="white",
-            font=BUTTON_FONT
+            font=BUTTON_FONT,
         ).pack(side="left", padx=5)
 
         tk.Button(
@@ -91,7 +105,7 @@ class ClientList:
             command=self._new_client,
             bg=BUTTON_GREEN,
             fg="white",
-            font=BUTTON_FONT
+            font=BUTTON_FONT,
         ).pack(side="left", padx=5)
 
         self.btn_edit = tk.Button(
@@ -101,7 +115,7 @@ class ClientList:
             bg=BUTTON_ORANGE,
             fg="white",
             font=BUTTON_FONT,
-            state="disabled"
+            state="disabled",
         )
         self.btn_edit.pack(side="left", padx=5)
 
@@ -112,7 +126,7 @@ class ClientList:
             bg=BUTTON_RED,
             fg="white",
             font=BUTTON_FONT,
-            state="disabled"
+            state="disabled",
         )
         self.btn_delete.pack(side="left", padx=5)
 
@@ -130,20 +144,33 @@ class ClientList:
             "Treeview",
             background=INPUT_BG_COLOR,
             foreground=TEXT_COLOR,
-            fieldbackground=INPUT_BG_COLOR
+            fieldbackground=INPUT_BG_COLOR,
         )
         style.map("Treeview", background=[("selected", BUTTON_GREEN)])
 
         # Treeview
-        columns = ("row", "timestamp", "ref_client", "nom", "telephone", "email",
-                  "periode", "forfait", "circuit")
+        columns = (
+            "row",
+            "timestamp",
+            "ref_client",
+            "nom",
+            "telephone",
+            "email",
+            "periode",
+            "forfait",
+            "circuit",
+            "id_circuit",
+            "duree_circuit",
+            "condition_physique_circuit",
+            "type_voiture_circuit",
+        )
         self.tree = ttk.Treeview(
             tree_frame,
             columns=columns,
             show="headings",
             yscrollcommand=v_scrollbar.set,
             xscrollcommand=h_scrollbar.set,
-            style="Treeview"
+            style="Treeview",
         )
 
         v_scrollbar.config(command=self.tree.yview)
@@ -159,12 +186,24 @@ class ClientList:
             "email": "Email",
             "periode": "Période",
             "forfait": "Forfait",
-            "circuit": "Circuit"
+            "circuit": "Circuit",
+            "id_circuit": "ID Circuit",
+            "duree_circuit": "Durée",
+            "condition_physique_circuit": "Condition",
+            "type_voiture_circuit": "Voiture",
         }
 
         for col in columns:
             self.tree.heading(col, text=column_headers[col])
             self.tree.column(col, width=100, minwidth=80)
+
+        # Key columns sizing for readability
+        self.tree.column("ref_client", width=120, minwidth=100)
+        self.tree.column("nom", width=160, minwidth=120)
+        self.tree.column("email", width=180, minwidth=140)
+        self.tree.column("circuit", width=180, minwidth=140)
+        self.tree.column("condition_physique_circuit", width=140, minwidth=120)
+        self.tree.column("type_voiture_circuit", width=140, minwidth=120)
 
         # Pack treeview and scrollbars
         self.tree.pack(side="left", fill="both", expand=True)
@@ -184,11 +223,7 @@ class ClientList:
 
         # Status label
         self.status_label = tk.Label(
-            self.parent,
-            text="",
-            font=("Arial", 10),
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR
+            self.parent, text="", font=("Arial", 10), fg=TEXT_COLOR, bg=MAIN_BG_COLOR
         )
         self.status_label.pack(anchor="w", padx=20, pady=(0, 10))
 
@@ -225,23 +260,31 @@ class ClientList:
         # Add filtered clients
         for client in self.filtered_clients:
             values = (
-                client['row_number'],
-                client['timestamp'],
-                client['ref_client'],
-                client['nom'],
-                client['telephone'],
-                client['email'],
-                client['periode'],
-                client['forfait'],
-                client['circuit']
+                client["row_number"],
+                client["timestamp"],
+                client["ref_client"],
+                client["nom"],
+                client["telephone"],
+                client["email"],
+                client["periode"],
+                client["forfait"],
+                client["circuit"],
+                client.get("id_circuit", ""),
+                client.get("duree_circuit", ""),
+                client.get("condition_physique_circuit", ""),
+                client.get("type_voiture_circuit", ""),
             )
-            self.tree.insert("", "end", values=values, tags=(str(client['row_number']),))
+            self.tree.insert(
+                "", "end", values=values, tags=(str(client["row_number"]),)
+            )
 
         # Update status label
         total_clients = len(self.clients)
         filtered_count = len(self.filtered_clients)
         if self.search_var.get():
-            self.status_label.config(text=f"Affichage de {filtered_count} client(s) sur {total_clients} (filtré)")
+            self.status_label.config(
+                text=f"Affichage de {filtered_count} client(s) sur {total_clients} (filtré)"
+            )
         else:
             self.status_label.config(text=f"Total: {total_clients} client(s)")
 
@@ -252,11 +295,22 @@ class ClientList:
             self.filtered_clients = self.clients.copy()
         else:
             self.filtered_clients = [
-                client for client in self.clients
-                if (search_text in client['nom'].lower() or
-                    search_text in client['ref_client'].lower() or
-                    search_text in client['email'].lower() or
-                    search_text in client['telephone'].lower())
+                client
+                for client in self.clients
+                if (
+                    search_text in client["nom"].lower()
+                    or search_text in client["ref_client"].lower()
+                    or search_text in client["email"].lower()
+                    or search_text in client["telephone"].lower()
+                    or search_text in str(client.get("circuit", "")).lower()
+                    or search_text in str(client.get("id_circuit", "")).lower()
+                    or search_text in str(client.get("duree_circuit", "")).lower()
+                    or search_text
+                    in str(client.get("condition_physique_circuit", "")).lower()
+                    or search_text
+                    in str(client.get("type_voiture_circuit", "")).lower()
+                    or search_text in str(client.get("activite_circuit", "")).lower()
+                )
             ]
         self._update_treeview()
 
@@ -279,7 +333,7 @@ class ClientList:
 
         # Find client by row number
         for client in self.clients:
-            if client['row_number'] == row_number:
+            if client["row_number"] == row_number:
                 return client
         return None
 
@@ -289,22 +343,32 @@ class ClientList:
         if client and self.on_edit_client:
             self.on_edit_client(client)
         else:
-            messagebox.showwarning("Aucun client sélectionné", "Veuillez sélectionner un client à modifier.")
+            messagebox.showwarning(
+                "Aucun client sélectionné",
+                "Veuillez sélectionner un client à modifier.",
+            )
 
     def _delete_selected(self):
         """Delete the selected client"""
         client = self._get_selected_client()
         if not client:
-            messagebox.showwarning("Aucun client sélectionné", "Veuillez sélectionner un client à supprimer.")
+            messagebox.showwarning(
+                "Aucun client sélectionné",
+                "Veuillez sélectionner un client à supprimer.",
+            )
             return
 
-        if messagebox.askyesno("Confirmation",
-                              f"Êtes-vous sûr de vouloir supprimer le client {client['nom']} ?"):
-            if delete_client_from_excel(client['row_number']):
+        if messagebox.askyesno(
+            "Confirmation",
+            f"Êtes-vous sûr de vouloir supprimer le client {client['nom']} ?",
+        ):
+            if delete_client_from_excel(client["row_number"]):
                 messagebox.showinfo("Succès", "Client supprimé avec succès !")
                 self._load_clients()
             else:
-                messagebox.showerror("Erreur", "Erreur lors de la suppression du client")
+                messagebox.showerror(
+                    "Erreur", "Erreur lors de la suppression du client"
+                )
 
     def _view_details(self):
         """View detailed information of selected client"""
@@ -326,6 +390,11 @@ Enfant: {client['enfant']}
 Âge enfant: {client['age_enfant']}
 Forfait: {client['forfait']}
 Circuit: {client['circuit']}
+ID Circuit: {client.get('id_circuit', '')}
+Durée Circuit: {client.get('duree_circuit', '')}
+Condition Physique: {client.get('condition_physique_circuit', '')}
+Type de voiture: {client.get('type_voiture_circuit', '')}
+Activité: {client.get('activite_circuit', '')}
 Date d'ajout: {client['timestamp']}"""
 
         messagebox.showinfo("Détails client", details)

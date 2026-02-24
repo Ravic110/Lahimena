@@ -3,7 +3,8 @@ Main content GUI component
 """
 
 import customtkinter as ctk
-from config import *
+
+from config import MAIN_BG_COLOR
 
 
 class MainContent:
@@ -23,9 +24,7 @@ class MainContent:
 
         # Create scrollable main content
         self.main_scroll = ctk.CTkScrollableFrame(
-            parent,
-            corner_radius=0,
-            fg_color=MAIN_BG_COLOR
+            parent, corner_radius=0, fg_color=MAIN_BG_COLOR
         )
         self.main_scroll.grid(row=0, column=1, sticky="nswe", padx=(0, 0))
 
@@ -69,36 +68,43 @@ class MainContent:
     def _show_welcome(self):
         """Show home page"""
         from gui.forms.home_page import HomePage
+
         HomePage(self.main_scroll, self.update_content)
 
     def _show_client_form(self, client_to_edit=None):
         """Show client form"""
         from gui.forms.client_form import ClientForm
+
         ClientForm(self.main_scroll, client_to_edit, self._on_client_saved)
 
     def _show_client_list(self):
         """Show client list"""
         from gui.forms.client_list import ClientList
+
         ClientList(self.main_scroll, self._edit_client, self._new_client)
 
     def _show_hotel_form(self, hotel_to_edit=None):
         """Show hotel form"""
         from gui.forms.hotel_form import HotelForm
+
         HotelForm(self.main_scroll, hotel_to_edit, self._on_hotel_saved)
 
     def _show_hotel_list(self):
         """Show hotel list"""
         from gui.forms.hotel_list import HotelList
+
         HotelList(self.main_scroll, self._edit_hotel, self._new_hotel)
 
     def _show_hotel_quotation(self):
         """Show hotel quotation form"""
         from gui.forms.hotel_quotation import HotelQuotation
+
         HotelQuotation(self.main_scroll)
 
     def _show_hotel_quotation_summary(self):
         """Show hotel quotation summary"""
         from gui.forms.hotel_quotation_summary import HotelQuotationSummary
+
         HotelQuotationSummary(self.main_scroll)
 
     def _show_placeholder(self, content_type):
@@ -106,7 +112,7 @@ class MainContent:
         title = ctk.CTkLabel(
             self.main_scroll,
             text=f"Fonction '{content_type}' - À implémenter",
-            font=ctk.CTkFont(size=24, weight="bold")
+            font=ctk.CTkFont(size=24, weight="bold"),
         )
         title.pack(pady=40)
 
