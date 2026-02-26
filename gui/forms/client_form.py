@@ -293,7 +293,11 @@ class ClientForm:
     def _load_circuit_options(self):
         """Load circuit options from the Circuits sheet when available"""
         if self.circuit_catalog:
-            return [circuit.get("nom", "") for circuit in self.circuit_catalog if circuit.get("nom")]
+            return [
+                circuit.get("nom", "")
+                for circuit in self.circuit_catalog
+                if circuit.get("nom")
+            ]
         try:
             circuits = load_all_circuits()
             return circuits if circuits else CIRCUITS
@@ -1301,12 +1305,9 @@ class ClientForm:
             self.combo_TypeChambre.set("")
 
     def _add_itinerary_city(self):
-        """Add a city to itinerary list, avoiding duplicates."""
+        """Add a city to itinerary list, keeping route order."""
         city = self.combo_ville_itineraire.get().strip()
         if not city:
-            return
-
-        if city in self.itinerary_cities:
             return
 
         self.itinerary_cities.append(city)
@@ -1357,23 +1358,62 @@ class ClientForm:
                 c.strip() for c in re.split(r"[;,>\n]+", str(cities_value)) if c.strip()
             ]
 
-        seen = set()
         for city in cities:
             if " - " in city:
                 city = city.split(" - ", 1)[1].strip()
                 if not city:
                     continue
-            if city not in seen:
-                self.itinerary_cities.append(city)
-                seen.add(city)
+            self.itinerary_cities.append(city)
         self._refresh_itinerary_display()
+
+    def _parse_city_and_days(self, value):
+        """Extract city and optional number of days from itinerary token."""
+        token = str(value or "").strip()
+        if not token:
+            return "", None
+
+        token = re.sub(r"\s+", " ", token)
+        days = None
+
+        match = re.search(
+            r"\(\s*(\d+)\s*(?:j|jour|jours|nuit|nuits)\s*\)\s*\)?\s*$",
+            token,
+            re.IGNORECASE,
+        )
+        if not match:
+            match = re.search(
+                r"\b(\d+)\s*(?:j|jour|jours|nuit|nuits)\s*$",
+                token,
+                re.IGNORECASE,
+            )
+
+        if match:
+            try:
+                days = int(match.group(1))
+            except Exception:
+                days = None
+            token = token[: match.start()].rstrip(" ,-")
+
+        return token.strip(), days
 
     def _parse_circuit_itinerary(self, itinerary_value):
         """Parse itinerary text into ordered city names."""
         if not itinerary_value:
             return []
         raw_parts = re.split(r"[;,>\n]+", str(itinerary_value))
-        return [part.strip() for part in raw_parts if part and part.strip()]
+        parts = []
+        for part in raw_parts:
+            cleaned = part.strip()
+            if not cleaned:
+                continue
+            city, days = self._parse_city_and_days(cleaned)
+            if not city:
+                continue
+            if days and days > 0:
+                parts.append(f"{city} ({days} jours)")
+            else:
+                parts.append(city)
+        return parts
 
     def _on_circuit_selected(self, _event=None, apply_route=True):
         """Update UI from selected circuit metadata."""
@@ -1401,7 +1441,8 @@ class ClientForm:
         if not cities:
             return
 
-        self.combo_ville_depart.set(cities[0])
+        depart_city, _ = self._parse_city_and_days(cities[0])
+        self.combo_ville_depart.set(depart_city or cities[0])
         self._set_itinerary_cities(cities[1:])
 
     def _update_itinerary_count(self):

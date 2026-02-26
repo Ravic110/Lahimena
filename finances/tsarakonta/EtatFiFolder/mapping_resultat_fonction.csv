@@ -1,0 +1,25 @@
+ordre,rubrique,valeur_n,valeur_n1
+1,Produits des activités ordinaires,0,0
+2,Coût des ventes,100000000,0
+3,,,
+4,MARGE BRUTE,-100000000,0
+5,,,
+6,Autres produits opérationnels,50000000,0
+7,Coût commerciaux,2025,2024
+8,Charges administratives,200000000,0
+9,Autres charges opérationnelles,50000000,0
+10,,,
+11,RESULTAT OPERATIONNEL,-300002025,-2024
+12,,,
+13,Produit financiers,0,0
+14,Charges financiers,0,0
+15,,,
+16,RESULTAT AVANT IMPOT,-300002025,-2024
+17,,,
+18,Impôt sur le résultat,25000000,0
+19,Impôt différés,0,0
+20,,,
+21,RESULTAT NET DES ACTIVITES ORDINAIRES,-325002025,-2024
+22,Charges extraordinaires,0,0
+23,Produits extraordinaires,25000000,0
+24,RESULTAT NET DE L'EXERCICE,-300002025,-2024

@@ -15,13 +15,13 @@ from config import (
     BUTTON_FONT,
     BUTTON_GREEN,
     BUTTON_RED,
+    DEVIS_FOLDER,
     ENTRY_FONT,
     INPUT_BG_COLOR,
     LABEL_FONT,
     MAIN_BG_COLOR,
     TEXT_COLOR,
     TITLE_FONT,
-    DEVIS_FOLDER,
 )
 from utils.excel_handler import load_all_clients, load_all_hotel_quotations
 from utils.logger import logger
@@ -402,9 +402,7 @@ class ClientQuotation:
         self.email_var.set(info.get("email", ""))
         self.phone_var.set(info.get("phone", ""))
 
-        self.client_quotes = [
-            q for q in self.quotations if self._quote_key(q) == key
-        ]
+        self.client_quotes = [q for q in self.quotations if self._quote_key(q) == key]
 
         if not self.client_quotes:
             self._clear_table()
@@ -517,9 +515,7 @@ class ClientQuotation:
 
     def _update_totals(self, subtotal, margin_amount, tva_amount, total):
         currency = self.current_currency
-        self.subtotal_label.config(
-            text=f"Sous-total: {subtotal:,.2f} {currency}"
-        )
+        self.subtotal_label.config(text=f"Sous-total: {subtotal:,.2f} {currency}")
         self.margin_label.config(text=f"Marge: {margin_amount:,.2f} {currency}")
         self.tva_label.config(text=f"TVA: {tva_amount:,.2f} {currency}")
         self.total_label.config(text=f"TOTAL: {total:,.2f} {currency}")
@@ -561,7 +557,11 @@ class ClientQuotation:
         client_phone = self.phone_var.get().strip()
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        quote_number = f"DEVIS_CLIENT_{client_id}_{timestamp}" if client_id else f"DEVIS_CLIENT_{timestamp}"
+        quote_number = (
+            f"DEVIS_CLIENT_{client_id}_{timestamp}"
+            if client_id
+            else f"DEVIS_CLIENT_{timestamp}"
+        )
 
         subtotal = sum(item["total"] for item in self.current_items)
         margin_amount = subtotal * (margin_pct / 100)

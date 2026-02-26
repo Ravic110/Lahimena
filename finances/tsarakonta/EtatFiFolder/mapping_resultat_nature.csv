@@ -1,0 +1,29 @@
+ordre,rubrique,prefixes,type
+2,Chiffres d'affaires,70;701;702;703;704;705;706;707;708;7082;7083;7085;7086;7088,produit
+3,Production Stockée,71;713;714,produit
+4,Production immobilisée,72;721;722,produit
+5,I- PRODUCTION DE L'EXERCICE,,subtotal
+6,Achat consommés,60;601;602;6021;6022;60221;60222;60223;60225;6023;60231;60235;60237;604;605;606;6061;6062;6063;6064;6068;607;608,charge
+7,Services extérieurs et autres consommations,61;611;612;613;6132;6135;6136.614;615;616;617;618;62;621;622;623;624;6241;6242.625;626;627;628,charge
+8,II- CONSOMMATION DE L'EXERCICE,,subtotal
+9,III- VALEUR AJOUTEE DE L'EXPLOITATION,,subtotal
+10,Charges de personnel,64;641;644;645;646;647;648,charge
+11,"Impôts, taxes et versements assimilés",63;631;635,charge
+12,IV- EXCEDENT BRUTE D'EXPLOITATION,,subtotal
+13,Autres produits opérationnels,74;741;748;75;751;752;753;754;755;756;757;758,produit
+14,Autres charges opérationnelles,65;651;652;653;654;655;656;657;658,charge
+15,V- RESULTAT OPERATIONNEL,,subtotal
+16,Dotations aux amortissements,68;681;685,charge
+17,Produits financiers,76;761;762;763;764;766;767;768,produit
+18,Charges financières,66;661;664;665;666;667;668,charge
+19,VI- RESULTAT FINANCIER,,subtotal
+20,VII- RESULTAT AVANT IMPOT,,subtotal
+21,Impôts exigibles sur résultats,69;695;698,charge
+22,Impôts différés (variations),692;693,charge
+23,TOTAL PRODUITS DES ACTIVITES ORDINAIRES,,subtotal
+24,TOTAL CHARGES DES ACTIVITES ORDINAIRES,,subtotal
+23,Eléments extraordinaires(produits),77,produit
+24,Eléments extraordinaires(charges),67,charge
+25,IX- RESULTAT EXTRAORDINAIRE,,subtotal
+26,X- RESULTAT NET DE L'EXERCICE,,subtotal
+

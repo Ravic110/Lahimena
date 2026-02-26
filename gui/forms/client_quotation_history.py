@@ -15,12 +15,12 @@ from config import (
     BUTTON_FONT,
     BUTTON_GREEN,
     BUTTON_RED,
+    DEVIS_FOLDER,
     INPUT_BG_COLOR,
     LABEL_FONT,
     MAIN_BG_COLOR,
     TEXT_COLOR,
     TITLE_FONT,
-    DEVIS_FOLDER,
 )
 from utils.logger import logger
 

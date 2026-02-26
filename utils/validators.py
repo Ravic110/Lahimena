@@ -89,10 +89,18 @@ def get_exchange_rates():
             "https://api.exchangerate-api.com/v4/latest/MGA", timeout=5
         )
         data = response.json()
+        rates_data = data.get("rates", {})
+
+        # Validate presence and non-zero values before inversion
+        eur_rate = rates_data.get("EUR")
+        usd_rate = rates_data.get("USD")
+        if not eur_rate or not usd_rate:
+            raise ValueError("Missing EUR or USD rates from exchange API")
+
         # Convert to more readable format: how many MGA for 1 EUR/USD
         rates = {
-            "EUR": 1 / data["rates"]["EUR"],  # 1 EUR = X MGA
-            "USD": 1 / data["rates"]["USD"],  # 1 USD = X MGA
+            "EUR": 1 / float(eur_rate),
+            "USD": 1 / float(usd_rate),
         }
         return rates
     except Exception as e:
@@ -117,26 +125,51 @@ def convert_currency(amount, from_currency, to_currency, rates=None):
     Returns:
         float: Converted amount
     """
-    if from_currency == to_currency:
+
+    def _normalize(code):
+        if not code:
+            return "MGA"
+        s = str(code).strip().upper()
+        mapping = {
+            "EUR": "EUR",
+            "EURO": "EUR",
+            "€": "EUR",
+            "USD": "USD",
+            "DOLLAR": "USD",
+            "DOLLAR US": "USD",
+            "$": "USD",
+            "MGA": "MGA",
+            "ARIARY": "MGA",
+            "ARI": "MGA",
+        }
+        return mapping.get(s, s)
+
+    src = _normalize(from_currency)
+    dst = _normalize(to_currency)
+
+    if src == dst:
         return amount
 
     if rates is None:
         rates = get_exchange_rates()
 
-    # Convert to MGA first if needed
-    if from_currency == "Euro":
-        amount_mga = amount * rates["EUR"]  # EUR to MGA
-    elif from_currency == "Dollar US":
-        amount_mga = amount * rates["USD"]  # USD to MGA
-    else:  # Ariary
-        amount_mga = amount
+    # rates are returned as {'EUR': <MGA per EUR>, 'USD': <MGA per USD>}
+    # Convert source -> MGA
+    if src == "EUR":
+        amount_mga = float(amount) * float(rates.get("EUR", 0))
+    elif src == "USD":
+        amount_mga = float(amount) * float(rates.get("USD", 0))
+    else:  # assume MGA
+        amount_mga = float(amount)
 
-    # Convert to target currency
-    if to_currency == "Euro":
-        return amount_mga / rates["EUR"]  # MGA to EUR
-    elif to_currency == "Dollar US":
-        return amount_mga / rates["USD"]  # MGA to USD
-    else:  # Ariary
+    # Convert MGA -> destination
+    if dst == "EUR":
+        denom = float(rates.get("EUR", 1))
+        return amount_mga / denom if denom != 0 else 0
+    elif dst == "USD":
+        denom = float(rates.get("USD", 1))
+        return amount_mga / denom if denom != 0 else 0
+    else:  # MGA
         return amount_mga
 
 
@@ -191,34 +224,31 @@ def validate_phone_number(phone_code, phone_number):
     if not phone_number or not str(phone_number).strip():
         return False
 
-    phone_number = str(phone_number).strip()
+    raw = str(phone_number).strip()
+    # Remove separators
+    raw = raw.replace(" ", "").replace("-", "").replace(".", "")
 
-    # Remove common separators
-    phone_number = phone_number.replace(" ", "").replace("-", "").replace(".", "")
-
-    # Check minimum length
-    if len(phone_number) < 7:
-        return False
-
-    # Check maximum length
-    if len(phone_number) > 20:
-        return False
-
+    # Stronger basic validation when phonenumbers not installed
     if not PHONENUMBERS_AVAILABLE:
-        # Basic validation if phonenumbers is not available
-        logger.warning("phonenumbers library not available, using basic validation")
+        logger.warning(
+            "phonenumbers library not available, using stricter basic validation"
+        )
+        # Accept only digits, optionally with leading + in phone_code
+        if not raw.isdigit():
+            return False
+        if len(raw) < 7 or len(raw) > 15:
+            return False
         return True
 
     try:
         # Normalize phone code if needed
         if phone_code and not phone_code.startswith("+"):
-            # Assume it's country code like 'MG', convert to '+261'
             country_map = {"MG": "+261", "FR": "+33", "US": "+1"}
             full_code = country_map.get(phone_code.upper(), "+" + phone_code)
         else:
-            full_code = phone_code or "+261"  # Default to Madagascar
+            full_code = phone_code or "+261"
 
-        full_number = full_code + phone_number
+        full_number = full_code + raw
         parsed = parse(full_number)
 
         if is_valid_number(parsed):

@@ -24,6 +24,10 @@ ApiOK/
 │   └── validators.py          # Validations (email, téléphone)
 ├── assets/                    # Ressources statiques
 │   └── logo.png
+├── finances/                 # Outils financiers externes
+│   └── tsarakonta/           # application d'état financier du projet
+│       ├── main.py           # Lancement de TsaraKonta
+│       └── ...               # code de l'outil
 └── data.xlsx                  # Fichier de données Excel
 ```
 
@@ -36,15 +40,25 @@ ApiOK/
 
 ## Dépendances
 
-### Obligatoires
+Le projet est maintenant empaqueté avec `pyproject.toml` et peut être installé avec `pip`.
+
+### Installation des dépendances
+
+```bash
+pip install -e .                # installe les dépendances de base
+pip install -e .[financial]     # ajoute les paquets nécessaires pour TsaraKonta
+```
+
+Les options équivalentes en utilisant les fichiers de requirements sont encore disponibles :
+
+```bash
+pip install -r requirements.txt
+pip install -r requirements-financial.txt
+```
+
+### Prérequis
 - Python 3.7+
 - tkinter (inclus dans Python)
-- customtkinter
-
-### Optionnelles (recommandées)
-- openpyxl : Pour la sauvegarde Excel
-- phonenumbers : Pour la validation avancée des numéros de téléphone
-- PIL (Pillow) : Pour le chargement du logo
 
 ## Installation
 
@@ -67,6 +81,29 @@ ApiOK/
 - **phonenumbers** : Validation numéros téléphone
 
 *Note : L'application fonctionne même sans certaines dépendances optionnelles (avec fonctionnalités réduites)*
+
+### Module financier TsaraKonta
+
+Le sous-répertoire `finances/tsarakonta` contient l'outil d'"état financier" du projet. Il faisait auparavant l'objet d'un dépôt Git séparé ; ce dernier a été supprimé et tout le code est désormais suivi dans le même dépôt principal. Il est toujours autonome ; on peut lancer la version embarquée
+
+Les dépendances de cet outil sont listées dans `requirements-financial.txt` (pandas, openpyxl, etc.) :
+
+```bash
+pip install -r requirements-financial.txt
+```
+
+
+```bash
+python finances/tsarakonta/main.py --excel ./chemin/vers/journal.xlsx --etat Bilan
+```
+
+ou comme un paquet Python :
+
+```bash
+python -m finances.tsarakonta --excel journal.xlsx --etat Bilan
+```
+
+Cette application utilise ses propres dépendances (pandas, etc.) et est séparée du cœur de Lahimena.
 
 ## Utilisation
 

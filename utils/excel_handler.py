@@ -1043,7 +1043,8 @@ def load_circuit_catalog():
 
         itinerary = (
             str(ws.cell(row=row, column=itinerary_col).value).strip()
-            if itinerary_col and ws.cell(row=row, column=itinerary_col).value is not None
+            if itinerary_col
+            and ws.cell(row=row, column=itinerary_col).value is not None
             else ""
         )
         activity = (
@@ -1751,7 +1752,7 @@ def get_quotations_by_city():
 def load_collective_expenses_data():
     """
     Load all data from Frais collectifs sheet in data-hotel.xlsx
-    
+
     Returns:
         list: List of dicts with FORFAIT, PRESTATAIRES, DESIGNATION, MONTANT, ID circuit
     """
@@ -1770,30 +1771,30 @@ def load_collective_expenses_data():
 
         ws = wb[FRAIS_COLLECTIFS_SHEET_NAME]
         rows = []
-        
+
         for row_idx in range(2, ws.max_row + 1):
             forfait = ws.cell(row=row_idx, column=1).value
             prestataire = ws.cell(row=row_idx, column=2).value
             designation = ws.cell(row=row_idx, column=3).value
             montant = ws.cell(row=row_idx, column=4).value
             id_circuit = ws.cell(row=row_idx, column=5).value
-            
+
             if not forfait and not prestataire and not designation:
                 continue
-                
-            rows.append({
-                "forfait": str(forfait or "").strip(),
-                "prestataire": str(prestataire or "").strip(),
-                "designation": str(designation or "").strip(),
-                "montant": _parse_num(montant),
-                "id_circuit": id_circuit,
-            })
-        
+
+            rows.append(
+                {
+                    "forfait": str(forfait or "").strip(),
+                    "prestataire": str(prestataire or "").strip(),
+                    "designation": str(designation or "").strip(),
+                    "montant": _parse_num(montant),
+                    "id_circuit": id_circuit,
+                }
+            )
+
         return rows
     except Exception as e:
-        logger.error(
-            f"Failed to load collective expenses data: {e}", exc_info=True
-        )
+        logger.error(f"Failed to load collective expenses data: {e}", exc_info=True)
         return []
     finally:
         if wb is not None:
@@ -1806,7 +1807,7 @@ def load_collective_expenses_data():
 def get_collective_expense_prestataires():
     """
     Get unique prestataires from Frais collectifs sheet
-    
+
     Returns:
         list: Sorted list of unique prestataire names
     """
@@ -1821,10 +1822,10 @@ def get_collective_expense_prestataires():
 def get_collective_expense_designations(prestataire=None):
     """
     Get designations, optionally filtered by prestataire
-    
+
     Args:
         prestataire (str): Optional prestataire to filter by
-    
+
     Returns:
         list: Sorted list of designations
     """
@@ -1840,11 +1841,11 @@ def get_collective_expense_designations(prestataire=None):
 def get_collective_expense_montant(prestataire, designation):
     """
     Get montant for a given prestataire + designation combo
-    
+
     Args:
         prestataire (str): Prestataire name
         designation (str): Designation
-    
+
     Returns:
         float: Montant value, or 0 if not found
     """
@@ -1861,11 +1862,11 @@ def get_collective_expense_montant(prestataire, designation):
 def get_collective_expense_forfait(prestataire, designation):
     """
     Get forfait for a given prestataire + designation combo
-    
+
     Args:
         prestataire (str): Prestataire name
         designation (str): Designation
-    
+
     Returns:
         str: Forfait value, or empty string if not found
     """
@@ -1882,47 +1883,51 @@ def get_collective_expense_forfait(prestataire, designation):
 def update_collective_expense_quotation_in_excel(row_number, form_data):
     """
     Update an existing collective expense quotation in Excel
-    
+
     Args:
         row_number (int): Row number to update (1-indexed, excluding header)
         form_data (dict): Form data with headers as keys
-    
+
     Returns:
         int: 0 success, -1 error, -2 PermissionError
     """
     if not OPENPYXL_AVAILABLE:
         logger.warning("openpyxl not available. Cannot update Excel.")
         return -1
-    
+
     if not os.path.exists(CLIENT_EXCEL_PATH):
         logger.error(f"Excel file {CLIENT_EXCEL_PATH} not found")
         return -1
-    
+
     wb = None
     try:
         wb = load_workbook(CLIENT_EXCEL_PATH)
         if COTATION_FRAIS_COL_SHEET_NAME not in wb.sheetnames:
             logger.error(f"Sheet {COTATION_FRAIS_COL_SHEET_NAME} not found")
             return -1
-        
+
         ws = wb[COTATION_FRAIS_COL_SHEET_NAME]
         headers = get_collective_expense_headers()
-        
+
         # Excel row is data row + 1 (for header)
         excel_row = row_number + 1
-        
+
         for col_idx, header in enumerate(headers, start=1):
             value = form_data.get(header, "")
             ws.cell(row=excel_row, column=col_idx, value=value)
-        
+
         wb.save(CLIENT_EXCEL_PATH)
         logger.info(f"Updated collective expense at row {row_number}")
         return 0
     except PermissionError:
-        logger.error(f"Permission error updating collective expense at row {row_number}")
+        logger.error(
+            f"Permission error updating collective expense at row {row_number}"
+        )
         return -2
     except Exception as e:
-        logger.error(f"Error updating collective expense at row {row_number}: {e}", exc_info=True)
+        logger.error(
+            f"Error updating collective expense at row {row_number}: {e}", exc_info=True
+        )
         return -1
     finally:
         if wb:
@@ -1932,38 +1937,40 @@ def update_collective_expense_quotation_in_excel(row_number, form_data):
 def delete_collective_expense_from_excel(row_number):
     """
     Delete a collective expense quotation from Excel
-    
+
     Args:
         row_number (int): Row number to delete (1-indexed in data, excludes header)
-    
+
     Returns:
         bool: True if successful, False otherwise
     """
     if not OPENPYXL_AVAILABLE:
         logger.warning("openpyxl not available. Cannot delete from Excel.")
         return False
-    
+
     if not os.path.exists(CLIENT_EXCEL_PATH):
         logger.error(f"Excel file {CLIENT_EXCEL_PATH} not found")
         return False
-    
+
     wb = None
     try:
         wb = load_workbook(CLIENT_EXCEL_PATH)
         if COTATION_FRAIS_COL_SHEET_NAME not in wb.sheetnames:
             logger.error(f"Sheet {COTATION_FRAIS_COL_SHEET_NAME} not found")
             return False
-        
+
         ws = wb[COTATION_FRAIS_COL_SHEET_NAME]
         # Excel row is data row + 1 (for header)
         excel_row = row_number + 1
         ws.delete_rows(excel_row)
-        
+
         wb.save(CLIENT_EXCEL_PATH)
         logger.info(f"Deleted collective expense at row {row_number}")
         return True
     except Exception as e:
-        logger.error(f"Error deleting collective expense at row {row_number}: {e}", exc_info=True)
+        logger.error(
+            f"Error deleting collective expense at row {row_number}: {e}", exc_info=True
+        )
         return False
     finally:
         if wb:

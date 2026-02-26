@@ -1,5 +1,8 @@
-# Lahimena Tours Devis Generation - Requirements
-# Liste des dépendances Python externes nécessaires
+# This file is retained for compatibility. Prefer using the pyproject extras.
+# Install core requirements:
+#   pip install -e .
+# Add financial dependencies:
+#   pip install -e .[financial]
 
 # Interface graphique moderne
 customtkinter>=5.2.0

@@ -49,6 +49,7 @@ ROOM_GROUP_LABELS = {
     "suite": "Suite",
 }
 ROOM_GROUP_KEYS = {label: key for key, label in ROOM_GROUP_LABELS.items()}
+HOTEL_FILTER_ALL = "Toutes"
 
 ROOM_TYPE_LABELS = {
     "single": "Single",
@@ -85,6 +86,8 @@ class HotelQuotation:
         self.batch_items = []
         self.batch_currency = None
         self.allowed_itinerary_cities = []
+        self.itinerary_city_nights = {}
+        self.preferred_hotel_group_filter = HOTEL_FILTER_ALL
         self.preferred_room_type_label = ""
 
         self._create_quotation_form()
@@ -120,24 +123,58 @@ class HotelQuotation:
         """Load all clients from Excel"""
         return load_all_clients()
 
-    def _parse_itinerary_cities(self, cities_value):
-        """Parse itinerary city values from saved client data."""
+    def _extract_city_and_nights(self, value):
+        """Extract city and optional nights from itinerary token."""
+        token = str(value or "").strip()
+        if not token:
+            return "", None
+
+        token = re.sub(r"\s+", " ", token)
+        nights = None
+
+        match = re.search(
+            r"\(\s*(\d+)\s*(?:j|jour|jours|nuit|nuits)\s*\)\s*\)?\s*$",
+            token,
+            re.IGNORECASE,
+        )
+        if not match:
+            match = re.search(
+                r"\b(\d+)\s*(?:j|jour|jours|nuit|nuits)\s*$",
+                token,
+                re.IGNORECASE,
+            )
+
+        if match:
+            try:
+                nights = int(match.group(1))
+            except Exception:
+                nights = None
+            token = token[: match.start()].rstrip(" ,-")
+
+        return token.strip(), nights
+
+    def _parse_itinerary_entries(self, cities_value):
+        """Parse itinerary values into ordered (city, nights) entries."""
         if not cities_value:
             return []
-        cities = [
+        tokens = [
             c.strip()
-            for c in re.split(r"[;,>\n]+|\\s-\\s|\\s→\\s|\\s->\\s", str(cities_value))
+            for c in re.split(r"[;,>\n]+|\\s→\\s|\\s->\\s", str(cities_value))
             if c.strip()
         ]
-        parsed = []
-        seen = set()
-        for city in cities:
-            if " - " in city:
-                city = city.split(" - ", 1)[1].strip()
-            if city and city not in seen:
-                seen.add(city)
-                parsed.append(city)
-        return parsed
+        entries = []
+        for token in tokens:
+            cleaned = token
+            if " - " in cleaned:
+                cleaned = cleaned.split(" - ", 1)[1].strip()
+            city, nights = self._extract_city_and_nights(cleaned)
+            if city:
+                entries.append((city, nights))
+        return entries
+
+    def _parse_itinerary_cities(self, cities_value):
+        """Backward-compatible city list parser."""
+        return [city for city, _ in self._parse_itinerary_entries(cities_value)]
 
     def _normalize_city(self, value):
         """Normalize city names for matching."""
@@ -168,6 +205,22 @@ class HotelQuotation:
 
         self._on_city_selected()
         self._update_itinerary_summary()
+
+    def _get_hotel_group_filter(self):
+        """Return current hotel group filter key, or empty for all."""
+        if not hasattr(self, "hotel_quality_var"):
+            return ""
+        selected = (self.hotel_quality_var.get() or "").strip()
+        if not selected or selected == HOTEL_FILTER_ALL:
+            return ""
+        return ROOM_GROUP_KEYS.get(selected, "")
+
+    def _hotel_has_group(self, hotel, group_key):
+        """Check whether hotel has at least one non-zero rate in a room group."""
+        if not group_key:
+            return True
+        rates = hotel.get("room_rates", {}).get(group_key, {}) or {}
+        return any((value or 0) > 0 for value in rates.values())
 
     def _update_itinerary_summary(self):
         cities = self.allowed_itinerary_cities or []
@@ -416,6 +469,44 @@ class HotelQuotation:
         self.hotel_combo.grid(row=0, column=3, padx=(10, 0), pady=5, sticky="w")
         self.hotel_combo.bind("<<ComboboxSelected>>", self._on_hotel_selected)
 
+        tk.Label(
+            hotel_frame,
+            text="Filtre gamme:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).grid(row=1, column=0, sticky="w", pady=(8, 0))
+
+        self.hotel_quality_var = tk.StringVar(value=HOTEL_FILTER_ALL)
+        self.hotel_quality_combo = ttk.Combobox(
+            hotel_frame,
+            textvariable=self.hotel_quality_var,
+            values=[HOTEL_FILTER_ALL] + list(ROOM_GROUP_LABELS.values()),
+            font=ENTRY_FONT,
+            width=20,
+            state="readonly",
+        )
+        self.hotel_quality_combo.grid(
+            row=1, column=1, padx=(10, 10), pady=(8, 0), sticky="w"
+        )
+        self.hotel_quality_combo.bind(
+            "<<ComboboxSelected>>",
+            lambda _e: self._refresh_city_and_hotel_options(preserve_city=True),
+        )
+
+        self.hotel_count_var = tk.StringVar(value="0 hôtel trouvé")
+        self.hotel_count_label = tk.Label(
+            hotel_frame,
+            textvariable=self.hotel_count_var,
+            font=("Arial", 9),
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+            justify="left",
+        )
+        self.hotel_count_label.grid(
+            row=1, column=2, columnspan=2, sticky="w", pady=(8, 0)
+        )
+
         self.itinerary_summary_var = tk.StringVar(value="Villes itinéraire: -")
         self.itinerary_summary_label = tk.Label(
             hotel_frame,
@@ -427,7 +518,7 @@ class HotelQuotation:
             justify="left",
         )
         self.itinerary_summary_label.grid(
-            row=1, column=0, columnspan=4, sticky="w", pady=(5, 0)
+            row=2, column=0, columnspan=4, sticky="w", pady=(5, 0)
         )
 
         # Parameters section
@@ -896,12 +987,18 @@ class HotelQuotation:
                         room_options = list(self.room_type_combo["values"])
                         if self.preferred_room_type_label in room_options:
                             self.room_type_var.set(self.preferred_room_type_label)
+                    # Ensure "Nombre de nuits" follows itinerary for selected city/hotel.
+                    self._apply_itinerary_nights_for_city(
+                        selected_city or hotel.get("lieu", "")
+                    )
                     break
 
     def _get_city_values(self):
         """Build city values according to current itinerary filter."""
         if self.allowed_itinerary_cities:
-            allowed_set = {self._normalize_city(c) for c in self.allowed_itinerary_cities}
+            allowed_set = {
+                self._normalize_city(c) for c in self.allowed_itinerary_cities
+            }
             cities_map = {}
             for hotel in self.hotels:
                 lieu = hotel.get("lieu", "")
@@ -921,6 +1018,7 @@ class HotelQuotation:
         """Filter hotels when a city is selected"""
         city = self.city_var.get()
         selected_city_norm = self._normalize_city(city)
+        selected_group = self._get_hotel_group_filter()
         allowed_set = (
             {self._normalize_city(c) for c in self.allowed_itinerary_cities}
             if self.allowed_itinerary_cities
@@ -933,6 +1031,8 @@ class HotelQuotation:
                 for h in candidates
                 if self._normalize_city(h.get("lieu")) in allowed_set
             ]
+        if selected_group:
+            candidates = [h for h in candidates if self._hotel_has_group(h, selected_group)]
 
         if city:
             filtered = [
@@ -942,10 +1042,31 @@ class HotelQuotation:
             ]
         else:
             filtered = [self._hotel_display(h) for h in candidates]
+        count = len(filtered)
+        suffix = "hôtel trouvé" if count == 1 else "hôtels trouvés"
+        self.hotel_count_var.set(f"{count} {suffix}")
         self.hotel_combo["values"] = filtered
         self.hotel_var.set("")
         self.selected_hotel = None
         self._clear_room_selections()
+        self._apply_itinerary_nights_for_city(city)
+
+    def _apply_itinerary_nights_for_city(self, city):
+        """Auto-set nights from itinerary for selected city when available."""
+        if not city:
+            return False
+        nights = self.itinerary_city_nights.get(self._normalize_city(city))
+        if nights and hasattr(self, "nights_var"):
+            self.nights_var.set(str(max(1, int(nights))))
+            return True
+        return False
+
+    def _apply_first_itinerary_nights(self):
+        """Fallback: apply nights from first itinerary city when possible."""
+        for city in self.allowed_itinerary_cities:
+            if self._apply_itinerary_nights_for_city(city):
+                return True
+        return False
 
     def _clear_room_selections(self):
         """Reset room group/type selections"""
@@ -1037,17 +1158,42 @@ class HotelQuotation:
                     self.client_email_var.set(client["email"])
                     self.client_phone_var.set(client["telephone"])
                     self.client_var.set(client.get("ref_client", ""))
+                    arrival_type = (client.get("type_hotel_arrivee") or "").strip().lower()
+                    if arrival_type in {"luxe", "5*"}:
+                        self.hotel_quality_var.set("Suite")
+                    elif arrival_type == "4*":
+                        self.hotel_quality_var.set("De luxe")
+                    elif arrival_type in {"eco", "1*", "2*", "3*"}:
+                        self.hotel_quality_var.set("Standard")
+                    else:
+                        self.hotel_quality_var.set(HOTEL_FILTER_ALL)
 
                     # Restrict available hotels to client's itinerary
-                    depart_city = (client.get("ville_depart") or "").strip()
-                    itinerary_cities = []
+                    depart_city, depart_nights = self._extract_city_and_nights(
+                        client.get("ville_depart", "")
+                    )
+                    itinerary_entries = []
                     for field in ("ville_arrivee", "itineraire_circuit"):
-                        itinerary_cities.extend(
-                            self._parse_itinerary_cities(client.get(field, ""))
+                        itinerary_entries.extend(
+                            self._parse_itinerary_entries(client.get(field, ""))
                         )
                     allowed = []
                     seen = set()
-                    for city_name in [depart_city] + itinerary_cities:
+                    self.itinerary_city_nights = {}
+                    if depart_city and depart_nights:
+                        self.itinerary_city_nights[self._normalize_city(depart_city)] = (
+                            max(1, int(depart_nights))
+                        )
+                    for city_name, city_nights in itinerary_entries:
+                        norm_city = self._normalize_city(city_name)
+                        if city_nights:
+                            self.itinerary_city_nights[norm_city] = (
+                                self.itinerary_city_nights.get(norm_city, 0)
+                                + max(1, int(city_nights))
+                            )
+                    for city_name in [depart_city] + [
+                        city for city, _ in itinerary_entries
+                    ]:
                         if city_name and city_name not in seen:
                             seen.add(city_name)
                             allowed.append(city_name)
@@ -1056,6 +1202,8 @@ class HotelQuotation:
 
                     # Auto-fill stay parameters from client data
                     self._apply_client_stay_defaults(client)
+                    # Override nights with itinerary value whenever available.
+                    self._apply_first_itinerary_nights()
                     break
         else:
             # Clear fields if no client selected
@@ -1064,6 +1212,8 @@ class HotelQuotation:
             self.client_phone_var.set("")
             self.preferred_room_type_label = ""
             self.allowed_itinerary_cities = []
+            self.itinerary_city_nights = {}
+            self.hotel_quality_var.set(HOTEL_FILTER_ALL)
             self._refresh_city_and_hotel_options()
             # Keep default values for numeric fields
             self.nights_var.set("1")
@@ -1494,8 +1644,13 @@ class HotelQuotation:
             # Get client info if available
             client_name = (
                 self.client_name_var.get().strip()
-                if hasattr(self, "client_name_var") and self.client_name_var.get().strip()
-                else (self.client_var.get().strip() if hasattr(self, "client_var") else "Client")
+                if hasattr(self, "client_name_var")
+                and self.client_name_var.get().strip()
+                else (
+                    self.client_var.get().strip()
+                    if hasattr(self, "client_var")
+                    else "Client"
+                )
             )
             client_email = ""
 
@@ -1630,9 +1785,7 @@ class HotelQuotation:
 
     def _generate_batch_quote(self):
         if not self.batch_items:
-            messagebox.showwarning(
-                "Aucun hôtel", "Veuillez ajouter au moins un hôtel."
-            )
+            messagebox.showwarning("Aucun hôtel", "Veuillez ajouter au moins un hôtel.")
             return
 
         if not REPORTLAB_AVAILABLE:

@@ -1,0 +1,24 @@
+ordre,rubrique,valeur_n,valeur_n1
+1,CAPITAUX PROPRES,,
+2,Fond propre,,
+3,Primes et réserves,Solde du compte,Solde du compte
+4,Ecart d'évaluation,0,0
+5,Ecart d'équivalence,50000000,0
+6,Report à nouveau,0,0
+7,Résultat net,0,0
+8,Part de la société consolidant,,
+9,Part des minoritaires,,
+10,TOTAL CAPITAUX PROPORES,,
+11,PASSIFS NON COURANTS,,
+12,Produits différé - Subventions d'investissement,0,0
+13,Impôt différés,0,0
+14,Emprunts et dettes financières +1ans,0,0
+15,Provision et produits constatés d'avance,0,0
+16,TOTAL PASSIFS NON COURANTS,0,
+17,Dettes court terme -1ans,0,0
+18,Fournisseurs et comptes rattachés,350000000,0
+19,Provision et produits constatés d'avance (passifs courants),0,0
+20,Autres dettes,0,0
+21,Compte de trésorerie passifs (Découvert),0,0
+22,TOTAL PASSIFS COURANTS,350000000,0
+23,TOTAL DES PASSIFS,,

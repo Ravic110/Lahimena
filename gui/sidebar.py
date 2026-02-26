@@ -110,7 +110,7 @@ class Sidebar:
 
         # Client Information
         btn1 = self._create_button("🏨 Information client ▶", self._show_client_form)
-        submenu1_frame = self._create_submenu(
+        _submenu1_frame = self._create_submenu(
             btn1,
             [
                 ("👤 Nouveau client", self._show_client_form),
@@ -120,7 +120,7 @@ class Sidebar:
 
         # Hotel Quotation
         btn2 = self._create_button("🏨 Cotation hôtel ▶", None)
-        submenu2_frame = self._create_submenu(
+        _submenu2_frame = self._create_submenu(
             btn2,
             [
                 ("🆕 Nouvelle cotation", self._show_hotel_quotation),
@@ -130,7 +130,7 @@ class Sidebar:
 
         # Service Frais collectifs
         btn3 = self._create_button("🎯 Frais collectifs ▶", None)
-        submenu3_frame = self._create_submenu(
+        _submenu3_frame = self._create_submenu(
             btn3,
             [
                 ("🆕 Nouvelle cotation", self._show_collective_expense_quotation),
@@ -139,23 +139,17 @@ class Sidebar:
         )
 
         # Service Transport
-        btn3 = self._create_button(
-            "🎯 Transport", self._show_service_quotation
-        )
+        btn3 = self._create_button("🎯 Transport", self._show_service_quotation)
 
         # Service Visite & Excursions
-        btn3 = self._create_button(
-            "🎯 Visite&Excursions",  self._show_service_quotation
-        )
+        btn3 = self._create_button("🎯 Visite&Excursions", self._show_service_quotation)
 
         # Service Quotation
-        btn3 = self._create_button(
-            "🎯 Billet Avion", self._show_service_quotation
-        )
+        btn3 = self._create_button("🎯 Billet Avion", self._show_service_quotation)
 
         # Client Quotations
         btn4 = self._create_button("👥 Devis clients ▶", None)
-        submenu4_frame = self._create_submenu(
+        _submenu4_frame = self._create_submenu(
             btn4,
             [
                 ("📄 Devis actuels", self._show_current_quotes),
@@ -165,7 +159,7 @@ class Sidebar:
 
         # Client Invoices
         btn5 = self._create_button("💰 Facture clients ▶", None)
-        submenu5_frame = self._create_submenu(
+        _submenu5_frame = self._create_submenu(
             btn5,
             [
                 ("📄 Factures actuelles", self._show_current_invoices),
@@ -175,7 +169,7 @@ class Sidebar:
 
         # Expenses
         btn6 = self._create_button("📉 Dépenses ▶", None)
-        submenu6_frame = self._create_submenu(
+        _submenu6_frame = self._create_submenu(
             btn6,
             [
                 ("📄 Factures actuelles", self._show_current_expenses),
@@ -185,7 +179,7 @@ class Sidebar:
 
         # Hotel Database
         btn7 = self._create_button("🏨 Hôtel (DB) ▶", self._show_hotel_list)
-        submenu7_frame = self._create_submenu(
+        _submenu7_frame = self._create_submenu(
             btn7,
             [
                 ("📋 Liste hôtels", self._show_hotel_list),
@@ -195,7 +189,7 @@ class Sidebar:
 
         # Collective Expenses Database
         btn8 = self._create_button("🏨 Frais collectif (DB) ▶", None)
-        submenu8_frame = self._create_submenu(
+        _submenu8_frame = self._create_submenu(
             btn8,
             [
                 ("➕ Ajouter", self._show_add_collective_expense),
@@ -206,7 +200,7 @@ class Sidebar:
 
         # Transport Database
         btn9 = self._create_button("🏨 Transport (DB) ▶", None)
-        submenu9_frame = self._create_submenu(
+        _submenu9_frame = self._create_submenu(
             btn9,
             [
                 ("➕ Ajouter", self._show_add_transport),
@@ -215,29 +209,14 @@ class Sidebar:
             ],
         )
 
-        # Financial Statements
-        btn10 = self._create_button("📊 Etat Financier ▶", None)
-        submenu10_frame = self._create_submenu(
-            btn10,
-            [
-                ("📊 Compte de résultat", self._show_income_statement),
-                ("📊 Bilan", self._show_balance_sheet),
-                ("📊 Tableau Flux de trésorerie", self._show_cash_flow),
-                ("📊 Tableau d'amortissement", self._show_depreciation_table),
-                ("📊 Liste des immobilisations", self._show_fixed_assets),
-                ("📊 Prévisionnel sur 5 ans", self._show_5year_forecast),
-                (
-                    "📊 Prévisionnel trésorerie 12 mois",
-                    self._show_12month_cash_forecast,
-                ),
-            ],
-        )
+        # Financial Statements (single entry point, no sidebar submenu)
+        _btn10 = self._create_button("📊 Etat Financier", self._show_financial_home)
 
         # Accounting Entry
-        btn11 = self._create_button("📊 Saisie comptable", self._show_accounting_entry)
+        _btn11 = self._create_button("📊 Saisie comptable", self._show_accounting_entry)
 
         # Excel Editor
-        btn12 = self._create_button(
+        _btn12 = self._create_button(
             "📊 Éditeur Excel 'calcul' ▶", self._show_excel_editor
         )
 
@@ -375,6 +354,9 @@ class Sidebar:
 
     def _show_income_statement(self):
         self.main_content_callback("income_statement")
+
+    def _show_financial_home(self):
+        self.main_content_callback("financial_home")
 
     def _show_balance_sheet(self):
         self.main_content_callback("balance_sheet")

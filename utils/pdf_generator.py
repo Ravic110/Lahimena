@@ -535,3 +535,62 @@ def generate_multi_hotel_quotation_pdf(
     except Exception as e:
         logger.error(f"Error generating multi-hotel quotation PDF: {e}", exc_info=True)
         raise
+
+
+def generate_client_quotation_pdf(
+    client_name,
+    client_email,
+    client_phone,
+    quote_number,
+    quote_date,
+    items,
+    currency,
+    margin_pct,
+    margin_amount,
+    tva_pct,
+    tva_amount,
+    subtotal,
+    total,
+    output_dir="devis",
+):
+    """
+    Generate a client quotation PDF with line items and margin/TVA breakdown.
+    """
+    if not REPORTLAB_AVAILABLE:
+        logger.error("ReportLab not available")
+        raise ImportError("ReportLab required for PDF generation")
+
+    try:
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        filename = os.path.join(output_dir, f"{quote_number}.pdf")
+        pdf = QuotationPDF(filename)
+
+        pdf.add_header("Lahimena Tours", "Madagascar - Tours & Travel")
+        pdf.add_quotation_info(quote_number, quote_date, client_name, client_email)
+        pdf.add_client_contact(client_phone)
+
+        pdf.add_section_title("Détails du devis")
+        pdf.add_line_items_table(items, currency=currency)
+        pdf.add_totals_table_with_breakdown(
+            subtotal=subtotal,
+            margin_amount=margin_amount,
+            tva_amount=tva_amount,
+            total=total,
+            currency=currency,
+        )
+
+        pdf.add_terms(
+            "Conditions: Tarifs sujets à modification. Validité du devis: 30 jours.\n"
+            f"Marge appliquée: {margin_pct:,.2f}% | TVA appliquée: {tva_pct:,.2f}%."
+        )
+        pdf.add_footer("Lahimena Tours | Madagascar | Tel: +261-32-XXXX-XXXX")
+
+        filepath = pdf.generate()
+        logger.info(f"Client quotation PDF created: {filepath}")
+        return filepath
+
+    except Exception as e:
+        logger.error(f"Error generating client quotation PDF: {e}", exc_info=True)
+        raise

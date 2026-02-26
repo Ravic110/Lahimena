@@ -1,0 +1,5 @@
+# Requirements for the financial tool (TsaraKonta)
+# These are separate from the main application requirements.
+
+pandas>=2.0
+openpyxl>=3.0

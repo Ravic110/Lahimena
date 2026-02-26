@@ -1,0 +1,46 @@
+[project]
+name = "lahimena-tours"
+version = "0.1.0"
+description = "Devis generation desktop app for Lahimena Tours"
+authors = [ { name = "Your Name", email = "you@example.com" } ]
+readme = "README.md"
+requires-python = ">=3.7"
+
+# dependencies are a simple list of PEP 508 strings
+# (core runtime requirements)
+dependencies = [
+    "customtkinter>=5.2.0",
+]
+
+[tool.setuptools.packages.find]
+# search for python packages in the current directory but ignore data folders
+where = ["."]
+exclude = [
+    "assets",
+    "backups",
+    "audit",
+    "devis",
+    "docs",
+    "logs",
+    "finances/tsarakonta/EtatFiFolder",
+]
+
+# dependencies are a simple list of PEP 508 strings  (moved to [project])
+
+
+# optional dependencies can be grouped under named extras
+[project.optional-dependencies]
+# extras used by the main GUI for added features
+extras = [
+    "Pillow>=9.0.0",
+    "openpyxl>=3.0.0",
+    "phonenumbers>=8.12.0",
+    "requests>=2.25.0",
+    "reportlab>=3.6.0",
+]
+
+# financial extra for TsaraKonta, includes its own dependencies
+financial = [
+    "pandas>=2.0",
+    "openpyxl>=3.0",
+]

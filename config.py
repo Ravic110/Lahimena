@@ -2,40 +2,65 @@
 Configuration constants for Lahimena Tours application
 """
 
+import json
 import os
 import sys
+
+# load optional configuration file to override defaults
+_config_path = os.path.join(os.path.dirname(__file__), "config.json")
+
+# internal config dictionary
+_cfg = {}
+
+
+def load_config(path=None):
+    """Load configuration from JSON file and update _cfg."""
+    global _cfg
+    if path is None:
+        path = _config_path
+    if os.path.exists(path):
+        try:
+            with open(path, "r") as f:
+                _cfg = json.load(f)
+        except Exception:
+            _cfg = {}
+    else:
+        _cfg = {}
+    # propagate overrides to existing globals if they already exist
+    for key, val in _cfg.items():
+        globals()[key] = val
+
+
+# initialize at import
+load_config()
 
 # Application settings
 APP_TITLE = "Lahimena Tours Devis Generation"
 APP_GEOMETRY = "1200x500"
 
+# override from JSON config if provided
+if "APP_TITLE" in _cfg:
+    APP_TITLE = _cfg["APP_TITLE"]
+if "APP_GEOMETRY" in _cfg:
+    APP_GEOMETRY = _cfg["APP_GEOMETRY"]
+
 # Theme settings
-APPEARANCE_MODE = "dark"
-DEFAULT_COLOR_THEME = "blue"
-CURRENT_THEME = "dark"
+APPEARANCE_MODE = _cfg.get("APPEARANCE_MODE", "dark")
+DEFAULT_COLOR_THEME = _cfg.get("DEFAULT_COLOR_THEME", "blue")
+CURRENT_THEME = _cfg.get("CURRENT_THEME", "dark")
 
 THEMES = {
     "dark": {
-        "SIDEBAR_BG_COLOR": "#0B1220",
-        "MAIN_BG_COLOR": "#0F172A",
-        "PANEL_BG_COLOR": "#1E293B",
-        "CARD_BG_COLOR": "#1F2937",
-        "CARD_HOVER_BG_COLOR": "#334155",
-        "INPUT_BG_COLOR": "#1E293B",
-        "READONLY_BG_COLOR": "#111827",
-        "TEXT_COLOR": "#F8FAFC",
-        "MUTED_TEXT_COLOR": "#CBD5E1",
-        "ACCENT_TEXT_COLOR": "#93C5FD",
-            "SIDEBAR_BG_COLOR": "#071026",
-            "MAIN_BG_COLOR": "#0B1226",
-            "PANEL_BG_COLOR": "#0F1B2B",
-            "CARD_BG_COLOR": "#0F1724",
-            "CARD_HOVER_BG_COLOR": "#172033",
-            "INPUT_BG_COLOR": "#0B1220",
-            "READONLY_BG_COLOR": "#08101A",
-            "TEXT_COLOR": "#FFFFFF",
-            "MUTED_TEXT_COLOR": "#9AA8B8",
-            "ACCENT_TEXT_COLOR": "#A0D2FF",
+        "SIDEBAR_BG_COLOR": "#071026",
+        "MAIN_BG_COLOR": "#0B1226",
+        "PANEL_BG_COLOR": "#0F1B2B",
+        "CARD_BG_COLOR": "#0F1724",
+        "CARD_HOVER_BG_COLOR": "#172033",
+        "INPUT_BG_COLOR": "#0B1220",
+        "READONLY_BG_COLOR": "#08101A",
+        "TEXT_COLOR": "#FFFFFF",
+        "MUTED_TEXT_COLOR": "#9AA8B8",
+        "ACCENT_TEXT_COLOR": "#A0D2FF",
         "BUTTON_GREEN": "#059669",
         "BUTTON_GREEN_HOVER": "#047857",
         "BUTTON_BLUE": "#0284C7",
@@ -158,8 +183,11 @@ BUTTON_FONT = ("Arial", 11, "bold")
 # File paths (using absolute paths)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO_PATH = os.path.join(BASE_DIR, "assets", "logo.png")
-CLIENT_EXCEL_PATH = os.path.join(BASE_DIR, "data.xlsx")
-HOTEL_EXCEL_PATH = os.path.join(BASE_DIR, "data-hotel.xlsx")
+CLIENT_EXCEL_PATH = os.path.join(BASE_DIR, _cfg.get("CLIENT_EXCEL_PATH", "data.xlsx"))
+HOTEL_EXCEL_PATH = os.path.join(
+    BASE_DIR, _cfg.get("HOTEL_EXCEL_PATH", "data-hotel.xlsx")
+)
+FINANCIAL_EXCEL_PATH = CLIENT_EXCEL_PATH
 DEVIS_FOLDER = os.path.join(BASE_DIR, "devis")
 CLIENT_SHEET_NAME = "DEMANDE_CLIENT"
 CLIENT_INFOS_SHEET_NAME = "INFOS_CLIENTS"
