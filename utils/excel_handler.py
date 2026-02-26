@@ -13,17 +13,25 @@ except ImportError:
 import os
 import re
 import shutil
-from datetime import datetime
+from datetime import datetime, time, timedelta
 
 from config import (
     CLIENT_EXCEL_PATH,
     CLIENT_INFOS_SHEET_NAME,
     CLIENT_SHEET_NAME,
     COTATION_FRAIS_COL_SHEET_NAME,
+    AVION_SHEET_NAME,
+    AVION_SOURCE_SHEET_NAME,
     COTATION_H_SHEET_NAME,
     FRAIS_COLLECTIFS_SHEET_NAME,
     HOTEL_EXCEL_PATH,
     HOTEL_SHEET_NAME,
+    VISITE_EXCURSION_SHEET_NAME,
+    VISITE_EXCURSION_SOURCE_SHEET_NAME,
+    TRANSPORT_SOURCE_SHEET_NAME,
+    TRANSPORT_SHEET_NAME,
+    KM_MADA_SHEET_NAME,
+    PARAMETRAGE_SHEET_NAME,
 )
 from utils.cache import (
     cached_client_data,
@@ -55,6 +63,59 @@ def _parse_num(val):
         return int(num_str)
     except Exception:
         return 0
+
+
+def _parse_duration_hours(val):
+    """Parse duration values into hours.
+
+    Supports numeric hours, Excel time/timedelta values, and strings like
+    "3h30", "03:30", "210 min", or "2.5".
+    """
+    if val is None or val == "":
+        return 0.0
+
+    if isinstance(val, timedelta):
+        return max(0.0, float(val.total_seconds()) / 3600)
+
+    if isinstance(val, time):
+        return val.hour + (val.minute / 60.0) + (val.second / 3600.0)
+
+    if isinstance(val, datetime):
+        return val.hour + (val.minute / 60.0) + (val.second / 3600.0)
+
+    if isinstance(val, (int, float)):
+        hours = float(val)
+        return hours if hours > 0 else 0.0
+
+    raw = str(val).strip().lower().replace(",", ".")
+    if not raw:
+        return 0.0
+
+    compact = re.sub(r"\s+", "", raw)
+
+    match_h = re.fullmatch(r"(\d+(?:\.\d+)?)h(?:(\d+(?:\.\d+)?)(?:mn|min|m)?)?", compact)
+    if match_h:
+        hours = float(match_h.group(1))
+        minutes = float(match_h.group(2)) if match_h.group(2) else 0.0
+        return max(0.0, hours + (minutes / 60.0))
+
+    match_clock = re.fullmatch(r"(\d{1,3}):(\d{1,2})(?::(\d{1,2}))?", compact)
+    if match_clock:
+        hh = int(match_clock.group(1))
+        mm = int(match_clock.group(2))
+        ss = int(match_clock.group(3) or 0)
+        return max(0.0, hh + (mm / 60.0) + (ss / 3600.0))
+
+    match_min = re.fullmatch(r"(\d+(?:\.\d+)?)(?:mn|min|m)", compact)
+    if match_min:
+        minutes = float(match_min.group(1))
+        return max(0.0, minutes / 60.0)
+
+    try:
+        parsed = float(compact)
+        return parsed if parsed > 0 else 0.0
+    except Exception:
+        return 0.0
 
 
 def create_backup(filepath):
@@ -1043,8 +1104,7 @@ def load_circuit_catalog():
 
         itinerary = (
             str(ws.cell(row=row, column=itinerary_col).value).strip()
-            if itinerary_col
-            and ws.cell(row=row, column=itinerary_col).value is not None
+            if itinerary_col and ws.cell(row=row, column=itinerary_col).value is not None
             else ""
         )
         activity = (
@@ -1438,6 +1498,7 @@ def save_collective_expense_quotation_to_excel(form_data):
         header_map = {header: index for index, header in enumerate(headers, start=1)}
 
         next_row = ws.max_row + 1
+
         if "Date" in header_map and not form_data.get("Date"):
             form_data = {
                 "Date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1752,7 +1813,7 @@ def get_quotations_by_city():
 def load_collective_expenses_data():
     """
     Load all data from Frais collectifs sheet in data-hotel.xlsx
-
+    
     Returns:
         list: List of dicts with FORFAIT, PRESTATAIRES, DESIGNATION, MONTANT, ID circuit
     """
@@ -1771,30 +1832,30 @@ def load_collective_expenses_data():
 
         ws = wb[FRAIS_COLLECTIFS_SHEET_NAME]
         rows = []
-
+        
         for row_idx in range(2, ws.max_row + 1):
             forfait = ws.cell(row=row_idx, column=1).value
             prestataire = ws.cell(row=row_idx, column=2).value
             designation = ws.cell(row=row_idx, column=3).value
             montant = ws.cell(row=row_idx, column=4).value
             id_circuit = ws.cell(row=row_idx, column=5).value
-
+            
             if not forfait and not prestataire and not designation:
                 continue
-
-            rows.append(
-                {
-                    "forfait": str(forfait or "").strip(),
-                    "prestataire": str(prestataire or "").strip(),
-                    "designation": str(designation or "").strip(),
-                    "montant": _parse_num(montant),
-                    "id_circuit": id_circuit,
-                }
-            )
-
+                
+            rows.append({
+                "forfait": str(forfait or "").strip(),
+                "prestataire": str(prestataire or "").strip(),
+                "designation": str(designation or "").strip(),
+                "montant": _parse_num(montant),
+                "id_circuit": id_circuit,
+            })
+        
         return rows
     except Exception as e:
-        logger.error(f"Failed to load collective expenses data: {e}", exc_info=True)
+        logger.error(
+            f"Failed to load collective expenses data: {e}", exc_info=True
+        )
         return []
     finally:
         if wb is not None:
@@ -1807,7 +1868,7 @@ def load_collective_expenses_data():
 def get_collective_expense_prestataires():
     """
     Get unique prestataires from Frais collectifs sheet
-
+    
     Returns:
         list: Sorted list of unique prestataire names
     """
@@ -1822,10 +1883,10 @@ def get_collective_expense_prestataires():
 def get_collective_expense_designations(prestataire=None):
     """
     Get designations, optionally filtered by prestataire
-
+    
     Args:
         prestataire (str): Optional prestataire to filter by
-
+    
     Returns:
         list: Sorted list of designations
     """
@@ -1841,11 +1902,11 @@ def get_collective_expense_designations(prestataire=None):
 def get_collective_expense_montant(prestataire, designation):
     """
     Get montant for a given prestataire + designation combo
-
+    
     Args:
         prestataire (str): Prestataire name
         designation (str): Designation
-
+    
     Returns:
         float: Montant value, or 0 if not found
     """
@@ -1862,11 +1923,11 @@ def get_collective_expense_montant(prestataire, designation):
 def get_collective_expense_forfait(prestataire, designation):
     """
     Get forfait for a given prestataire + designation combo
-
+    
     Args:
         prestataire (str): Prestataire name
         designation (str): Designation
-
+    
     Returns:
         str: Forfait value, or empty string if not found
     """
@@ -1880,54 +1941,213 @@ def get_collective_expense_forfait(prestataire, designation):
     return ""
 
 
+def load_collective_expense_db_rows():
+    """
+    Load raw DB rows from data-hotel.xlsx / Frais collectifs sheet.
+
+    Returns:
+        list: row dictionaries with row_number and DB fields.
+    """
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if FRAIS_COLLECTIFS_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[FRAIS_COLLECTIFS_SHEET_NAME]
+        rows = []
+        for row_idx in range(2, ws.max_row + 1):
+            forfait = ws.cell(row=row_idx, column=1).value
+            prestataire = ws.cell(row=row_idx, column=2).value
+            designation = ws.cell(row=row_idx, column=3).value
+            montant = ws.cell(row=row_idx, column=4).value
+            id_circuit = ws.cell(row=row_idx, column=5).value
+
+            if all(v in (None, "") for v in [forfait, prestataire, designation, montant, id_circuit]):
+                continue
+
+            rows.append(
+                {
+                    "row_number": row_idx,
+                    "forfait": str(forfait or "").strip(),
+                    "prestataire": str(prestataire or "").strip(),
+                    "designation": str(designation or "").strip(),
+                    "montant": _parse_num(montant),
+                    "id_circuit": "" if id_circuit is None else str(id_circuit).strip(),
+                }
+            )
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load collective expense DB rows: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_collective_expense_db_row(row_data):
+    """Insert one row into data-hotel.xlsx / Frais collectifs."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    wb = None
+    try:
+        if not os.path.exists(HOTEL_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = FRAIS_COLLECTIFS_SHEET_NAME
+        else:
+            wb = load_workbook(HOTEL_EXCEL_PATH)
+            if FRAIS_COLLECTIFS_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(FRAIS_COLLECTIFS_SHEET_NAME)
+            else:
+                ws = wb[FRAIS_COLLECTIFS_SHEET_NAME]
+
+        if ws.max_row == 1 and ws.cell(row=1, column=1).value in (None, ""):
+            headers = ["FORFAIT", "PRESTATAIRES", "DESIGNATION", "MONTANT", "ID circuit"]
+            for col_idx, header in enumerate(headers, start=1):
+                ws.cell(row=1, column=col_idx, value=header)
+
+        next_row = ws.max_row + 1
+        ws.cell(row=next_row, column=1, value=row_data.get("forfait", ""))
+        ws.cell(row=next_row, column=2, value=row_data.get("prestataire", ""))
+        ws.cell(row=next_row, column=3, value=row_data.get("designation", ""))
+        ws.cell(row=next_row, column=4, value=_parse_num(row_data.get("montant", 0)))
+        ws.cell(row=next_row, column=5, value=row_data.get("id_circuit", ""))
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return next_row
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save collective expense DB row: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def update_collective_expense_db_row(row_number, row_data):
+    """Update one row in data-hotel.xlsx / Frais collectifs."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return -1
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if FRAIS_COLLECTIFS_SHEET_NAME not in wb.sheetnames:
+            return -1
+
+        ws = wb[FRAIS_COLLECTIFS_SHEET_NAME]
+        ws.cell(row=row_number, column=1, value=row_data.get("forfait", ""))
+        ws.cell(row=row_number, column=2, value=row_data.get("prestataire", ""))
+        ws.cell(row=row_number, column=3, value=row_data.get("designation", ""))
+        ws.cell(row=row_number, column=4, value=_parse_num(row_data.get("montant", 0)))
+        ws.cell(row=row_number, column=5, value=row_data.get("id_circuit", ""))
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return 0
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to update collective expense DB row {row_number}: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def delete_collective_expense_db_row(row_number):
+    """Delete one row from data-hotel.xlsx / Frais collectifs."""
+    if not OPENPYXL_AVAILABLE:
+        return False
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return False
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if FRAIS_COLLECTIFS_SHEET_NAME not in wb.sheetnames:
+            return False
+
+        ws = wb[FRAIS_COLLECTIFS_SHEET_NAME]
+        ws.delete_rows(row_number)
+        wb.save(HOTEL_EXCEL_PATH)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete collective expense DB row {row_number}: {e}", exc_info=True)
+        return False
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
 def update_collective_expense_quotation_in_excel(row_number, form_data):
     """
     Update an existing collective expense quotation in Excel
-
+    
     Args:
         row_number (int): Row number to update (1-indexed, excluding header)
         form_data (dict): Form data with headers as keys
-
+    
     Returns:
         int: 0 success, -1 error, -2 PermissionError
     """
     if not OPENPYXL_AVAILABLE:
         logger.warning("openpyxl not available. Cannot update Excel.")
         return -1
-
+    
     if not os.path.exists(CLIENT_EXCEL_PATH):
         logger.error(f"Excel file {CLIENT_EXCEL_PATH} not found")
         return -1
-
+    
     wb = None
     try:
         wb = load_workbook(CLIENT_EXCEL_PATH)
         if COTATION_FRAIS_COL_SHEET_NAME not in wb.sheetnames:
             logger.error(f"Sheet {COTATION_FRAIS_COL_SHEET_NAME} not found")
             return -1
-
+        
         ws = wb[COTATION_FRAIS_COL_SHEET_NAME]
         headers = get_collective_expense_headers()
-
+        
         # Excel row is data row + 1 (for header)
         excel_row = row_number + 1
-
+        
         for col_idx, header in enumerate(headers, start=1):
             value = form_data.get(header, "")
             ws.cell(row=excel_row, column=col_idx, value=value)
-
+        
         wb.save(CLIENT_EXCEL_PATH)
         logger.info(f"Updated collective expense at row {row_number}")
         return 0
     except PermissionError:
-        logger.error(
-            f"Permission error updating collective expense at row {row_number}"
-        )
+        logger.error(f"Permission error updating collective expense at row {row_number}")
         return -2
     except Exception as e:
-        logger.error(
-            f"Error updating collective expense at row {row_number}: {e}", exc_info=True
-        )
+        logger.error(f"Error updating collective expense at row {row_number}: {e}", exc_info=True)
         return -1
     finally:
         if wb:
@@ -1937,41 +2157,2637 @@ def update_collective_expense_quotation_in_excel(row_number, form_data):
 def delete_collective_expense_from_excel(row_number):
     """
     Delete a collective expense quotation from Excel
-
+    
     Args:
         row_number (int): Row number to delete (1-indexed in data, excludes header)
-
+    
     Returns:
         bool: True if successful, False otherwise
     """
     if not OPENPYXL_AVAILABLE:
         logger.warning("openpyxl not available. Cannot delete from Excel.")
         return False
-
+    
     if not os.path.exists(CLIENT_EXCEL_PATH):
         logger.error(f"Excel file {CLIENT_EXCEL_PATH} not found")
         return False
-
+    
     wb = None
     try:
         wb = load_workbook(CLIENT_EXCEL_PATH)
         if COTATION_FRAIS_COL_SHEET_NAME not in wb.sheetnames:
             logger.error(f"Sheet {COTATION_FRAIS_COL_SHEET_NAME} not found")
             return False
-
+        
         ws = wb[COTATION_FRAIS_COL_SHEET_NAME]
         # Excel row is data row + 1 (for header)
         excel_row = row_number + 1
         ws.delete_rows(excel_row)
-
+        
         wb.save(CLIENT_EXCEL_PATH)
         logger.info(f"Deleted collective expense at row {row_number}")
         return True
     except Exception as e:
-        logger.error(
-            f"Error deleting collective expense at row {row_number}: {e}", exc_info=True
-        )
+        logger.error(f"Error deleting collective expense at row {row_number}: {e}", exc_info=True)
         return False
     finally:
         if wb:
             wb.close()
+
+
+def load_visite_excursion_data():
+    """
+    Load all data from Visite_excursion sheet in data-hotel.xlsx.
+
+    Returns:
+        list: List of dicts with prestation, designation, tarif_par_pax and raw fields
+    """
+    if not OPENPYXL_AVAILABLE:
+        logger.warning("openpyxl not available. Cannot load visite & excursion data.")
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if VISITE_EXCURSION_SOURCE_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[VISITE_EXCURSION_SOURCE_SHEET_NAME]
+
+        header_index = {}
+        for col in range(1, ws.max_column + 1):
+            value = ws.cell(row=1, column=col).value
+            if value is None:
+                continue
+            normalized = (
+                str(value)
+                .strip()
+                .lower()
+                .replace("_", " ")
+                .replace("-", " ")
+                .replace("é", "e")
+                .replace("è", "e")
+                .replace("ê", "e")
+            )
+            header_index[normalized] = col
+
+        def _find_col(candidates):
+            for candidate in candidates:
+                normalized = (
+                    str(candidate)
+                    .strip()
+                    .lower()
+                    .replace("_", " ")
+                    .replace("-", " ")
+                    .replace("é", "e")
+                    .replace("è", "e")
+                    .replace("ê", "e")
+                )
+                if normalized in header_index:
+                    return header_index[normalized]
+            return None
+
+        prestation_col = _find_col([
+            "prestation",
+            "prestations",
+            "prestataire",
+            "prestataires",
+            "fournisseur",
+            "provider",
+        ])
+        designation_col = _find_col(["designation", "désignation", "service", "libelle", "description"])
+        tarif_col = _find_col(["tarif par pax", "tarif/pax", "tarif pax", "montant", "prix", "price"])
+
+        if not prestation_col or not designation_col:
+            return []
+
+        rows = []
+        for row_idx in range(2, ws.max_row + 1):
+            prestation = ws.cell(row=row_idx, column=prestation_col).value
+            designation = ws.cell(row=row_idx, column=designation_col).value
+            tarif = ws.cell(row=row_idx, column=tarif_col).value if tarif_col else 0
+
+            if not prestation and not designation:
+                continue
+
+            raw_fields = {}
+            for col in range(1, ws.max_column + 1):
+                h = ws.cell(row=1, column=col).value
+                if h is None:
+                    continue
+                hk = (
+                    str(h)
+                    .strip()
+                    .lower()
+                    .replace("_", " ")
+                    .replace("-", " ")
+                    .replace("é", "e")
+                    .replace("è", "e")
+                    .replace("ê", "e")
+                )
+                raw_fields[hk] = str(ws.cell(row=row_idx, column=col).value or "").strip()
+
+            rows.append(
+                {
+                    "prestation": str(prestation or "").strip(),
+                    "prestataire": str(prestation or "").strip(),
+                    "designation": str(designation or "").strip(),
+                    "tarif_par_pax": _parse_num(tarif),
+                    "fields": raw_fields,
+                }
+            )
+
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load visite & excursion data: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def _normalize_visite_key(value):
+    return (
+        str(value or "")
+        .strip()
+        .lower()
+        .replace("_", " ")
+        .replace("-", " ")
+        .replace("é", "e")
+        .replace("è", "e")
+        .replace("ê", "e")
+    )
+
+
+def _match_visite_filters(row, filters=None, ignore_keys=None):
+    if not filters:
+        return True
+
+    ignore = {_normalize_visite_key(k) for k in (ignore_keys or [])}
+    fields = row.get("fields", {})
+
+    for key, expected in filters.items():
+        if expected in (None, ""):
+            continue
+
+        nk = _normalize_visite_key(key)
+        if nk in ignore:
+            continue
+
+        expected_text = str(expected).strip()
+        if not expected_text:
+            continue
+
+        if nk in {"prestation", "prestations", "prestataire", "prestataires"}:
+            if str(row.get("prestation") or "").strip() != expected_text:
+                return False
+            continue
+
+        if nk in {"designation", "designations", "désignation"}:
+            if str(row.get("designation") or "").strip() != expected_text:
+                return False
+            continue
+
+        field_value = str(fields.get(nk, "")).strip()
+        if field_value != expected_text:
+            return False
+
+    return True
+
+
+def get_visite_excursion_prestataires(filters=None):
+    data = load_visite_excursion_data()
+    values = {
+        row.get("prestation")
+        for row in data
+        if row.get("prestation") and _match_visite_filters(row, filters, ignore_keys=["prestation", "prestataire"])
+    }
+    return sorted(values)
+
+
+def get_visite_excursion_designations(prestataire=None, filters=None):
+    data = load_visite_excursion_data()
+    effective_filters = dict(filters or {})
+    if prestataire:
+        effective_filters["prestations"] = prestataire
+
+    values = set()
+    for row in data:
+        if _match_visite_filters(row, effective_filters, ignore_keys=["designation", "designations", "désignation"]):
+            designation = row.get("designation")
+            if designation:
+                values.add(designation)
+    return sorted(values)
+
+
+def get_visite_excursion_montant(prestataire, designation, filters=None):
+    data = load_visite_excursion_data()
+    effective_filters = dict(filters or {})
+    if prestataire:
+        effective_filters["prestations"] = prestataire
+    if designation:
+        effective_filters["designation"] = designation
+
+    for row in data:
+        if _match_visite_filters(row, effective_filters):
+            return row.get("tarif_par_pax", 0)
+    return 0
+
+
+def get_visite_excursion_db_headers():
+    """Load header labels from data-hotel.xlsx / Visite_excursion sheet."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        source_sheet = None
+        if VISITE_EXCURSION_SOURCE_SHEET_NAME in wb.sheetnames:
+            source_sheet = VISITE_EXCURSION_SOURCE_SHEET_NAME
+        else:
+            target = _normalize_header_key(VISITE_EXCURSION_SOURCE_SHEET_NAME)
+            for sheet_name in wb.sheetnames:
+                if _normalize_header_key(sheet_name) == target:
+                    source_sheet = sheet_name
+                    break
+
+        if not source_sheet:
+            return []
+
+        ws = wb[source_sheet]
+        headers = []
+        for col in range(1, ws.max_column + 1):
+            value = ws.cell(row=1, column=col).value
+            if value is None:
+                continue
+            label = str(value).strip()
+            if label:
+                headers.append(label)
+        return headers
+    except Exception as e:
+        logger.error(f"Failed to load visite excursion DB headers: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_visite_excursion_db_rows():
+    """Load all DB rows from data-hotel.xlsx / Visite_excursion sheet."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        source_sheet = None
+        if VISITE_EXCURSION_SOURCE_SHEET_NAME in wb.sheetnames:
+            source_sheet = VISITE_EXCURSION_SOURCE_SHEET_NAME
+        else:
+            target = _normalize_header_key(VISITE_EXCURSION_SOURCE_SHEET_NAME)
+            for sheet_name in wb.sheetnames:
+                if _normalize_header_key(sheet_name) == target:
+                    source_sheet = sheet_name
+                    break
+
+        if not source_sheet:
+            return []
+
+        ws = wb[source_sheet]
+        headers = get_visite_excursion_db_headers()
+        if not headers:
+            return []
+
+        rows = []
+        for row_idx in range(2, ws.max_row + 1):
+            row_dict = {"row_number": row_idx}
+            has_values = False
+            for col_idx, header in enumerate(headers, start=1):
+                value = ws.cell(row=row_idx, column=col_idx).value
+                if value not in (None, ""):
+                    has_values = True
+                row_dict[header] = "" if value is None else value
+            if has_values:
+                rows.append(row_dict)
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load visite excursion DB rows: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_visite_excursion_db_row(row_data):
+    """Insert one DB row into data-hotel.xlsx / Visite_excursion sheet."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    wb = None
+    try:
+        if not os.path.exists(HOTEL_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = VISITE_EXCURSION_SOURCE_SHEET_NAME
+        else:
+            wb = load_workbook(HOTEL_EXCEL_PATH)
+            if VISITE_EXCURSION_SOURCE_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(VISITE_EXCURSION_SOURCE_SHEET_NAME)
+            else:
+                ws = wb[VISITE_EXCURSION_SOURCE_SHEET_NAME]
+
+        headers = []
+        for col in range(1, ws.max_column + 1):
+            value = ws.cell(row=1, column=col).value
+            if value is None:
+                continue
+            label = str(value).strip()
+            if label:
+                headers.append(label)
+
+        if not headers:
+            headers = [key for key in row_data.keys() if key != "row_number"]
+            if not headers:
+                headers = ["PRESTATIONS", "DESIGNATION", "Tarif par pax"]
+            for col_idx, header in enumerate(headers, start=1):
+                ws.cell(row=1, column=col_idx, value=header)
+
+        next_row = ws.max_row + 1
+        for col_idx, header in enumerate(headers, start=1):
+            ws.cell(row=next_row, column=col_idx, value=row_data.get(header, ""))
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return next_row
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save visite excursion DB row: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def update_visite_excursion_db_row(row_number, row_data):
+    """Update one DB row in data-hotel.xlsx / Visite_excursion sheet."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return -1
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if VISITE_EXCURSION_SOURCE_SHEET_NAME not in wb.sheetnames:
+            return -1
+
+        ws = wb[VISITE_EXCURSION_SOURCE_SHEET_NAME]
+        headers = get_visite_excursion_db_headers()
+        for col_idx, header in enumerate(headers, start=1):
+            ws.cell(row=row_number, column=col_idx, value=row_data.get(header, ""))
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return 0
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to update visite excursion DB row {row_number}: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def delete_visite_excursion_db_row(row_number):
+    """Delete one DB row from data-hotel.xlsx / Visite_excursion sheet."""
+    if not OPENPYXL_AVAILABLE:
+        return False
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return False
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if VISITE_EXCURSION_SOURCE_SHEET_NAME not in wb.sheetnames:
+            return False
+
+        ws = wb[VISITE_EXCURSION_SOURCE_SHEET_NAME]
+        ws.delete_rows(row_number)
+        wb.save(HOTEL_EXCEL_PATH)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete visite excursion DB row {row_number}: {e}", exc_info=True)
+        return False
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def get_avion_db_headers():
+    """Load header labels from data-hotel.xlsx / avion sheet."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        source_sheet = None
+        if AVION_SOURCE_SHEET_NAME in wb.sheetnames:
+            source_sheet = AVION_SOURCE_SHEET_NAME
+        else:
+            target = _normalize_header_key(AVION_SOURCE_SHEET_NAME)
+            for sheet_name in wb.sheetnames:
+                if _normalize_header_key(sheet_name) == target:
+                    source_sheet = sheet_name
+                    break
+
+        if not source_sheet:
+            return []
+
+        ws = wb[source_sheet]
+        headers = []
+        for col in range(1, ws.max_column + 1):
+            value = ws.cell(row=1, column=col).value
+            if value is None:
+                continue
+            label = str(value).strip()
+            if label:
+                headers.append(label)
+        return headers
+    except Exception as e:
+        logger.error(f"Failed to load avion DB headers: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_avion_db_rows():
+    """Load all DB rows from data-hotel.xlsx / avion sheet."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        source_sheet = None
+        if AVION_SOURCE_SHEET_NAME in wb.sheetnames:
+            source_sheet = AVION_SOURCE_SHEET_NAME
+        else:
+            target = _normalize_header_key(AVION_SOURCE_SHEET_NAME)
+            for sheet_name in wb.sheetnames:
+                if _normalize_header_key(sheet_name) == target:
+                    source_sheet = sheet_name
+                    break
+
+        if not source_sheet:
+            return []
+
+        ws = wb[source_sheet]
+        headers = get_avion_db_headers()
+        if not headers:
+            return []
+
+        rows = []
+        for row_idx in range(2, ws.max_row + 1):
+            row_dict = {"row_number": row_idx}
+            has_values = False
+            for col_idx, header in enumerate(headers, start=1):
+                value = ws.cell(row=row_idx, column=col_idx).value
+                if value not in (None, ""):
+                    has_values = True
+                row_dict[header] = "" if value is None else value
+            if has_values:
+                rows.append(row_dict)
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load avion DB rows: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_avion_db_row(row_data):
+    """Insert one DB row into data-hotel.xlsx / avion sheet."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    wb = None
+    try:
+        if not os.path.exists(HOTEL_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = AVION_SOURCE_SHEET_NAME
+        else:
+            wb = load_workbook(HOTEL_EXCEL_PATH)
+            if AVION_SOURCE_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(AVION_SOURCE_SHEET_NAME)
+            else:
+                ws = wb[AVION_SOURCE_SHEET_NAME]
+
+        headers = []
+        for col in range(1, ws.max_column + 1):
+            value = ws.cell(row=1, column=col).value
+            if value is None:
+                continue
+            label = str(value).strip()
+            if label:
+                headers.append(label)
+
+        if not headers:
+            headers = [key for key in row_data.keys() if key != "row_number"]
+            if not headers:
+                headers = [
+                    "Ville de départ",
+                    "Ville d'arrivée",
+                    "Tarif Adultes",
+                    "Tarif Enfants",
+                ]
+            for col_idx, header in enumerate(headers, start=1):
+                ws.cell(row=1, column=col_idx, value=header)
+
+        next_row = ws.max_row + 1
+        for col_idx, header in enumerate(headers, start=1):
+            ws.cell(row=next_row, column=col_idx, value=row_data.get(header, ""))
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return next_row
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save avion DB row: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def update_avion_db_row(row_number, row_data):
+    """Update one DB row in data-hotel.xlsx / avion sheet."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return -1
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if AVION_SOURCE_SHEET_NAME not in wb.sheetnames:
+            return -1
+
+        ws = wb[AVION_SOURCE_SHEET_NAME]
+        headers = get_avion_db_headers()
+        for col_idx, header in enumerate(headers, start=1):
+            ws.cell(row=row_number, column=col_idx, value=row_data.get(header, ""))
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return 0
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to update avion DB row {row_number}: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def delete_avion_db_row(row_number):
+    """Delete one DB row from data-hotel.xlsx / avion sheet."""
+    if not OPENPYXL_AVAILABLE:
+        return False
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return False
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if AVION_SOURCE_SHEET_NAME not in wb.sheetnames:
+            return False
+
+        ws = wb[AVION_SOURCE_SHEET_NAME]
+        ws.delete_rows(row_number)
+        wb.save(HOTEL_EXCEL_PATH)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete avion DB row {row_number}: {e}", exc_info=True)
+        return False
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def get_visite_excursion_headers():
+    """
+    Load header list from VISITE_EXCURSION sheet.
+    """
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        if VISITE_EXCURSION_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[VISITE_EXCURSION_SHEET_NAME]
+        headers = []
+        for col in range(1, ws.max_column + 1):
+            value = ws.cell(row=1, column=col).value
+            if value is None:
+                continue
+            label = str(value).strip()
+            if label:
+                headers.append(label)
+        return headers
+    except Exception as e:
+        logger.error(f"Failed to load visite & excursion headers: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_visite_excursion_quotation_to_excel(form_data):
+    """
+    Save a visite & excursion quotation row into VISITE_EXCURSION sheet.
+
+    Returns:
+        int: Saved row number, -1 on failure, -2 if file locked.
+    """
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    wb = None
+    try:
+        if not os.path.exists(CLIENT_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = VISITE_EXCURSION_SHEET_NAME
+        else:
+            wb = load_workbook(CLIENT_EXCEL_PATH)
+            if VISITE_EXCURSION_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(VISITE_EXCURSION_SHEET_NAME)
+            else:
+                ws = wb[VISITE_EXCURSION_SHEET_NAME]
+
+        headers = []
+        for col in range(1, ws.max_column + 1):
+            value = ws.cell(row=1, column=col).value
+            if value is None:
+                continue
+            label = str(value).strip()
+            if label:
+                headers.append(label)
+
+        if not headers:
+            headers = list(form_data.keys())
+            if "Date" not in headers:
+                headers.insert(0, "Date")
+            for col, header in enumerate(headers, start=1):
+                cell = ws.cell(row=1, column=col)
+                cell.value = header
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.fill = PatternFill(
+                    start_color="4472C4", end_color="4472C4", fill_type="solid"
+                )
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        header_map = {header: index for index, header in enumerate(headers, start=1)}
+
+        next_row = 2
+        while ws.cell(row=next_row, column=1).value not in (None, ""):
+            next_row += 1
+
+        if next_row > 1048576:
+            logger.error("VISITE_EXCURSION sheet is full (max Excel rows reached).")
+            return -1
+        if "Date" in header_map and not form_data.get("Date"):
+            form_data = {
+                "Date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                **form_data,
+            }
+
+        for header, col in header_map.items():
+            value = form_data.get(header, "")
+            ws.cell(row=next_row, column=col, value=value)
+
+        wb.save(CLIENT_EXCEL_PATH)
+        return next_row
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save visite & excursion quotation: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_all_visite_excursion_quotations():
+    """
+    Load all visite & excursion quotations from VISITE_EXCURSION.
+    """
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        if VISITE_EXCURSION_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[VISITE_EXCURSION_SHEET_NAME]
+        headers = get_visite_excursion_headers()
+        if not headers:
+            return []
+
+        rows = []
+        for row_index in range(2, ws.max_row + 1):
+            row_dict = {"row_number": row_index}
+            has_values = False
+
+            for col_index, header in enumerate(headers, start=1):
+                value = ws.cell(row=row_index, column=col_index).value
+                if value not in (None, ""):
+                    has_values = True
+                row_dict[header] = "" if value is None else value
+
+            if has_values:
+                rows.append(row_dict)
+
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load visite & excursion quotations: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def update_visite_excursion_quotation_in_excel(row_number, form_data):
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return -1
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        if VISITE_EXCURSION_SHEET_NAME not in wb.sheetnames:
+            return -1
+
+        ws = wb[VISITE_EXCURSION_SHEET_NAME]
+        headers = get_visite_excursion_headers()
+        excel_row = row_number
+
+        for col_idx, header in enumerate(headers, start=1):
+            value = form_data.get(header, "")
+            ws.cell(row=excel_row, column=col_idx, value=value)
+
+        wb.save(CLIENT_EXCEL_PATH)
+        return 0
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Error updating visite & excursion row {row_number}: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def delete_visite_excursion_from_excel(row_number):
+    if not OPENPYXL_AVAILABLE:
+        return False
+
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return False
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        if VISITE_EXCURSION_SHEET_NAME not in wb.sheetnames:
+            return False
+
+        ws = wb[VISITE_EXCURSION_SHEET_NAME]
+        ws.delete_rows(row_number)
+
+        wb.save(CLIENT_EXCEL_PATH)
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting visite & excursion row {row_number}: {e}", exc_info=True)
+        return False
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_avion_source_data():
+    """
+    Load pricing rows from avion sheet in data-hotel.xlsx.
+
+    Returns:
+        list: Rows with tarifs adultes/enfants and normalized raw fields.
+    """
+    if not OPENPYXL_AVAILABLE:
+        logger.warning("openpyxl not available. Cannot load avion data.")
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+
+        source_sheet = None
+        if AVION_SOURCE_SHEET_NAME in wb.sheetnames:
+            source_sheet = AVION_SOURCE_SHEET_NAME
+        else:
+            normalized_target = _normalize_header_key(AVION_SOURCE_SHEET_NAME)
+            for sheet_name in wb.sheetnames:
+                if _normalize_header_key(sheet_name) == normalized_target:
+                    source_sheet = sheet_name
+                    break
+
+        if not source_sheet:
+            return []
+
+        ws = wb[source_sheet]
+
+        header_index = {}
+        for col in range(1, ws.max_column + 1):
+            value = ws.cell(row=1, column=col).value
+            if value is None:
+                continue
+            normalized = _normalize_header_key(value)
+            if normalized:
+                header_index[normalized] = col
+
+        def _find_col(candidates):
+            for candidate in candidates:
+                normalized = _normalize_header_key(candidate)
+                if normalized in header_index:
+                    return header_index[normalized]
+            return None
+
+        tarif_adulte_col = _find_col(
+            [
+                "tarif adultes",
+                "tarif adulte",
+                "prix adultes",
+                "prix adulte",
+                "adulte",
+                "adultes",
+            ]
+        )
+        tarif_enfant_col = _find_col(
+            [
+                "tarifs enfants",
+                "tarif enfants",
+                "tarif enfant",
+                "prix enfants",
+                "prix enfant",
+                "tarif bebe",
+                "tarif bebes",
+                "tarif bébé",
+                "tarif bébés",
+                "prix bebe",
+                "prix bebes",
+                "prix bébé",
+                "prix bébés",
+                "enfant",
+                "enfants",
+            ]
+        )
+
+        rows = []
+        for row_idx in range(2, ws.max_row + 1):
+            fields = {}
+            has_value = False
+            for col in range(1, ws.max_column + 1):
+                header = ws.cell(row=1, column=col).value
+                if header is None:
+                    continue
+                key = _normalize_header_key(header)
+                value = ws.cell(row=row_idx, column=col).value
+                fields[key] = "" if value is None else str(value).strip()
+                if value not in (None, ""):
+                    has_value = True
+
+            if not has_value:
+                continue
+
+            tarif_adulte = (
+                ws.cell(row=row_idx, column=tarif_adulte_col).value
+                if tarif_adulte_col
+                else 0
+            )
+            tarif_enfant = (
+                ws.cell(row=row_idx, column=tarif_enfant_col).value
+                if tarif_enfant_col
+                else 0
+            )
+
+            rows.append(
+                {
+                    "tarif_adulte": _parse_num(tarif_adulte),
+                    "tarif_enfant": _parse_num(tarif_enfant),
+                    "fields": fields,
+                }
+            )
+
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load avion source data: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def get_avion_tarifs(filters=None):
+    """
+    Return first matching adult/child tariffs from avion source.
+
+    Args:
+        filters (dict): Optional filters by source columns.
+
+    Returns:
+        tuple: (tarif_adulte, tarif_enfant)
+    """
+    data = load_avion_source_data()
+    if not data:
+        return 0, 0
+
+    normalized_filters = {}
+    for key, value in (filters or {}).items():
+        if value in (None, ""):
+            continue
+        normalized_filters[_normalize_header_key(key)] = str(value).strip()
+
+    for row in data:
+        if not normalized_filters:
+            return row.get("tarif_adulte", 0), row.get("tarif_enfant", 0)
+
+        fields = row.get("fields", {})
+        matches = True
+        for key, expected in normalized_filters.items():
+            if key in {
+                "date",
+                "id client",
+                "id_client",
+                "ref client",
+                "reference",
+                "nom",
+                "nom client",
+                "nombre adulte",
+                "nombre adultes",
+                "nombre enfant",
+                "nombre enfants",
+                "tarif adulte",
+                "tarif adultes",
+                "tarif enfant",
+                "tarif enfants",
+                "montant adulte",
+                "montant adultes",
+                "montant enfant",
+                "montant enfants",
+                "total",
+                "observation",
+            }:
+                continue
+            if str(fields.get(key, "")).strip() != expected:
+                matches = False
+                break
+
+        if matches:
+            return row.get("tarif_adulte", 0), row.get("tarif_enfant", 0)
+
+    first = data[0]
+    return first.get("tarif_adulte", 0), first.get("tarif_enfant", 0)
+
+
+def get_avion_departure_cities(filters=None):
+    """Get unique departure cities from avion source data."""
+    data = load_avion_source_data()
+    values = set()
+
+    normalized_filters = {
+        _normalize_header_key(k): str(v).strip()
+        for k, v in (filters or {}).items()
+        if v not in (None, "")
+    }
+
+    for row in data:
+        fields = row.get("fields", {})
+
+        matches = True
+        for key, expected in normalized_filters.items():
+            if key in {
+                "ville de depart",
+                "ville depart",
+                "ville d depart",
+            }:
+                continue
+            if str(fields.get(key, "")).strip() != expected:
+                matches = False
+                break
+
+        if not matches:
+            continue
+
+        city = (
+            fields.get("ville de depart")
+            or fields.get("ville depart")
+            or fields.get("ville d depart")
+            or ""
+        )
+        city = str(city).strip()
+        if city:
+            values.add(city)
+
+    return sorted(values)
+
+
+def get_avion_arrival_cities(filters=None):
+    """Get unique arrival cities from avion source data."""
+    data = load_avion_source_data()
+    values = set()
+
+    normalized_filters = {
+        _normalize_header_key(k): str(v).strip()
+        for k, v in (filters or {}).items()
+        if v not in (None, "")
+    }
+
+    for row in data:
+        fields = row.get("fields", {})
+
+        matches = True
+        for key, expected in normalized_filters.items():
+            if key in {
+                "ville d arrive",
+                "ville de arrive",
+                "ville arrive",
+                "ville d arrivee",
+                "ville de arrivee",
+                "ville arrivee",
+            }:
+                continue
+            if str(fields.get(key, "")).strip() != expected:
+                matches = False
+                break
+
+        if not matches:
+            continue
+
+        city = (
+            fields.get("ville d arrive")
+            or fields.get("ville de arrive")
+            or fields.get("ville arrive")
+            or fields.get("ville d arrivee")
+            or fields.get("ville de arrivee")
+            or fields.get("ville arrivee")
+            or ""
+        )
+        city = str(city).strip()
+        if city:
+            values.add(city)
+
+    return sorted(values)
+
+
+def get_avion_headers():
+    """Load header list from AVION sheet in data.xlsx."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        if AVION_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[AVION_SHEET_NAME]
+        headers = []
+        for col in range(1, ws.max_column + 1):
+            value = ws.cell(row=1, column=col).value
+            if value is None:
+                continue
+            label = str(value).strip()
+            if label:
+                headers.append(label)
+        return headers
+    except Exception as e:
+        logger.error(f"Failed to load AVION headers: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_air_ticket_quotation_to_excel(form_data):
+    """
+    Save an air ticket quotation row into AVION sheet.
+
+    Returns:
+        int: Saved row number, -1 on failure, -2 if file locked.
+    """
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    wb = None
+    try:
+        if not os.path.exists(CLIENT_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = AVION_SHEET_NAME
+        else:
+            wb = load_workbook(CLIENT_EXCEL_PATH)
+            if AVION_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(AVION_SHEET_NAME)
+            else:
+                ws = wb[AVION_SHEET_NAME]
+
+        headers = []
+        for col in range(1, ws.max_column + 1):
+            value = ws.cell(row=1, column=col).value
+            if value is None:
+                continue
+            label = str(value).strip()
+            if label:
+                headers.append(label)
+
+        if not headers:
+            headers = list(form_data.keys())
+            if "Date" not in headers:
+                headers.insert(0, "Date")
+            for col, header in enumerate(headers, start=1):
+                cell = ws.cell(row=1, column=col)
+                cell.value = header
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.fill = PatternFill(
+                    start_color="4472C4", end_color="4472C4", fill_type="solid"
+                )
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        header_map = {header: index for index, header in enumerate(headers, start=1)}
+
+        next_row = 2
+        while ws.cell(row=next_row, column=1).value not in (None, ""):
+            next_row += 1
+
+        if next_row > 1048576:
+            logger.error("AVION sheet is full (max Excel rows reached).")
+            return -1
+
+        if "Date" in header_map and not form_data.get("Date"):
+            form_data = {
+                "Date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                **form_data,
+            }
+
+        for header, col in header_map.items():
+            value = form_data.get(header, "")
+            ws.cell(row=next_row, column=col, value=value)
+
+        wb.save(CLIENT_EXCEL_PATH)
+        return next_row
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save air ticket quotation: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_all_air_ticket_quotations():
+    """Load all air ticket quotations from AVION sheet."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        if AVION_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[AVION_SHEET_NAME]
+        headers = get_avion_headers()
+        if not headers:
+            return []
+
+        rows = []
+        for row_index in range(2, ws.max_row + 1):
+            row_dict = {"row_number": row_index}
+            has_values = False
+
+            for col_index, header in enumerate(headers, start=1):
+                value = ws.cell(row=row_index, column=col_index).value
+                if value not in (None, ""):
+                    has_values = True
+                row_dict[header] = "" if value is None else value
+
+            if has_values:
+                rows.append(row_dict)
+
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load air ticket quotations: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def update_air_ticket_quotation_in_excel(row_number, form_data):
+    """Update one air ticket quotation row in AVION sheet."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return -1
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        if AVION_SHEET_NAME not in wb.sheetnames:
+            return -1
+
+        ws = wb[AVION_SHEET_NAME]
+        headers = get_avion_headers()
+        excel_row = row_number
+
+        for col_idx, header in enumerate(headers, start=1):
+            value = form_data.get(header, "")
+            ws.cell(row=excel_row, column=col_idx, value=value)
+
+        wb.save(CLIENT_EXCEL_PATH)
+        return 0
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Error updating air ticket row {row_number}: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def delete_air_ticket_from_excel(row_number):
+    """Delete one air ticket quotation row from AVION sheet."""
+    if not OPENPYXL_AVAILABLE:
+        return False
+
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return False
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        if AVION_SHEET_NAME not in wb.sheetnames:
+            return False
+
+        ws = wb[AVION_SHEET_NAME]
+        ws.delete_rows(row_number)
+
+        wb.save(CLIENT_EXCEL_PATH)
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting air ticket row {row_number}: {e}", exc_info=True)
+        return False
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+PARAMETRAGE_DEFAULT_HEADERS = ["parametre", "valeur"]
+
+
+def _ensure_parametrage_sheet(ws):
+    header_style = {
+        "font": Font(bold=True, color="FFFFFF"),
+        "fill": PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid"),
+        "alignment": Alignment(horizontal="center", vertical="center"),
+    }
+    return _ensure_headers(ws, PARAMETRAGE_DEFAULT_HEADERS, header_style)
+
+
+def _normalize_param_name(value):
+    return _normalize_header_key(value)
+
+
+def _ensure_default_param_rows(ws, header_map):
+    parameter_col = _find_header_column(
+        header_map,
+        "parametre",
+        "paramètre",
+        "PARAMETRE",
+        "Parametre",
+        "Paramètre",
+    )
+    value_col = _find_header_column(
+        header_map,
+        "valeur",
+        "value",
+        "VALEUR",
+        "Valeur",
+        "Value",
+    )
+    if not parameter_col or not value_col:
+        return
+
+    existing = set()
+    for row in range(2, ws.max_row + 1):
+        param_name = ws.cell(row=row, column=parameter_col).value
+        if param_name not in (None, ""):
+            existing.add(_normalize_param_name(param_name))
+
+    defaults = ["Prix Essence", "Prix Gasoil"]
+    for param in defaults:
+        if _normalize_param_name(param) in existing:
+            continue
+        target_row = 2
+        while ws.cell(row=target_row, column=parameter_col).value not in (None, ""):
+            target_row += 1
+        ws.cell(row=target_row, column=parameter_col, value=param)
+        ws.cell(row=target_row, column=value_col, value="")
+
+
+def get_parametrage_headers():
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    wb = None
+    try:
+        changed = False
+        if not os.path.exists(HOTEL_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = PARAMETRAGE_SHEET_NAME
+            changed = True
+        else:
+            wb = load_workbook(HOTEL_EXCEL_PATH)
+            if PARAMETRAGE_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(PARAMETRAGE_SHEET_NAME)
+                changed = True
+            else:
+                ws = wb[PARAMETRAGE_SHEET_NAME]
+
+        before_headers = _get_header_map(ws)
+        before_row_count = ws.max_row
+        header_map = _ensure_parametrage_sheet(ws)
+        _ensure_default_param_rows(ws, header_map)
+
+        after_headers = _get_header_map(ws)
+        if before_headers != after_headers or ws.max_row != before_row_count:
+            changed = True
+
+        if changed:
+            wb.save(HOTEL_EXCEL_PATH)
+        return list(PARAMETRAGE_DEFAULT_HEADERS)
+    except PermissionError:
+        try:
+            wb = load_workbook(HOTEL_EXCEL_PATH, data_only=True)
+            if PARAMETRAGE_SHEET_NAME not in wb.sheetnames:
+                return list(PARAMETRAGE_DEFAULT_HEADERS)
+
+            ws = wb[PARAMETRAGE_SHEET_NAME]
+            header_map = _get_header_map(ws)
+            parameter_col = _find_header_column(
+                header_map,
+                "parametre",
+                "paramètre",
+                "PARAMETRE",
+                "Parametre",
+                "Paramètre",
+            )
+            value_col = _find_header_column(
+                header_map,
+                "valeur",
+                "value",
+                "VALEUR",
+                "Valeur",
+                "Value",
+            )
+            if parameter_col and value_col:
+                return list(PARAMETRAGE_DEFAULT_HEADERS)
+            return []
+        except Exception:
+            return []
+    except Exception as e:
+        logger.error(f"Failed to load PARAMETRAGE headers: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_all_parametrages():
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    wb = None
+    try:
+        if not os.path.exists(HOTEL_EXCEL_PATH):
+            return []
+
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if PARAMETRAGE_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[PARAMETRAGE_SHEET_NAME]
+        header_map = _get_header_map(ws)
+        parameter_col = _find_header_column(
+            header_map,
+            "parametre",
+            "paramètre",
+            "PARAMETRE",
+            "Parametre",
+            "Paramètre",
+        )
+        value_col = _find_header_column(
+            header_map,
+            "valeur",
+            "value",
+            "VALEUR",
+            "Valeur",
+            "Value",
+        )
+        if not parameter_col or not value_col:
+            return []
+
+        rows = []
+        for row in range(2, ws.max_row + 1):
+            parameter = ws.cell(row=row, column=parameter_col).value
+            value = ws.cell(row=row, column=value_col).value
+            if parameter in (None, "") and value in (None, ""):
+                continue
+            rows.append(
+                {
+                    "row_number": row,
+                    "PARAMETRE": "" if parameter is None else str(parameter).strip(),
+                    "VALEUR": "" if value is None else value,
+                }
+            )
+
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load PARAMETRAGE rows: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_parametrage_to_excel(form_data):
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    wb = None
+    try:
+        if not os.path.exists(HOTEL_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = PARAMETRAGE_SHEET_NAME
+        else:
+            wb = load_workbook(HOTEL_EXCEL_PATH)
+            if PARAMETRAGE_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(PARAMETRAGE_SHEET_NAME)
+            else:
+                ws = wb[PARAMETRAGE_SHEET_NAME]
+
+        header_map = _ensure_parametrage_sheet(ws)
+        _ensure_default_param_rows(ws, header_map)
+
+        parameter_col = _find_header_column(
+            header_map,
+            "parametre",
+            "paramètre",
+            "PARAMETRE",
+            "Parametre",
+            "Paramètre",
+        )
+        value_col = _find_header_column(
+            header_map,
+            "valeur",
+            "value",
+            "VALEUR",
+            "Valeur",
+            "Value",
+        )
+        if not parameter_col or not value_col:
+            return -1
+
+        parameter = str(form_data.get("PARAMETRE", "")).strip()
+        value = form_data.get("VALEUR", "")
+        if not parameter:
+            return -1
+
+        normalized_parameter = _normalize_param_name(parameter)
+
+        target_row = None
+        for row in range(2, ws.max_row + 1):
+            current = ws.cell(row=row, column=parameter_col).value
+            if _normalize_param_name(current) == normalized_parameter:
+                target_row = row
+                break
+
+        if target_row is None:
+            target_row = 2
+            while ws.cell(row=target_row, column=parameter_col).value not in (None, ""):
+                target_row += 1
+
+        ws.cell(row=target_row, column=parameter_col, value=parameter)
+        ws.cell(row=target_row, column=value_col, value=value)
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return target_row
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save PARAMETRAGE row: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def update_parametrage_in_excel(row_number, form_data):
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return -1
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if PARAMETRAGE_SHEET_NAME not in wb.sheetnames:
+            return -1
+
+        ws = wb[PARAMETRAGE_SHEET_NAME]
+        header_map = _ensure_parametrage_sheet(ws)
+        parameter_col = _find_header_column(
+            header_map,
+            "parametre",
+            "paramètre",
+            "PARAMETRE",
+            "Parametre",
+            "Paramètre",
+        )
+        value_col = _find_header_column(
+            header_map,
+            "valeur",
+            "value",
+            "VALEUR",
+            "Valeur",
+            "Value",
+        )
+        if not parameter_col or not value_col:
+            return -1
+
+        ws.cell(row=row_number, column=parameter_col, value=form_data.get("PARAMETRE", ""))
+        ws.cell(row=row_number, column=value_col, value=form_data.get("VALEUR", ""))
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return 0
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to update PARAMETRAGE row {row_number}: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def delete_parametrage_from_excel(row_number):
+    if not OPENPYXL_AVAILABLE:
+        return False
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return False
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if PARAMETRAGE_SHEET_NAME not in wb.sheetnames:
+            return False
+
+        ws = wb[PARAMETRAGE_SHEET_NAME]
+        ws.delete_rows(row_number)
+        wb.save(HOTEL_EXCEL_PATH)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete PARAMETRAGE row {row_number}: {e}", exc_info=True)
+        return False
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def _resolve_transport_source_header_map(ws):
+    header_map = _get_header_map(ws, 1)
+    prestataire_col = _find_header_column(header_map, "Prestataire")
+    type_col = _find_header_column(header_map, "Type de voiture", "Type voiture")
+    if prestataire_col and type_col:
+        return header_map, 2
+
+    header_map = _get_header_map(ws, 2)
+    prestataire_col = _find_header_column(header_map, "Prestataire")
+    type_col = _find_header_column(header_map, "Type de voiture", "Type voiture")
+    if prestataire_col and type_col:
+        return header_map, 3
+
+    return {}, 2
+
+
+def _load_transport_source_rows():
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH, data_only=True)
+        if TRANSPORT_SOURCE_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[TRANSPORT_SOURCE_SHEET_NAME]
+        header_map, data_start_row = _resolve_transport_source_header_map(ws)
+        if not header_map:
+            return []
+
+        prestataire_col = _find_header_column(header_map, "Prestataire")
+        type_col = _find_header_column(header_map, "Type de voiture", "Type voiture")
+        place_col = _find_header_column(header_map, "Nombre de place", "Nombre places", "Places")
+        location_col = _find_header_column(header_map, "Location par jour", "Location/jour")
+        consommation_col = _find_header_column(
+            header_map,
+            "Consommation",
+            "CONSOMATION",
+            "Consomation",
+            "CONSO",
+            "Conso",
+        )
+        energie_col = _find_header_column(header_map, "ENERGIE", "Energie")
+
+        rows = []
+        for row in range(data_start_row, ws.max_row + 1):
+            prestataire = ws.cell(row=row, column=prestataire_col).value if prestataire_col else None
+            type_voiture = ws.cell(row=row, column=type_col).value if type_col else None
+            if not prestataire and not type_voiture:
+                continue
+
+            rows.append(
+                {
+                    "prestataire": str(prestataire or "").strip(),
+                    "type_voiture": str(type_voiture or "").strip(),
+                    "nombre_place": _parse_num(ws.cell(row=row, column=place_col).value) if place_col else 0,
+                    "location_par_jour": _parse_num(ws.cell(row=row, column=location_col).value) if location_col else 0,
+                    "consommation": _parse_num(ws.cell(row=row, column=consommation_col).value) if consommation_col else 0,
+                    "energie": str(ws.cell(row=row, column=energie_col).value or "").strip() if energie_col else "",
+                }
+            )
+
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load transport source rows: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def get_transport_prestataires():
+    values = {
+        row.get("prestataire")
+        for row in _load_transport_source_rows()
+        if row.get("prestataire")
+    }
+    return sorted(values)
+
+
+def get_transport_vehicle_types(prestataire=None):
+    rows = _load_transport_source_rows()
+    values = set()
+    for row in rows:
+        if prestataire and row.get("prestataire") != prestataire:
+            continue
+        vehicle = row.get("type_voiture")
+        if vehicle:
+            values.add(vehicle)
+    return sorted(values)
+
+
+def get_transport_vehicle_data(prestataire, type_voiture):
+    for row in _load_transport_source_rows():
+        if row.get("prestataire") == prestataire and row.get("type_voiture") == type_voiture:
+            return row
+    return {
+        "prestataire": str(prestataire or "").strip(),
+        "type_voiture": str(type_voiture or "").strip(),
+        "nombre_place": 0,
+        "location_par_jour": 0,
+        "consommation": 0,
+        "energie": "",
+    }
+
+
+def _load_km_mada_rows():
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH, data_only=True)
+        if KM_MADA_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[KM_MADA_SHEET_NAME]
+
+        def _resolve_columns(header_row):
+            header_map = _get_header_map(ws, header_row)
+            repere = _find_header_column(
+                header_map,
+                "REPERES",
+                "Reperes",
+                "Repères",
+                "REPERE",
+                "Repere",
+            )
+            km = _find_header_column(
+                header_map,
+                "KM",
+                "KM TOTAL",
+                "KM PARTIEL",
+                "KMS",
+                "KILOMETRAGE",
+                "Kilometrage",
+                "Kilométrage",
+                "KILOMETRES",
+                "Kilometres",
+                "Kilomètres",
+                "Distance",
+            )
+            duree = _find_header_column(
+                header_map,
+                "Durée",
+                "Duree",
+                "Durée trajet",
+                "Duree trajet",
+                "Temps",
+                "Temps trajet",
+            )
+            return repere, km, duree
+
+        repere_col, km_col, duree_col = _resolve_columns(1)
+        data_start_row = 2
+        if not repere_col:
+            repere_col, km_col, duree_col = _resolve_columns(2)
+            data_start_row = 3
+
+        if not repere_col:
+            return []
+
+        rows = []
+        for row in range(data_start_row, ws.max_row + 1):
+            repere = ws.cell(row=row, column=repere_col).value
+            km = ws.cell(row=row, column=km_col).value if km_col else 0
+            duree = ws.cell(row=row, column=duree_col).value if duree_col else 0
+            if repere in (None, ""):
+                continue
+            rows.append(
+                {
+                    "repere": str(repere).strip(),
+                    "km": _parse_num(km),
+                    "duree": _parse_duration_hours(duree),
+                }
+            )
+
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load KM_MADA rows: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def get_km_mada_reperes():
+    values = {row.get("repere") for row in _load_km_mada_rows() if row.get("repere")}
+    return sorted(values)
+
+
+def get_km_mada_km_for_repere(repere):
+    lookup = str(repere or "").strip().lower()
+    if not lookup:
+        return 0
+
+    for row in _load_km_mada_rows():
+        if str(row.get("repere") or "").strip().lower() == lookup:
+            return _parse_num(row.get("km", 0))
+    return 0
+
+
+def get_km_mada_duration_for_repere(repere):
+    lookup = str(repere or "").strip().lower()
+    if not lookup:
+        return 0.0
+
+    for row in _load_km_mada_rows():
+        if str(row.get("repere") or "").strip().lower() == lookup:
+            return _parse_duration_hours(row.get("duree", 0))
+    return 0.0
+
+
+def get_parametrage_value_by_name(parameter_name):
+    target = _normalize_header_key(parameter_name)
+    if not target:
+        return 0
+
+    for row in load_all_parametrages():
+        name = _normalize_header_key(row.get("PARAMETRE"))
+        if name == target:
+            return _parse_num(row.get("VALEUR", 0))
+    return 0
+
+
+def get_transport_fuel_price(energie):
+    norm = _normalize_header_key(energie)
+    if not norm:
+        return 0
+
+    if "essence" in norm:
+        return get_parametrage_value_by_name("Prix Essence")
+    if "gasoil" in norm or "diesel" in norm:
+        return get_parametrage_value_by_name("Prix Gasoil")
+
+    return get_parametrage_value_by_name(energie)
+
+
+def get_transport_headers():
+    """Load header list from TRANSPORT sheet in data.xlsx (header row = 2)."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        if TRANSPORT_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[TRANSPORT_SHEET_NAME]
+        headers = []
+        for col in range(1, ws.max_column + 1):
+            value = ws.cell(row=2, column=col).value
+            if value is None:
+                continue
+            label = str(value).strip()
+            if label:
+                headers.append(label)
+        return headers
+    except Exception as e:
+        logger.error(f"Failed to load TRANSPORT headers: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_transport_quotation_to_excel(form_data):
+    """
+    Save transport quotation row into data.xlsx/TRANSPORT.
+
+    - Header row: 2
+    - Data starts at row: 3
+    """
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    wb = None
+    try:
+        if not os.path.exists(CLIENT_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = TRANSPORT_SHEET_NAME
+        else:
+            wb = load_workbook(CLIENT_EXCEL_PATH)
+            if TRANSPORT_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(TRANSPORT_SHEET_NAME)
+            else:
+                ws = wb[TRANSPORT_SHEET_NAME]
+
+        headers = []
+        for col in range(1, ws.max_column + 1):
+            value = ws.cell(row=2, column=col).value
+            if value is None:
+                continue
+            label = str(value).strip()
+            if label:
+                headers.append(label)
+
+        if not headers:
+            headers = list(form_data.keys())
+            for col, header in enumerate(headers, start=1):
+                cell = ws.cell(row=2, column=col)
+                cell.value = header
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.fill = PatternFill(
+                    start_color="4472C4", end_color="4472C4", fill_type="solid"
+                )
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        header_map = {header: index for index, header in enumerate(headers, start=1)}
+
+        first_col = 1
+        next_row = 3
+        while ws.cell(row=next_row, column=first_col).value not in (None, ""):
+            next_row += 1
+
+        for header, col in header_map.items():
+            ws.cell(row=next_row, column=col, value=form_data.get(header, ""))
+
+        wb.save(CLIENT_EXCEL_PATH)
+        return next_row
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save transport quotation: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_all_transport_quotations():
+    """Load all transport quotation rows from data.xlsx/TRANSPORT (data starts at row 3)."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        if TRANSPORT_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[TRANSPORT_SHEET_NAME]
+        headers = get_transport_headers()
+        if not headers:
+            return []
+
+        rows = []
+        for row_index in range(3, ws.max_row + 1):
+            row_dict = {"row_number": row_index}
+            has_values = False
+            for col_index, header in enumerate(headers, start=1):
+                value = ws.cell(row=row_index, column=col_index).value
+                if value not in (None, ""):
+                    has_values = True
+                row_dict[header] = "" if value is None else value
+            if has_values:
+                rows.append(row_dict)
+
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load transport quotations: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def update_transport_quotation_in_excel(row_number, form_data):
+    """Update one transport quotation row in data.xlsx/TRANSPORT."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return -1
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        if TRANSPORT_SHEET_NAME not in wb.sheetnames:
+            return -1
+
+        ws = wb[TRANSPORT_SHEET_NAME]
+        headers = get_transport_headers()
+
+        for col_idx, header in enumerate(headers, start=1):
+            ws.cell(row=row_number, column=col_idx, value=form_data.get(header, ""))
+
+        wb.save(CLIENT_EXCEL_PATH)
+        return 0
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to update transport row {row_number}: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def delete_transport_from_excel(row_number):
+    """Delete one transport quotation row from data.xlsx/TRANSPORT."""
+    if not OPENPYXL_AVAILABLE:
+        return False
+
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return False
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        if TRANSPORT_SHEET_NAME not in wb.sheetnames:
+            return False
+
+        ws = wb[TRANSPORT_SHEET_NAME]
+        ws.delete_rows(row_number)
+        wb.save(CLIENT_EXCEL_PATH)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete transport row {row_number}: {e}", exc_info=True)
+        return False
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def get_transport_db_headers():
+    """Load header list from data-hotel.xlsx / TRANSPORT (source DB)."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if TRANSPORT_SOURCE_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[TRANSPORT_SOURCE_SHEET_NAME]
+        header_map, _data_start = _resolve_transport_source_header_map(ws)
+        if not header_map:
+            return []
+        return list(header_map.keys())
+    except Exception as e:
+        logger.error(f"Failed to load transport DB headers: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_transport_db_rows():
+    """Load raw DB rows from data-hotel.xlsx / TRANSPORT (source DB)."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if TRANSPORT_SOURCE_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[TRANSPORT_SOURCE_SHEET_NAME]
+        header_map, data_start_row = _resolve_transport_source_header_map(ws)
+        if not header_map:
+            return []
+
+        headers = list(header_map.keys())
+        rows = []
+        for row_idx in range(data_start_row, ws.max_row + 1):
+            row_dict = {"row_number": row_idx}
+            has_values = False
+            for header in headers:
+                col = header_map[header]
+                value = ws.cell(row=row_idx, column=col).value
+                if value not in (None, ""):
+                    has_values = True
+                row_dict[header] = "" if value is None else value
+            if has_values:
+                rows.append(row_dict)
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load transport DB rows: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_transport_db_row(row_data):
+    """Save one row into data-hotel.xlsx / TRANSPORT (source DB)."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    wb = None
+    try:
+        if not os.path.exists(HOTEL_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = TRANSPORT_SOURCE_SHEET_NAME
+        else:
+            wb = load_workbook(HOTEL_EXCEL_PATH)
+            if TRANSPORT_SOURCE_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(TRANSPORT_SOURCE_SHEET_NAME)
+            else:
+                ws = wb[TRANSPORT_SOURCE_SHEET_NAME]
+
+        header_map, data_start_row = _resolve_transport_source_header_map(ws)
+        if not header_map:
+            headers = list(row_data.keys()) if row_data else []
+            if not headers:
+                return -1
+            for col_idx, header in enumerate(headers, start=1):
+                ws.cell(row=1, column=col_idx, value=header)
+            header_map = _get_header_map(ws, 1)
+            data_start_row = 2
+
+        headers = list(header_map.keys())
+        next_row = data_start_row
+        while True:
+            has_data = False
+            for header in headers:
+                col = header_map[header]
+                if ws.cell(row=next_row, column=col).value not in (None, ""):
+                    has_data = True
+                    break
+            if not has_data:
+                break
+            next_row += 1
+
+        for header in headers:
+            ws.cell(row=next_row, column=header_map[header], value=row_data.get(header, ""))
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return next_row
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save transport DB row: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def update_transport_db_row(row_number, row_data):
+    """Update one row in data-hotel.xlsx / TRANSPORT (source DB)."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return -1
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if TRANSPORT_SOURCE_SHEET_NAME not in wb.sheetnames:
+            return -1
+
+        ws = wb[TRANSPORT_SOURCE_SHEET_NAME]
+        header_map, _data_start_row = _resolve_transport_source_header_map(ws)
+        if not header_map:
+            return -1
+
+        for header, col in header_map.items():
+            ws.cell(row=row_number, column=col, value=row_data.get(header, ""))
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return 0
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to update transport DB row {row_number}: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def delete_transport_db_row(row_number):
+    """Delete one row from data-hotel.xlsx / TRANSPORT (source DB)."""
+    if not OPENPYXL_AVAILABLE:
+        return False
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return False
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if TRANSPORT_SOURCE_SHEET_NAME not in wb.sheetnames:
+            return False
+
+        ws = wb[TRANSPORT_SOURCE_SHEET_NAME]
+        ws.delete_rows(row_number)
+        wb.save(HOTEL_EXCEL_PATH)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete transport DB row {row_number}: {e}", exc_info=True)
+        return False
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def _resolve_km_mada_header_map(ws):
+    header_map = _get_header_map(ws, 1)
+    repere_col = _find_header_column(
+        header_map,
+        "REPERES",
+        "Reperes",
+        "Repères",
+        "REPERE",
+        "Repere",
+    )
+    if repere_col:
+        return header_map, 2
+
+    header_map = _get_header_map(ws, 2)
+    repere_col = _find_header_column(
+        header_map,
+        "REPERES",
+        "Reperes",
+        "Repères",
+        "REPERE",
+        "Repere",
+    )
+    if repere_col:
+        return header_map, 3
+
+    return {}, 2
+
+
+def get_km_mada_db_headers():
+    """Load header list from data-hotel.xlsx / KM_MADA."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if KM_MADA_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[KM_MADA_SHEET_NAME]
+        header_map, _data_start = _resolve_km_mada_header_map(ws)
+        if not header_map:
+            return []
+        return list(header_map.keys())
+    except Exception as e:
+        logger.error(f"Failed to load KM_MADA DB headers: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_km_mada_db_rows():
+    """Load raw DB rows from data-hotel.xlsx / KM_MADA."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if KM_MADA_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[KM_MADA_SHEET_NAME]
+        header_map, data_start_row = _resolve_km_mada_header_map(ws)
+        if not header_map:
+            return []
+
+        headers = list(header_map.keys())
+        rows = []
+        for row_idx in range(data_start_row, ws.max_row + 1):
+            row_dict = {"row_number": row_idx}
+            has_values = False
+            for header in headers:
+                col = header_map[header]
+                value = ws.cell(row=row_idx, column=col).value
+                if value not in (None, ""):
+                    has_values = True
+                row_dict[header] = "" if value is None else value
+            if has_values:
+                rows.append(row_dict)
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load KM_MADA DB rows: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_km_mada_db_row(row_data):
+    """Save one row into data-hotel.xlsx / KM_MADA."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    wb = None
+    try:
+        if not os.path.exists(HOTEL_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = KM_MADA_SHEET_NAME
+        else:
+            wb = load_workbook(HOTEL_EXCEL_PATH)
+            if KM_MADA_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(KM_MADA_SHEET_NAME)
+            else:
+                ws = wb[KM_MADA_SHEET_NAME]
+
+        header_map, data_start_row = _resolve_km_mada_header_map(ws)
+        if not header_map:
+            headers = list(row_data.keys()) if row_data else []
+            if not headers:
+                return -1
+            for col_idx, header in enumerate(headers, start=1):
+                ws.cell(row=1, column=col_idx, value=header)
+            header_map = _get_header_map(ws, 1)
+            data_start_row = 2
+
+        headers = list(header_map.keys())
+        next_row = data_start_row
+        while True:
+            has_data = False
+            for header in headers:
+                col = header_map[header]
+                if ws.cell(row=next_row, column=col).value not in (None, ""):
+                    has_data = True
+                    break
+            if not has_data:
+                break
+            next_row += 1
+
+        for header in headers:
+            ws.cell(row=next_row, column=header_map[header], value=row_data.get(header, ""))
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return next_row
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save KM_MADA DB row: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def update_km_mada_db_row(row_number, row_data):
+    """Update one row in data-hotel.xlsx / KM_MADA."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return -1
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if KM_MADA_SHEET_NAME not in wb.sheetnames:
+            return -1
+
+        ws = wb[KM_MADA_SHEET_NAME]
+        header_map, _data_start_row = _resolve_km_mada_header_map(ws)
+        if not header_map:
+            return -1
+
+        for header, col in header_map.items():
+            ws.cell(row=row_number, column=col, value=row_data.get(header, ""))
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return 0
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to update KM_MADA DB row {row_number}: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def delete_km_mada_db_row(row_number):
+    """Delete one row from data-hotel.xlsx / KM_MADA."""
+    if not OPENPYXL_AVAILABLE:
+        return False
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return False
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if KM_MADA_SHEET_NAME not in wb.sheetnames:
+            return False
+
+        ws = wb[KM_MADA_SHEET_NAME]
+        ws.delete_rows(row_number)
+        wb.save(HOTEL_EXCEL_PATH)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete KM_MADA DB row {row_number}: {e}", exc_info=True)
+        return False
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass

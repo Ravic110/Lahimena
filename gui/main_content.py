@@ -70,6 +70,32 @@ class MainContent:
             self._show_collective_expense_quotation()
         elif content_type == "collective_expense_summary":
             self._show_collective_expense_summary()
+        elif content_type == "collective_expense_page":
+            self._show_collective_expense_page()
+        elif content_type == "transport_page":
+            self._show_transport_page()
+        elif content_type == "transport_db_page":
+            self._show_transport_db_page()
+        elif content_type == "air_ticket_page":
+            self._show_air_ticket_page()
+        elif content_type == "air_ticket_quotation":
+            self._show_air_ticket_quotation()
+        elif content_type == "air_ticket_summary":
+            self._show_air_ticket_summary()
+        elif content_type == "air_ticket_db_list":
+            self._show_air_ticket_db_list()
+        elif content_type == "air_ticket_db_form":
+            self._show_air_ticket_db_form()
+        elif content_type == "collective_expense_db_list":
+            self._show_collective_expense_db_list()
+        elif content_type == "collective_expense_db_form":
+            self._show_collective_expense_db_form()
+        elif content_type == "visite_excursion_db_list":
+            self._show_visite_excursion_db_list()
+        elif content_type == "visite_excursion_db_form":
+            self._show_visite_excursion_db_form()
+        elif content_type == "parametrage_page":
+            self._show_parametrage_page()
         elif content_type in ("welcome", "home"):
             self._show_welcome()
         elif content_type in (
@@ -155,6 +181,12 @@ class MainContent:
 
         CollectiveExpenseQuotation(self.main_scroll)
 
+    def _show_collective_expense_page(self):
+        """Show combined collective expense page (form + summary)."""
+        from gui.forms.collective_expense_page import CollectiveExpensePage
+
+        CollectiveExpensePage(self.main_scroll)
+
     def _show_collective_expense_quotation_for_edit(self, data, row_number):
         """Show collective expense quotation form in edit mode"""
         from gui.forms.collective_expense_quotation import CollectiveExpenseQuotation
@@ -185,6 +217,154 @@ class MainContent:
             self.main_scroll,
             callback_edit=self._show_collective_expense_quotation_for_edit,
             callback_add=self._on_add_collective_expense,
+        )
+
+    def _show_air_ticket_quotation(self):
+        """Show air ticket quotation form."""
+        from gui.forms.air_ticket_quotation import AirTicketQuotation
+
+        AirTicketQuotation(self.main_scroll)
+
+    def _show_air_ticket_page(self):
+        """Show combined air ticket page (form + summary)."""
+        from gui.forms.air_ticket_page import AirTicketPage
+
+        AirTicketPage(self.main_scroll)
+
+    def _show_air_ticket_quotation_for_edit(self, data, row_number):
+        """Show air ticket quotation in edit mode."""
+        from gui.forms.air_ticket_quotation import AirTicketQuotation
+
+        def on_edit_done():
+            self.update_content("air_ticket_summary")
+
+        AirTicketQuotation(
+            self.main_scroll,
+            edit_data=data,
+            row_number=row_number,
+            callback_on_done=on_edit_done,
+        )
+
+    def _on_add_air_ticket(self):
+        """Navigate to add air ticket form."""
+        self.update_content("air_ticket_page")
+
+    def _show_air_ticket_summary(self):
+        """Show air ticket quotation summary."""
+        from gui.forms.air_ticket_quotation_summary import AirTicketQuotationSummary
+
+        AirTicketQuotationSummary(
+            self.main_scroll,
+            callback_edit=self._show_air_ticket_quotation_for_edit,
+            callback_add=self._on_add_air_ticket,
+        )
+
+    def _show_transport_page(self):
+        """Show combined transport page (form + summary)."""
+        from gui.forms.transport_page import TransportPage
+
+        TransportPage(self.main_scroll)
+
+    def _show_transport_db_page(self):
+        """Show transport DB management page."""
+        from gui.forms.transport_db_page import TransportDBPage
+
+        TransportDBPage(self.main_scroll)
+
+    def _show_parametrage_page(self):
+        """Show combined parameter page (form + summary)."""
+        from gui.forms.parametrage_page import ParametragePage
+
+        ParametragePage(self.main_scroll)
+
+    def _show_collective_expense_db_form(self, row_to_edit=None, row_number=None):
+        """Show collective expense DB form."""
+        from gui.forms.collective_expense_db_form import CollectiveExpenseDBForm
+
+        def on_done():
+            self.update_content("collective_expense_db_list")
+
+        CollectiveExpenseDBForm(
+            self.main_scroll,
+            edit_data=row_to_edit,
+            row_number=row_number,
+            callback_on_done=on_done,
+        )
+
+    def _show_collective_expense_db_list(self):
+        """Show collective expense DB list."""
+        from gui.forms.collective_expense_db_list import CollectiveExpenseDBList
+
+        def on_edit(row_data, row_number):
+            self._show_collective_expense_db_form(row_data, row_number)
+
+        def on_new():
+            self._show_collective_expense_db_form()
+
+        CollectiveExpenseDBList(
+            self.main_scroll,
+            on_edit_row=on_edit,
+            on_new_row=on_new,
+        )
+
+    def _show_air_ticket_db_form(self, row_to_edit=None, row_number=None):
+        """Show air ticket DB form."""
+        from gui.forms.air_ticket_db_form import AirTicketDBForm
+
+        def on_done():
+            self.update_content("air_ticket_db_list")
+
+        AirTicketDBForm(
+            self.main_scroll,
+            edit_data=row_to_edit,
+            row_number=row_number,
+            callback_on_done=on_done,
+        )
+
+    def _show_air_ticket_db_list(self):
+        """Show air ticket DB list."""
+        from gui.forms.air_ticket_db_list import AirTicketDBList
+
+        def on_edit(row_data, row_number):
+            self._show_air_ticket_db_form(row_data, row_number)
+
+        def on_new():
+            self._show_air_ticket_db_form()
+
+        AirTicketDBList(
+            self.main_scroll,
+            on_edit_row=on_edit,
+            on_new_row=on_new,
+        )
+
+    def _show_visite_excursion_db_form(self, row_to_edit=None, row_number=None):
+        """Show visite & excursion DB form."""
+        from gui.forms.visite_excursion_db_form import VisiteExcursionDBForm
+
+        def on_done():
+            self.update_content("visite_excursion_db_list")
+
+        VisiteExcursionDBForm(
+            self.main_scroll,
+            edit_data=row_to_edit,
+            row_number=row_number,
+            callback_on_done=on_done,
+        )
+
+    def _show_visite_excursion_db_list(self):
+        """Show visite & excursion DB list."""
+        from gui.forms.visite_excursion_db_list import VisiteExcursionDBList
+
+        def on_edit(row_data, row_number):
+            self._show_visite_excursion_db_form(row_data, row_number)
+
+        def on_new():
+            self._show_visite_excursion_db_form()
+
+        VisiteExcursionDBList(
+            self.main_scroll,
+            on_edit_row=on_edit,
+            on_new_row=on_new,
         )
 
     def _show_placeholder(self, content_type):

@@ -1,9 +1,9 @@
 """
-Collective expense quotations summary GUI component
+Visite & Excursion quotations summary GUI component
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox, ttk
 
 from config import (
     ACCENT_TEXT_COLOR,
@@ -19,36 +19,33 @@ from config import (
     TEXT_COLOR,
     TITLE_FONT,
 )
-from utils.excel_handler import load_all_collective_expense_quotations
+from utils.excel_handler import (
+    delete_visite_excursion_from_excel,
+    load_all_visite_excursion_quotations,
+)
 from utils.logger import logger
 
 
-class CollectiveExpenseQuotationSummary:
-    """
-    Display list/summary for collective expense quotations.
-    """
+class VisiteExcursionQuotationSummary:
+    """Display list/summary for visite & excursion quotations."""
 
     def __init__(self, parent, callback_edit=None, callback_add=None):
         self.parent = parent
         self.rows = []
         self.search_var = tk.StringVar()
         self.view_var = tk.StringVar(value="Toutes les lignes")
-        self.selected_row_index = None
         self.tree = None
-        self.callback_edit = callback_edit  # Function to call when editing
-        self.callback_add = callback_add  # Function to call when adding
+        self.callback_edit = callback_edit
+        self.callback_add = callback_add
 
         self._load_rows()
         self._create_interface()
 
     def _load_rows(self):
         try:
-            self.rows = load_all_collective_expense_quotations()
-            logger.info(f"Loaded {len(self.rows)} collective expense quotations")
+            self.rows = load_all_visite_excursion_quotations()
         except Exception as e:
-            logger.error(
-                f"Error loading collective expense quotations: {e}", exc_info=True
-            )
+            logger.error(f"Error loading visite & excursion quotations: {e}", exc_info=True)
             self.rows = []
 
     def _normalize(self, value):
@@ -57,23 +54,9 @@ class CollectiveExpenseQuotationSummary:
     def _guess_amount_headers(self):
         if not self.rows:
             return []
-
         headers = [key for key in self.rows[0].keys() if key != "row_number"]
-        amount_keywords = [
-            "montant",
-            "total",
-            "prix",
-            "cout",
-            "coût",
-            "amount",
-            "price",
-            "cost",
-        ]
-        return [
-            header
-            for header in headers
-            if any(keyword in self._normalize(header) for keyword in amount_keywords)
-        ]
+        keywords = ["montant", "total", "prix", "tarif", "amount", "price", "cost"]
+        return [h for h in headers if any(k in self._normalize(h) for k in keywords)]
 
     def _to_number(self, value):
         try:
@@ -98,14 +81,11 @@ class CollectiveExpenseQuotationSummary:
         if not self.rows:
             return None
         headers = [key for key in self.rows[0].keys() if key != "row_number"]
-        preferred = ["Référence", "Reference", "ID", "Ref"]
+        preferred = ["Référence", "Reference", "ID", "Ref", "ID_CLIENT"]
         for pref in preferred:
             for header in headers:
                 if self._normalize(pref) == self._normalize(header):
                     return header
-        for header in headers:
-            if "ref" in self._normalize(header):
-                return header
         return headers[0] if headers else None
 
     def _create_interface(self):
@@ -114,7 +94,7 @@ class CollectiveExpenseQuotationSummary:
 
         title = tk.Label(
             self.parent,
-            text="RÉSUMÉ COTATIONS FRAIS COLLECTIFS",
+            text="RÉSUMÉ COTATIONS VISITE & EXCURSION",
             font=TITLE_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
@@ -127,14 +107,7 @@ class CollectiveExpenseQuotationSummary:
         top_controls = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
         top_controls.pack(fill="x", padx=8, pady=(0, 10))
 
-        tk.Label(
-            top_controls,
-            text="Vue:",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(side="left")
-
+        tk.Label(top_controls, text="Vue:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).pack(side="left")
         view_combo = ttk.Combobox(
             top_controls,
             textvariable=self.view_var,
@@ -146,14 +119,7 @@ class CollectiveExpenseQuotationSummary:
         view_combo.pack(side="left", padx=(8, 16))
         view_combo.bind("<<ComboboxSelected>>", self._refresh_display)
 
-        tk.Label(
-            top_controls,
-            text="Recherche:",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(side="left")
-
+        tk.Label(top_controls, text="Recherche:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).pack(side="left")
         search_entry = tk.Entry(
             top_controls,
             textvariable=self.search_var,
@@ -176,7 +142,6 @@ class CollectiveExpenseQuotationSummary:
             pady=4,
         ).pack(side="left")
 
-        # Management buttons bar
         action_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
         action_frame.pack(fill="x", padx=8, pady=(0, 10))
 
@@ -235,86 +200,64 @@ class CollectiveExpenseQuotationSummary:
         self._refresh_display()
 
     def _on_add_clicked(self):
-        """Open form for adding new quotation"""
         if self.callback_add:
             self.callback_add()
-        logger.info("Add quotation clicked")
 
     def _on_edit_clicked(self):
-        """Open form for editing selected quotation"""
         if self.tree is None:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne avant de la modifier.")
+            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à modifier.")
             return
-        
         selection = self.tree.selection()
         if not selection:
             messagebox.showwarning("Info", "Veuillez sélectionner une ligne à modifier.")
             return
-        
-        # Get the selected item (it's an iid from tree.selection())
+
         selected_item = selection[0]
-        
-        # Find the corresponding row based on the tree item
-        try:
-            filtered_rows = self._filtered_rows()
-            # tree.get_children() returns items in order, so get the index
-            all_items = self.tree.get_children()
-            item_index = all_items.index(selected_item)
-            
-            if 0 <= item_index < len(filtered_rows):
-                selected_row = filtered_rows[item_index]
-                row_number = selected_row.get("row_number")
-                
-                if self.callback_edit and row_number is not None:
-                    self.callback_edit(selected_row, row_number)
-                    logger.info(f"Edit quotation row {row_number}")
-        except Exception as e:
-            logger.error(f"Error editing quotation: {e}", exc_info=True)
-            messagebox.showerror("Erreur", "Impossible de modifier la cotation sélectionnée.")
+        filtered_rows = self._filtered_rows()
+        all_items = self.tree.get_children()
+        if selected_item not in all_items:
+            return
+        item_index = all_items.index(selected_item)
+
+        if 0 <= item_index < len(filtered_rows):
+            selected_row = filtered_rows[item_index]
+            row_number = selected_row.get("row_number")
+            if self.callback_edit and row_number is not None:
+                self.callback_edit(selected_row, row_number)
 
     def _on_delete_clicked(self):
-        """Delete selected quotation"""
         if self.tree is None:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne avant de la supprimer.")
+            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à supprimer.")
             return
-        
         selection = self.tree.selection()
         if not selection:
             messagebox.showwarning("Info", "Veuillez sélectionner une ligne à supprimer.")
             return
-        
+
         confirm = messagebox.askyesno(
             "Confirmation",
-            "Êtes-vous sûr de vouloir supprimer cette cotation ?\n\nCette action ne peut pas être annulée."
+            "Êtes-vous sûr de vouloir supprimer cette cotation ?\n\nCette action ne peut pas être annulée.",
         )
         if not confirm:
             return
-        
-        try:
-            from utils.excel_handler import delete_collective_expense_from_excel
-            
-            selected_item = selection[0]
-            filtered_rows = self._filtered_rows()
-            all_items = self.tree.get_children()
-            item_index = all_items.index(selected_item)
-            
-            if 0 <= item_index < len(filtered_rows):
-                selected_row = filtered_rows[item_index]
-                row_number = selected_row.get("row_number")
-                
-                if row_number is not None:
-                    success = delete_collective_expense_from_excel(row_number)
-                    if success:
-                        messagebox.showinfo("Succès", "Cotation supprimée avec succès.")
-                        self._on_refresh_clicked()
-                    else:
-                        messagebox.showerror(
-                            "Erreur",
-                            "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert."
-                        )
-        except Exception as e:
-            logger.error(f"Error deleting quotation: {e}", exc_info=True)
-            messagebox.showerror("Erreur", "Erreur lors de la suppression.")
+
+        selected_item = selection[0]
+        filtered_rows = self._filtered_rows()
+        all_items = self.tree.get_children()
+        if selected_item not in all_items:
+            return
+        item_index = all_items.index(selected_item)
+
+        if 0 <= item_index < len(filtered_rows):
+            selected_row = filtered_rows[item_index]
+            row_number = selected_row.get("row_number")
+            if row_number is not None:
+                success = delete_visite_excursion_from_excel(row_number)
+                if success:
+                    messagebox.showinfo("Succès", "Cotation supprimée avec succès.")
+                    self._on_refresh_clicked()
+                else:
+                    messagebox.showerror("Erreur", "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert.")
 
     def _matches_query(self, row, query):
         if not query:
@@ -430,9 +373,7 @@ class CollectiveExpenseQuotationSummary:
             if key not in grouped:
                 grouped[key] = {"count": 0, "total": 0.0}
             grouped[key]["count"] += 1
-            grouped[key]["total"] += sum(
-                self._to_number(row.get(header, 0)) for header in amount_headers
-            )
+            grouped[key]["total"] += sum(self._to_number(row.get(header, 0)) for header in amount_headers)
 
         columns = ["Référence", "Nombre", "Total"]
         self.tree = ttk.Treeview(self.content_frame, columns=columns, show="headings", selectmode="browse")
@@ -441,11 +382,7 @@ class CollectiveExpenseQuotationSummary:
             self.tree.column(col, width=220 if col == "Référence" else 120, anchor="w")
 
         for ref_value, data in sorted(grouped.items()):
-            self.tree.insert(
-                "",
-                "end",
-                values=(ref_value, data["count"], f"{data['total']:,.2f}"),
-            )
+            self.tree.insert("", "end", values=(ref_value, data["count"], f"{data['total']:,.2f}"))
 
         scrollbar_y = ttk.Scrollbar(self.content_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar_y.set)

@@ -4,15 +4,11 @@ Interface principale de l'application comptable
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import pandas as pd
-import sys
 import os
 
-# Ajout du chemin parent pour les imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from config import CONFIG
-from models.data import DataManager, PCGManager
-from utils.formatters import format_montant
+from finances.tsarakonta.config import CONFIG
+from finances.tsarakonta.models.data import DataManager, PCGManager
+from finances.tsarakonta.utils.formatters import format_montant
 from .dialogs import DialogueLigne
 from .etat_resultat import CompteResultatNatureWindow
 from .etat_resultat_fonction import CompteResultatFonctionWindow
@@ -45,8 +41,16 @@ class ComptabiliteApp(tk.Frame):
     # ==================== MENUS ====================
     def creer_menu(self):
         """Crée la barre de menu"""
-        menubar = tk.Menu(self.master)
-        self.master.config(menu=menubar)
+        menu_target = self.master
+        if not isinstance(menu_target, (tk.Tk, tk.Toplevel)):
+            menu_target = self.winfo_toplevel()
+        self._menu_parent = menu_target
+
+        menubar = tk.Menu(self._menu_parent)
+        try:
+            self._menu_parent.configure(menu=menubar)
+        except Exception:
+            return
         
         menubar.add_cascade(label="Fichier", menu=self.creer_menu_fichier())
         # états financiers handled via accueil page dropdown
@@ -54,7 +58,7 @@ class ComptabiliteApp(tk.Frame):
     
     def creer_menu_fichier(self):
         """Crée le menu Fichier"""
-        menu = tk.Menu(self.master, tearoff=0)
+        menu = tk.Menu(getattr(self, "_menu_parent", self.master), tearoff=0)
         # Paramétrage (entête société)
         menu.add_command(label="Paramétrage", command=lambda: SettingsWindow(self.master))
         # Ouvrir le dossier d'exports
@@ -74,7 +78,7 @@ class ComptabiliteApp(tk.Frame):
     
     def creer_menu_etats(self):
         """Crée le menu États Financiers"""
-        menu = tk.Menu(self.master, tearoff=0)
+        menu = tk.Menu(getattr(self, "_menu_parent", self.master), tearoff=0)
         for etat in CONFIG['etats_financiers']:
             menu.add_command(label=etat, command=lambda e=etat: self.afficher_etat(e))
         menu.add_separator()
@@ -83,13 +87,13 @@ class ComptabiliteApp(tk.Frame):
 
     def creer_menu_grand_livre(self):
         """Crée le sous-menu Grand Livre"""
-        menu = tk.Menu(self.master, tearoff=0)
+        menu = tk.Menu(getattr(self, "_menu_parent", self.master), tearoff=0)
         menu.add_command(label="Grand Livre comptable", command=self.afficher_grand_livre)
         return menu
 
     def creer_menu_ratios(self):
         """Crée le menu Ratios"""
-        menu = tk.Menu(self.master, tearoff=0)
+        menu = tk.Menu(getattr(self, "_menu_parent", self.master), tearoff=0)
         menu.add_command(
             label="Ratio Compte de résultat par nature",
             command=lambda: self.afficher_ratio("Ratio Compte de résultat par nature")
