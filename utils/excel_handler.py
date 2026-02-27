@@ -17,6 +17,7 @@ from datetime import datetime, time, timedelta
 
 from config import (
     CLIENT_EXCEL_PATH,
+    FINANCIAL_EXCEL_PATH,
     CLIENT_INFOS_SHEET_NAME,
     CLIENT_SHEET_NAME,
     COTATION_FRAIS_COL_SHEET_NAME,
@@ -32,6 +33,8 @@ from config import (
     TRANSPORT_SHEET_NAME,
     KM_MADA_SHEET_NAME,
     PARAMETRAGE_SHEET_NAME,
+    INVOICE_SHEET_NAME,
+    FINANCIAL_STATE_SHEET_NAME,
 )
 from utils.cache import (
     cached_client_data,
@@ -4785,6 +4788,472 @@ def delete_km_mada_db_row(row_number):
     except Exception as e:
         logger.error(f"Failed to delete KM_MADA DB row {row_number}: {e}", exc_info=True)
         return False
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+INVOICE_STATUS_UNPAID = "non payée"
+INVOICE_STATUS_PARTIAL = "payée avec acompte"
+INVOICE_STATUS_PAID = "payée"
+INVOICE_STATUSES = (
+    INVOICE_STATUS_UNPAID,
+    INVOICE_STATUS_PARTIAL,
+    INVOICE_STATUS_PAID,
+)
+
+
+INVOICE_HEADERS = [
+    "Date",
+    "ID_Facture",
+    "Source_Type",
+    "Source_Ref",
+    "Client_ID",
+    "Client_Nom",
+    "Devise",
+    "Montant_HT",
+    "Cout_HT",
+    "Marge_%", 
+    "Marge_Montant",
+    "Base_Taxable_HT",
+    "TVA_%",
+    "TVA_Montant",
+    "Total_TTC",
+    "Acompte",
+    "Reste_A_Payer",
+    "Statut",
+]
+
+
+FINANCIAL_STATE_HEADERS = [
+    "Date_MAJ",
+    "Nb_Factures",
+    "CA_HT",
+    "Marge_Totale",
+    "TVA_Totale",
+    "CA_TTC",
+    "Acomptes_Recus",
+    "Encaissements_Estimes",
+    "Restes_A_Encaisser",
+    "Nb_Payees",
+    "Nb_Payees_Avec_Acompte",
+    "Nb_Non_Payees",
+]
+
+
+def _safe_float(value):
+    return float(_parse_num(value))
+
+
+def _normalize_invoice_status(status, total_ttc=0.0, acompte=0.0):
+    normalized = _normalize_header_key(status)
+    if normalized == _normalize_header_key(INVOICE_STATUS_PAID):
+        return INVOICE_STATUS_PAID
+    if normalized == _normalize_header_key(INVOICE_STATUS_PARTIAL):
+        return INVOICE_STATUS_PARTIAL
+    if normalized == _normalize_header_key(INVOICE_STATUS_UNPAID):
+        return INVOICE_STATUS_UNPAID
+
+    if total_ttc <= 0:
+        return INVOICE_STATUS_UNPAID
+    if acompte >= total_ttc:
+        return INVOICE_STATUS_PAID
+    if acompte > 0:
+        return INVOICE_STATUS_PARTIAL
+    return INVOICE_STATUS_UNPAID
+
+
+def calculate_invoice_totals(
+    montant_ht,
+    cout_ht=0,
+    marge_pct=0,
+    tva_pct=0,
+    acompte=0,
+    statut="",
+):
+    """Compute invoice totals with margin and VAT."""
+    montant_ht = max(0.0, _safe_float(montant_ht))
+    cout_ht = max(0.0, _safe_float(cout_ht))
+    marge_pct = max(0.0, _safe_float(marge_pct))
+    tva_pct = max(0.0, _safe_float(tva_pct))
+    acompte = max(0.0, _safe_float(acompte))
+
+    marge_montant = montant_ht * (marge_pct / 100.0)
+    if marge_montant == 0 and cout_ht > 0:
+        marge_montant = max(0.0, montant_ht - cout_ht)
+
+    base_taxable_ht = montant_ht + marge_montant
+    tva_montant = base_taxable_ht * (tva_pct / 100.0)
+    total_ttc = base_taxable_ht + tva_montant
+
+    if acompte > total_ttc:
+        acompte = total_ttc
+    reste = max(0.0, total_ttc - acompte)
+    normalized_status = _normalize_invoice_status(statut, total_ttc=total_ttc, acompte=acompte)
+
+    if normalized_status == INVOICE_STATUS_PAID:
+        acompte = total_ttc
+        reste = 0.0
+    elif normalized_status == INVOICE_STATUS_UNPAID:
+        acompte = 0.0
+        reste = total_ttc
+
+    return {
+        "Montant_HT": montant_ht,
+        "Cout_HT": cout_ht,
+        "Marge_%": marge_pct,
+        "Marge_Montant": marge_montant,
+        "Base_Taxable_HT": base_taxable_ht,
+        "TVA_%": tva_pct,
+        "TVA_Montant": tva_montant,
+        "Total_TTC": total_ttc,
+        "Acompte": acompte,
+        "Reste_A_Payer": reste,
+        "Statut": normalized_status,
+    }
+
+
+def _ensure_invoice_sheet(wb):
+    if INVOICE_SHEET_NAME not in wb.sheetnames:
+        ws = wb.create_sheet(INVOICE_SHEET_NAME)
+    else:
+        ws = wb[INVOICE_SHEET_NAME]
+
+    if ws.max_row == 1 and ws["A1"].value is None:
+        for col, header in enumerate(INVOICE_HEADERS, start=1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill(
+                start_color="4472C4", end_color="4472C4", fill_type="solid"
+            )
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+    else:
+        _ensure_headers(ws, INVOICE_HEADERS)
+
+    return ws
+
+
+def _ensure_financial_state_sheet(wb):
+    if FINANCIAL_STATE_SHEET_NAME not in wb.sheetnames:
+        ws = wb.create_sheet(FINANCIAL_STATE_SHEET_NAME)
+    else:
+        ws = wb[FINANCIAL_STATE_SHEET_NAME]
+
+    if ws.max_row == 1 and ws["A1"].value is None:
+        for col, header in enumerate(FINANCIAL_STATE_HEADERS, start=1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill(
+                start_color="1F4E78", end_color="1F4E78", fill_type="solid"
+            )
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+    else:
+        _ensure_headers(ws, FINANCIAL_STATE_HEADERS)
+
+    return ws
+
+
+def _next_invoice_id(ws):
+    max_num = 0
+    for row_idx in range(2, ws.max_row + 1):
+        value = ws.cell(row=row_idx, column=2).value
+        if not value:
+            continue
+        match = re.search(r"(\d+)$", str(value).strip())
+        if match:
+            max_num = max(max_num, int(match.group(1)))
+    return f"FAC-{datetime.now().strftime('%Y%m')}-{max_num + 1:04d}"
+
+
+def save_invoice_to_excel(invoice_data):
+    """Create an invoice and automatically refresh the financial state."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    wb = None
+    try:
+        if not os.path.exists(FINANCIAL_EXCEL_PATH):
+            wb = Workbook()
+            ws_default = wb.active
+            ws_default.title = INVOICE_SHEET_NAME
+        else:
+            wb = load_workbook(FINANCIAL_EXCEL_PATH)
+
+        ws = _ensure_invoice_sheet(wb)
+        calculations = calculate_invoice_totals(
+            montant_ht=invoice_data.get("Montant_HT", invoice_data.get("montant_ht", 0)),
+            cout_ht=invoice_data.get("Cout_HT", invoice_data.get("cout_ht", 0)),
+            marge_pct=invoice_data.get("Marge_%", invoice_data.get("marge_pct", 0)),
+            tva_pct=invoice_data.get("TVA_%", invoice_data.get("tva_pct", 0)),
+            acompte=invoice_data.get("Acompte", invoice_data.get("acompte", 0)),
+            statut=invoice_data.get("Statut", invoice_data.get("statut", "")),
+        )
+
+        row = ws.max_row + 1
+        invoice_id = str(invoice_data.get("ID_Facture") or "").strip()
+        if not invoice_id:
+            invoice_id = _next_invoice_id(ws)
+
+        values = {
+            "Date": invoice_data.get("Date", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+            "ID_Facture": invoice_id,
+            "Source_Type": invoice_data.get("Source_Type", invoice_data.get("source_type", "")),
+            "Source_Ref": invoice_data.get("Source_Ref", invoice_data.get("source_ref", "")),
+            "Client_ID": invoice_data.get("Client_ID", invoice_data.get("client_id", "")),
+            "Client_Nom": invoice_data.get("Client_Nom", invoice_data.get("client_nom", "")),
+            "Devise": invoice_data.get("Devise", invoice_data.get("devise", "Ariary")),
+            **calculations,
+        }
+
+        for col, header in enumerate(INVOICE_HEADERS, start=1):
+            ws.cell(row=row, column=col, value=values.get(header, ""))
+
+        _rebuild_financial_state_in_workbook(wb)
+        wb.save(FINANCIAL_EXCEL_PATH)
+        return row
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save invoice: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_all_invoices():
+    """Load all invoices."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+    if not os.path.exists(FINANCIAL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(FINANCIAL_EXCEL_PATH)
+        if INVOICE_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[INVOICE_SHEET_NAME]
+        header_map = _get_header_map(ws, 1)
+        if not header_map:
+            return []
+
+        rows = []
+        for row_idx in range(2, ws.max_row + 1):
+            row_data = {"row_number": row_idx}
+            has_values = False
+            for header in INVOICE_HEADERS:
+                col = header_map.get(header)
+                value = ws.cell(row=row_idx, column=col).value if col else ""
+                if value not in (None, ""):
+                    has_values = True
+                row_data[header] = "" if value is None else value
+            if has_values:
+                rows.append(row_data)
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load invoices: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def update_invoice_in_excel(row_number, invoice_data):
+    """Update one invoice row and refresh financial state."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+    if not os.path.exists(FINANCIAL_EXCEL_PATH):
+        return -1
+
+    wb = None
+    try:
+        wb = load_workbook(FINANCIAL_EXCEL_PATH)
+        if INVOICE_SHEET_NAME not in wb.sheetnames:
+            return -1
+
+        ws = wb[INVOICE_SHEET_NAME]
+        header_map = _get_header_map(ws, 1)
+        if not header_map:
+            _ensure_invoice_sheet(wb)
+            header_map = _get_header_map(ws, 1)
+
+        current = {}
+        for header in INVOICE_HEADERS:
+            col = header_map.get(header)
+            current[header] = ws.cell(row=row_number, column=col).value if col else ""
+
+        merged = {**current, **invoice_data}
+        calculations = calculate_invoice_totals(
+            montant_ht=merged.get("Montant_HT", 0),
+            cout_ht=merged.get("Cout_HT", 0),
+            marge_pct=merged.get("Marge_%", 0),
+            tva_pct=merged.get("TVA_%", 0),
+            acompte=merged.get("Acompte", 0),
+            statut=merged.get("Statut", ""),
+        )
+        merged.update(calculations)
+
+        for header in INVOICE_HEADERS:
+            col = header_map.get(header)
+            if not col:
+                continue
+            ws.cell(row=row_number, column=col, value=merged.get(header, ""))
+
+        _rebuild_financial_state_in_workbook(wb)
+        wb.save(FINANCIAL_EXCEL_PATH)
+        return 0
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to update invoice row {row_number}: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def _rebuild_financial_state_in_workbook(wb):
+    """Recompute the one-line financial state from invoices."""
+    ws_invoice = _ensure_invoice_sheet(wb)
+    ws_state = _ensure_financial_state_sheet(wb)
+    header_map = _get_header_map(ws_invoice, 1)
+
+    totals = {
+        "Nb_Factures": 0,
+        "CA_HT": 0.0,
+        "Marge_Totale": 0.0,
+        "TVA_Totale": 0.0,
+        "CA_TTC": 0.0,
+        "Acomptes_Recus": 0.0,
+        "Encaissements_Estimes": 0.0,
+        "Restes_A_Encaisser": 0.0,
+        "Nb_Payees": 0,
+        "Nb_Payees_Avec_Acompte": 0,
+        "Nb_Non_Payees": 0,
+    }
+
+    def _invoice_cell(row_idx, header):
+        col = header_map.get(header)
+        if not col:
+            return None
+        return ws_invoice.cell(row=row_idx, column=col).value
+
+    for row_idx in range(2, ws_invoice.max_row + 1):
+        invoice_id_col = header_map.get("ID_Facture")
+        if not invoice_id_col:
+            continue
+        invoice_id = ws_invoice.cell(row=row_idx, column=invoice_id_col).value
+        if invoice_id in (None, ""):
+            continue
+
+        totals["Nb_Factures"] += 1
+        totals["CA_HT"] += _safe_float(_invoice_cell(row_idx, "Montant_HT"))
+        totals["Marge_Totale"] += _safe_float(_invoice_cell(row_idx, "Marge_Montant"))
+        totals["TVA_Totale"] += _safe_float(_invoice_cell(row_idx, "TVA_Montant"))
+        total_ttc = _safe_float(_invoice_cell(row_idx, "Total_TTC"))
+        acompte = _safe_float(_invoice_cell(row_idx, "Acompte"))
+        reste = _safe_float(_invoice_cell(row_idx, "Reste_A_Payer"))
+        status = _normalize_invoice_status(
+            _invoice_cell(row_idx, "Statut"),
+            total_ttc=total_ttc,
+            acompte=acompte,
+        )
+
+        totals["CA_TTC"] += total_ttc
+        totals["Acomptes_Recus"] += acompte
+        totals["Restes_A_Encaisser"] += reste
+        totals["Encaissements_Estimes"] += max(acompte, total_ttc if status == INVOICE_STATUS_PAID else acompte)
+
+        if status == INVOICE_STATUS_PAID:
+            totals["Nb_Payees"] += 1
+        elif status == INVOICE_STATUS_PARTIAL:
+            totals["Nb_Payees_Avec_Acompte"] += 1
+        else:
+            totals["Nb_Non_Payees"] += 1
+
+    header_map_state = _get_header_map(ws_state, 1)
+    # Keep only most recent snapshot line.
+    if ws_state.max_row > 1:
+        ws_state.delete_rows(2, ws_state.max_row - 1)
+
+    row = 2
+    data = {
+        "Date_MAJ": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        **totals,
+    }
+    for header in FINANCIAL_STATE_HEADERS:
+        col = header_map_state.get(header)
+        if col:
+            ws_state.cell(row=row, column=col, value=data.get(header, ""))
+
+
+def refresh_financial_state_from_invoices():
+    """Public helper to force financial state rebuild from invoices."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    wb = None
+    try:
+        if not os.path.exists(FINANCIAL_EXCEL_PATH):
+            wb = Workbook()
+            wb.active.title = INVOICE_SHEET_NAME
+        else:
+            wb = load_workbook(FINANCIAL_EXCEL_PATH)
+
+        _rebuild_financial_state_in_workbook(wb)
+        wb.save(FINANCIAL_EXCEL_PATH)
+        return 0
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to refresh financial state: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_financial_state_snapshot():
+    """Load latest financial-state row."""
+    if not OPENPYXL_AVAILABLE:
+        return {}
+    if not os.path.exists(FINANCIAL_EXCEL_PATH):
+        return {}
+
+    wb = None
+    try:
+        wb = load_workbook(FINANCIAL_EXCEL_PATH)
+        if FINANCIAL_STATE_SHEET_NAME not in wb.sheetnames:
+            return {}
+        ws = wb[FINANCIAL_STATE_SHEET_NAME]
+        header_map = _get_header_map(ws, 1)
+        if not header_map or ws.max_row < 2:
+            return {}
+        result = {}
+        for header in FINANCIAL_STATE_HEADERS:
+            col = header_map.get(header)
+            result[header] = ws.cell(row=2, column=col).value if col else ""
+        return result
+    except Exception as e:
+        logger.error(f"Failed to load financial state snapshot: {e}", exc_info=True)
+        return {}
     finally:
         if wb is not None:
             try:

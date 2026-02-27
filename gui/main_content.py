@@ -49,55 +49,42 @@ class MainContent:
         for widget in self.main_scroll.winfo_children():
             widget.destroy()
 
-        # Show appropriate content
-        if content_type == "client_form":
-            self._show_client_form()
-        elif content_type == "client_list":
-            self._show_client_list()
-        elif content_type == "hotel_form":
-            self._show_hotel_form()
-        elif content_type == "hotel_list":
-            self._show_hotel_list()
-        elif content_type == "hotel_quotation":
-            self._show_hotel_quotation()
-        elif content_type == "hotel_quotation_summary":
-            self._show_hotel_quotation_summary()
-        elif content_type == "current_quotes":
-            self._show_client_quotation()
-        elif content_type == "quote_history":
-            self._show_client_quotation_history()
-        elif content_type == "collective_expense_quotation":
-            self._show_collective_expense_quotation()
-        elif content_type == "collective_expense_summary":
-            self._show_collective_expense_summary()
-        elif content_type == "collective_expense_page":
-            self._show_collective_expense_page()
-        elif content_type == "transport_page":
-            self._show_transport_page()
-        elif content_type == "transport_db_page":
-            self._show_transport_db_page()
-        elif content_type == "air_ticket_page":
-            self._show_air_ticket_page()
-        elif content_type == "air_ticket_quotation":
-            self._show_air_ticket_quotation()
-        elif content_type == "air_ticket_summary":
-            self._show_air_ticket_summary()
-        elif content_type == "air_ticket_db_list":
-            self._show_air_ticket_db_list()
-        elif content_type == "air_ticket_db_form":
-            self._show_air_ticket_db_form()
-        elif content_type == "collective_expense_db_list":
-            self._show_collective_expense_db_list()
-        elif content_type == "collective_expense_db_form":
-            self._show_collective_expense_db_form()
-        elif content_type == "visite_excursion_db_list":
-            self._show_visite_excursion_db_list()
-        elif content_type == "visite_excursion_db_form":
-            self._show_visite_excursion_db_form()
-        elif content_type == "parametrage_page":
-            self._show_parametrage_page()
-        elif content_type in ("welcome", "home"):
+        if content_type in ("welcome", "home"):
             self._show_welcome()
+            return
+
+        handlers = {
+            "client_form": self._show_client_form,
+            "client_list": self._show_client_list,
+            "hotel_form": self._show_hotel_form,
+            "hotel_list": self._show_hotel_list,
+            "hotel_quotation": self._show_hotel_quotation,
+            "hotel_quotation_summary": self._show_hotel_quotation_summary,
+            "current_quotes": self._show_client_quotation,
+            "quote_history": self._show_client_quotation_history,
+            "collective_expense_quotation": self._show_collective_expense_quotation,
+            "collective_expense_summary": self._show_collective_expense_summary,
+            "collective_expense_page": self._show_collective_expense_page,
+            "transport_page": self._show_transport_page,
+            "transport_db_page": self._show_transport_db_page,
+            "air_ticket_page": self._show_air_ticket_page,
+            "air_ticket_quotation": self._show_air_ticket_quotation,
+            "air_ticket_summary": self._show_air_ticket_summary,
+            "air_ticket_db_list": self._show_air_ticket_db_list,
+            "air_ticket_db_form": self._show_air_ticket_db_form,
+            "visite_excursion_quotation": self._show_visite_excursion_quotation,
+            "visite_excursion_summary": self._show_visite_excursion_summary,
+            "visite_excursion_db_list": self._show_visite_excursion_db_list,
+            "visite_excursion_db_form": self._show_visite_excursion_db_form,
+            "collective_expense_db_list": self._show_collective_expense_db_list,
+            "collective_expense_db_form": self._show_collective_expense_db_form,
+            "parametrage_page": self._show_parametrage_page,
+            "current_invoices": self._show_invoice_management,
+            "invoice_history": self._show_invoice_management,
+        }
+        handler = handlers.get(content_type)
+        if handler:
+            handler()
         elif content_type in (
             "financial_home",
             "income_statement",
@@ -259,6 +246,42 @@ class MainContent:
             callback_add=self._on_add_air_ticket,
         )
 
+    def _show_visite_excursion_quotation(self):
+        """Show visite & excursion quotation form."""
+        from gui.forms.visite_excursion_quotation import VisiteExcursionQuotation
+
+        VisiteExcursionQuotation(self.main_scroll)
+
+    def _show_visite_excursion_quotation_for_edit(self, data, row_number):
+        """Show visite & excursion quotation form in edit mode."""
+        from gui.forms.visite_excursion_quotation import VisiteExcursionQuotation
+
+        def on_edit_done():
+            self.update_content("visite_excursion_summary")
+
+        VisiteExcursionQuotation(
+            self.main_scroll,
+            edit_data=data,
+            row_number=row_number,
+            callback_on_done=on_edit_done,
+        )
+
+    def _on_add_visite_excursion(self):
+        """Navigate to add visite & excursion quotation."""
+        self.update_content("visite_excursion_quotation")
+
+    def _show_visite_excursion_summary(self):
+        """Show visite & excursion quotation summary."""
+        from gui.forms.visite_excursion_quotation_summary import (
+            VisiteExcursionQuotationSummary,
+        )
+
+        VisiteExcursionQuotationSummary(
+            self.main_scroll,
+            callback_edit=self._show_visite_excursion_quotation_for_edit,
+            callback_add=self._on_add_visite_excursion,
+        )
+
     def _show_transport_page(self):
         """Show combined transport page (form + summary)."""
         from gui.forms.transport_page import TransportPage
@@ -276,6 +299,12 @@ class MainContent:
         from gui.forms.parametrage_page import ParametragePage
 
         ParametragePage(self.main_scroll)
+
+    def _show_invoice_management(self):
+        """Show client invoice management."""
+        from gui.forms.invoice_management import InvoiceManagement
+
+        InvoiceManagement(self.main_scroll)
 
     def _show_collective_expense_db_form(self, row_to_edit=None, row_number=None):
         """Show collective expense DB form."""

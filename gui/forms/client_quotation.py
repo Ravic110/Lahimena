@@ -24,6 +24,7 @@ from config import (
     DEVIS_FOLDER,
 )
 from utils.excel_handler import load_all_clients, load_all_hotel_quotations
+from utils.excel_handler import save_invoice_to_excel
 from utils.logger import logger
 from utils.pdf_generator import REPORTLAB_AVAILABLE, generate_client_quotation_pdf
 
@@ -337,6 +338,17 @@ class ClientQuotation:
 
         tk.Button(
             action_frame,
+            text="💰 Générer la facture",
+            command=self._generate_invoice_from_quote,
+            bg=BUTTON_BLUE,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=15,
+            pady=8,
+        ).pack(side="left", padx=5)
+
+        tk.Button(
+            action_frame,
             text="🔄 Rafraîchir",
             command=self._refresh_data,
             bg=BUTTON_BLUE,
@@ -598,3 +610,55 @@ class ClientQuotation:
                 subprocess.run(["xdg-open", filename], check=False)
         except Exception as e:
             logger.warning(f"Could not open quotation file automatically: {e}")
+
+    def _generate_invoice_from_quote(self):
+        if not self.current_items:
+            messagebox.showwarning("Aucune ligne", "Aucune ligne de devis à facturer.")
+            return
+
+        try:
+            margin_pct = self._parse_percent(self.margin_var.get().strip(), "Marge")
+            tva_pct = self._parse_percent(self.tva_var.get().strip(), "TVA")
+        except ValueError as e:
+            messagebox.showerror("Erreur", str(e))
+            return
+
+        client_display = self.client_var.get().strip()
+        key = self.client_display_map.get(client_display, "")
+        client_id = key if (key and key in self.client_info_map) else ""
+        client_name = client_display.replace(f"{client_id} - ", "").strip() or key
+
+        if not client_name:
+            messagebox.showwarning("Client", "Veuillez sélectionner un client valide.")
+            return
+
+        subtotal = sum(item["total"] for item in self.current_items)
+
+        invoice_data = {
+            "Source_Type": "Devis client",
+            "Source_Ref": f"DEVIS_CLIENT:{client_id or client_name}",
+            "Client_ID": client_id,
+            "Client_Nom": client_name,
+            "Devise": self.current_currency or "Ariary",
+            "Montant_HT": subtotal,
+            "Marge_%": margin_pct,
+            "TVA_%": tva_pct,
+            "Acompte": 0,
+            "Statut": "non payée",
+        }
+
+        row = save_invoice_to_excel(invoice_data)
+        if row == -2:
+            messagebox.showerror(
+                "Erreur",
+                "Impossible d'écrire dans Excel. Fermez data.xlsx puis réessayez.",
+            )
+            return
+        if row < 0:
+            messagebox.showerror("Erreur", "La génération de la facture a échoué.")
+            return
+
+        messagebox.showinfo(
+            "Facture générée",
+            "La facture a été créée et intégrée automatiquement dans l'état financier.",
+        )

@@ -129,13 +129,14 @@ class Sidebar:
             ],
         )
 
-        # Service Frais collectifs
-        _btn3 = self._create_button("🎯 Frais collectifs", self._show_collective_expense_page)
-
-        # Service Transport
-        _btn_transport = self._create_button("🎯 Transport", self._show_service_quotation)
-
-        # Service Billet Avion
+        # Services
+        _btn_collective = self._create_button(
+            "🎯 Frais collectifs", self._show_collective_expense_page
+        )
+        _btn_transport = self._create_button("🎯 Transport", self._show_transport_page)
+        _btn_visite = self._create_button(
+            "🎯 Visite & Excursions", self._show_visite_excursion_summary
+        )
         _btn_air = self._create_button("🎯 Billet Avion", self._show_air_ticket_page)
 
         # Client Quotations
@@ -198,6 +199,16 @@ class Sidebar:
             [
                 ("📋 Liste avion", self._show_air_ticket_list_db),
                 ("➕ Ajouter", self._show_add_air_ticket_db),
+            ],
+        )
+
+        # Visite & Excursions Database
+        btn9c = self._create_button("🏨 Visite & Excursions (DB) ▶", None)
+        _submenu9c_frame = self._create_submenu(
+            btn9c,
+            [
+                ("📋 Liste visites", self._show_visite_excursion_list_db),
+                ("➕ Ajouter", self._show_add_visite_excursion_db),
             ],
         )
 
@@ -296,7 +307,7 @@ class Sidebar:
     def _show_hotel_quotation_summary(self):
         self.main_content_callback("hotel_quotation_summary")
 
-    def _show_service_quotation(self):
+    def _show_transport_page(self):
         self.main_content_callback("transport_page")
 
     def _show_collective_expense_quotation(self):
@@ -316,6 +327,9 @@ class Sidebar:
 
     def _show_air_ticket_page(self):
         self.main_content_callback("air_ticket_page")
+
+    def _show_visite_excursion_summary(self):
+        self.main_content_callback("visite_excursion_summary")
 
     def _show_current_quotes(self):
         self.main_content_callback("current_quotes")
@@ -344,21 +358,6 @@ class Sidebar:
     def _show_collective_expense_list(self):
         self.main_content_callback("collective_expense_db_list")
 
-    def _show_update_collective_expense(self):
-        self.main_content_callback("collective_expense_db_list")
-
-    def _show_delete_collective_expense(self):
-        self.main_content_callback("collective_expense_db_list")
-
-    def _show_add_transport(self):
-        self.main_content_callback("transport_db_page")
-
-    def _show_update_transport(self):
-        self.main_content_callback("transport_db_page")
-
-    def _show_delete_transport(self):
-        self.main_content_callback("transport_db_page")
-
     def _show_transport_db_page(self):
         self.main_content_callback("transport_db_page")
 
@@ -367,6 +366,12 @@ class Sidebar:
 
     def _show_add_air_ticket_db(self):
         self.main_content_callback("air_ticket_db_form")
+
+    def _show_visite_excursion_list_db(self):
+        self.main_content_callback("visite_excursion_db_list")
+
+    def _show_add_visite_excursion_db(self):
+        self.main_content_callback("visite_excursion_db_form")
 
     def _show_income_statement(self):
         self.main_content_callback("income_statement")
