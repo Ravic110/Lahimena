@@ -337,7 +337,7 @@ class AirTicketQuotation:
 
         tk.Label(
             self.parent,
-            text="Choisissez ID client ou Nom pour remplir automatiquement adultes/enfants. Les montants sont calculés avec les tarifs de la feuille avion.",
+            text="1) Sélectionnez le client  2) Choisissez départ/arrivée  3) Vérifiez quantités et total puis Enregistrer.",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
@@ -737,6 +737,17 @@ class AirTicketQuotation:
         has_data = any(str(v).strip() for k, v in form_data.items() if self._normalize_header(k) != "date")
         if not has_data:
             messagebox.showwarning("Validation", "Veuillez renseigner au moins un champ avant l'enregistrement.")
+            return
+
+        client_id_header = self._find_header_by_type("client_id")
+        client_name_header = self._find_header_by_type("client_name")
+        client_id = form_data.get(client_id_header, "").strip() if client_id_header else ""
+        client_name = form_data.get(client_name_header, "").strip() if client_name_header else ""
+        if not client_id and not client_name:
+            messagebox.showwarning(
+                "Validation",
+                "Veuillez sélectionner un client avant d'enregistrer la réservation.",
+            )
             return
 
         if self.edit_data and self.row_number is not None:

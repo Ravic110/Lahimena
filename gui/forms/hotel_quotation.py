@@ -239,6 +239,14 @@ class HotelQuotation:
         )
         title.pack(pady=(20, 10))
 
+        tk.Label(
+            self.parent,
+            text="1) Sélectionnez un client  2) Choisissez ville/hôtel/chambre  3) Cliquez sur Calculer puis Générer devis",
+            font=ENTRY_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).pack(pady=(0, 8))
+
         # Main frame
         main_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         main_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))

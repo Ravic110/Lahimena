@@ -242,7 +242,7 @@ class CollectiveExpenseQuotation:
 
         info = tk.Label(
             self.parent,
-            text="Sélectionnez un client pour remplir auto. la quantité. Prestataire + Désignation remplissent le montant et total automatiquement.",
+            text="1) Sélectionnez le client  2) Choisissez prestataire/désignation  3) Vérifiez quantité/total puis Enregistrer.",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
@@ -687,6 +687,17 @@ class CollectiveExpenseQuotation:
             messagebox.showwarning(
                 "Validation",
                 "Veuillez renseigner au moins un champ avant l'enregistrement.",
+            )
+            return
+
+        client_id_header = self._find_header_by_type("client_id")
+        client_name_header = self._find_header_by_type("client_name")
+        client_id = form_data.get(client_id_header, "").strip() if client_id_header else ""
+        client_name = form_data.get(client_name_header, "").strip() if client_name_header else ""
+        if not client_id and not client_name:
+            messagebox.showwarning(
+                "Validation",
+                "Veuillez sélectionner un client avant d'enregistrer la cotation.",
             )
             return
 

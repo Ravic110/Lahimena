@@ -23,8 +23,11 @@ from config import (
     TITLE_FONT,
     DEVIS_FOLDER,
 )
-from utils.excel_handler import load_all_clients, load_all_hotel_quotations
-from utils.excel_handler import save_invoice_to_excel
+from utils.excel_handler import (
+    load_all_clients,
+    load_all_hotel_quotations,
+    save_invoice_to_excel,
+)
 from utils.logger import logger
 from utils.pdf_generator import REPORTLAB_AVAILABLE, generate_client_quotation_pdf
 
@@ -97,6 +100,14 @@ class ClientQuotation:
             bg=MAIN_BG_COLOR,
         )
         title.pack(pady=(20, 10))
+
+        tk.Label(
+            self.parent,
+            text="1) Sélectionnez le client  2) Ajustez marge/TVA  3) Générez le devis ou la facture",
+            font=ENTRY_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).pack(pady=(0, 8))
 
         main_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         main_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
@@ -241,7 +252,7 @@ class ClientQuotation:
             bg=MAIN_BG_COLOR,
         ).grid(row=0, column=4, sticky="w", pady=5)
 
-        self.tva_var = tk.StringVar(value="0")
+        self.tva_var = tk.StringVar(value="20")
         self.tva_entry = tk.Entry(
             pricing_frame,
             textvariable=self.tva_var,

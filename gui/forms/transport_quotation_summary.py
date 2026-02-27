@@ -84,6 +84,13 @@ class TransportQuotationSummary:
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
         ).pack(pady=(20, 10), fill="x")
+        tk.Label(
+            self.parent,
+            text="Utilisez la recherche pour filtrer, puis sélectionnez une ligne avant Modifier ou Supprimer.",
+            font=ENTRY_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).pack(pady=(0, 8), fill="x")
 
         self.main_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         self.main_frame.pack(fill="both", expand=True, padx=10, pady=(5, 10))

@@ -1515,6 +1515,8 @@ class ClientForm:
                         f"New client saved: {client.ref_client} - {client.nom} at row {row}"
                     )
                     self._reset_form()
+                    if self.on_save_callback:
+                        self.on_save_callback()
                 else:
                     error_msg = "Erreur lors de la sauvegarde du client. Voir les logs."
                     messagebox.showerror("❌ Erreur Excel", error_msg)

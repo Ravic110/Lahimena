@@ -1,5 +1,7 @@
 """Invoice management GUI component."""
 
+import os
+import subprocess
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -21,6 +23,7 @@ from utils.excel_handler import (
     INVOICE_STATUS_UNPAID,
     calculate_invoice_totals,
     load_all_air_ticket_quotations,
+    load_all_clients,
     load_all_collective_expense_quotations,
     load_all_hotel_quotations,
     load_all_invoices,
@@ -31,6 +34,7 @@ from utils.excel_handler import (
     save_invoice_to_excel,
     update_invoice_in_excel,
 )
+from utils.pdf_generator import REPORTLAB_AVAILABLE, generate_invoice_pdf
 
 
 class InvoiceManagement:
@@ -50,6 +54,7 @@ class InvoiceManagement:
         self.invoices = []
         self.source_map = {}
         self.invoice_tree = None
+        self.preview_labels = {}
 
         self.source_type_var = tk.StringVar(value=self.SOURCE_TYPES[0])
         self.source_ref_var = tk.StringVar()
@@ -74,6 +79,13 @@ class InvoiceManagement:
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
         ).pack(pady=(20, 10), fill="x")
+        tk.Label(
+            self.parent,
+            text="Sélectionnez une source puis ajustez marge/TVA/acompte. Le total et le reste à payer se mettent à jour automatiquement.",
+            font=ENTRY_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).pack(pady=(0, 8), fill="x")
 
         root = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         root.pack(fill="both", expand=True, padx=16, pady=(0, 12))
@@ -133,6 +145,47 @@ class InvoiceManagement:
             padx=12,
             pady=5,
         ).pack(side="left")
+
+        tk.Button(
+            actions,
+            text="📄 Générer PDF",
+            command=self._generate_selected_invoice_pdf,
+            bg=BUTTON_GREEN,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=12,
+            pady=5,
+        ).pack(side="left", padx=(8, 0))
+
+        tk.Button(
+            actions,
+            text="🧹 Réinitialiser",
+            command=self._reset_form,
+            bg=BUTTON_BLUE,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=12,
+            pady=5,
+        ).pack(side="left", padx=(8, 0))
+
+        preview = tk.Frame(form, bg=INPUT_BG_COLOR, bd=1, relief="ridge")
+        preview.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        self.preview_labels["base"] = tk.Label(
+            preview, text="Base taxable HT: 0.00", font=LABEL_FONT, fg=TEXT_COLOR, bg=INPUT_BG_COLOR
+        )
+        self.preview_labels["base"].grid(row=0, column=0, sticky="w", padx=8, pady=(6, 2))
+        self.preview_labels["tva"] = tk.Label(
+            preview, text="TVA: 0.00", font=LABEL_FONT, fg=TEXT_COLOR, bg=INPUT_BG_COLOR
+        )
+        self.preview_labels["tva"].grid(row=0, column=1, sticky="w", padx=8, pady=(6, 2))
+        self.preview_labels["ttc"] = tk.Label(
+            preview, text="Total TTC: 0.00", font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=INPUT_BG_COLOR
+        )
+        self.preview_labels["ttc"].grid(row=1, column=0, sticky="w", padx=8, pady=(0, 6))
+        self.preview_labels["reste"] = tk.Label(
+            preview, text="Reste à payer: 0.00", font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=INPUT_BG_COLOR
+        )
+        self.preview_labels["reste"].grid(row=1, column=1, sticky="w", padx=8, pady=(0, 6))
 
         self.state_frame = tk.Frame(root, bg=MAIN_BG_COLOR)
         self.state_frame.pack(fill="x", pady=(0, 10))
@@ -195,6 +248,7 @@ class InvoiceManagement:
         scroll.pack(side="right", fill="y")
 
         self.invoice_tree.bind("<<TreeviewSelect>>", self._on_invoice_selected)
+        self._bind_preview_updates()
 
     def _field(self, parent, row, label, widget):
         tk.Label(
@@ -235,13 +289,52 @@ class InvoiceManagement:
         return combo
 
     def _status_combo(self, parent):
-        return ttk.Combobox(
+        combo = ttk.Combobox(
             parent,
             textvariable=self.statut_var,
             values=[INVOICE_STATUS_UNPAID, INVOICE_STATUS_PARTIAL, INVOICE_STATUS_PAID],
             font=ENTRY_FONT,
             width=24,
             state="readonly",
+        )
+        combo.bind("<<ComboboxSelected>>", lambda _e: self._refresh_preview())
+        return combo
+
+    def _bind_preview_updates(self):
+        for var in (
+            self.montant_ht_var,
+            self.cout_ht_var,
+            self.marge_pct_var,
+            self.tva_pct_var,
+            self.acompte_var,
+        ):
+            var.trace_add("write", lambda *_args: self._refresh_preview())
+        self._refresh_preview()
+
+    def _refresh_preview(self):
+        try:
+            totals = calculate_invoice_totals(
+                montant_ht=self.montant_ht_var.get(),
+                cout_ht=self.cout_ht_var.get(),
+                marge_pct=self.marge_pct_var.get(),
+                tva_pct=self.tva_pct_var.get(),
+                acompte=self.acompte_var.get(),
+                statut=self.statut_var.get(),
+            )
+        except Exception:
+            return
+
+        self.preview_labels["base"].config(
+            text=f"Base taxable HT: {self._to_number(totals.get('Base_Taxable_HT', 0)):,.2f}"
+        )
+        self.preview_labels["tva"].config(
+            text=f"TVA: {self._to_number(totals.get('TVA_Montant', 0)):,.2f}"
+        )
+        self.preview_labels["ttc"].config(
+            text=f"Total TTC: {self._to_number(totals.get('Total_TTC', 0)):,.2f}"
+        )
+        self.preview_labels["reste"].config(
+            text=f"Reste à payer: {self._to_number(totals.get('Reste_A_Payer', 0)):,.2f}"
         )
 
     def _to_number(self, value):
@@ -392,6 +485,8 @@ class InvoiceManagement:
         if not source_row:
             messagebox.showwarning("Source", "Sélectionnez une ligne source pour générer la facture.")
             return
+        if not self._validate_invoice_fields():
+            return
 
         payload = {
             "Source_Type": source_row.get("source_type", ""),
@@ -482,11 +577,14 @@ class InvoiceManagement:
         self.tva_pct_var.set(str(selected.get("TVA_%", 0)))
         self.acompte_var.set(str(selected.get("Acompte", 0)))
         self.statut_var.set(selected.get("Statut", INVOICE_STATUS_UNPAID))
+        self._refresh_preview()
 
     def _update_selected_invoice(self):
         selection = self.invoice_tree.selection()
         if not selection:
             messagebox.showwarning("Facture", "Sélectionnez une facture à mettre à jour.")
+            return
+        if not self._validate_invoice_fields():
             return
 
         row_number = int(selection[0])
@@ -519,6 +617,206 @@ class InvoiceManagement:
 
         messagebox.showinfo("Succès", "Facture mise à jour et état financier recalculé.")
         self._refresh_all()
+
+    def _generate_selected_invoice_pdf(self):
+        selection = self.invoice_tree.selection()
+        if not selection:
+            messagebox.showwarning("Facture", "Sélectionnez une facture à exporter en PDF.")
+            return
+
+        if not REPORTLAB_AVAILABLE:
+            messagebox.showwarning(
+                "PDF indisponible",
+                "ReportLab n'est pas installé. Installez-le avec: pip install reportlab",
+            )
+            return
+
+        row_number = int(selection[0])
+        invoice = next(
+            (row for row in self.invoices if row.get("row_number") == row_number), None
+        )
+        if not invoice:
+            messagebox.showerror("Erreur", "Impossible de récupérer la facture sélectionnée.")
+            return
+
+        invoice_number = str(invoice.get("ID_Facture") or f"FACTURE_{row_number}")
+        invoice_number = invoice_number.replace("/", "-").replace("\\", "-").strip()
+        client_name = str(invoice.get("Client_Nom") or "Client")
+        invoice_date = str(invoice.get("Date") or "")
+        source_type = str(invoice.get("Source_Type") or "")
+        source_ref = str(invoice.get("Source_Ref") or "")
+        currency = str(invoice.get("Devise") or "Ariary")
+        client_email, client_phone = self._resolve_client_contact(invoice)
+        line_items = self._build_invoice_pdf_items(invoice)
+
+        try:
+            filepath = generate_invoice_pdf(
+                invoice_number=invoice_number,
+                invoice_date=invoice_date,
+                client_name=client_name,
+                client_email=client_email,
+                client_phone=client_phone,
+                source_type=source_type,
+                source_ref=source_ref,
+                currency=currency,
+                montant_ht=self._to_number(invoice.get("Montant_HT", 0)),
+                marge_pct=self._to_number(invoice.get("Marge_%", 0)),
+                marge_amount=self._to_number(invoice.get("Marge_Montant", 0)),
+                tva_pct=self._to_number(invoice.get("TVA_%", 0)),
+                tva_amount=self._to_number(invoice.get("TVA_Montant", 0)),
+                total_ttc=self._to_number(invoice.get("Total_TTC", 0)),
+                acompte=self._to_number(invoice.get("Acompte", 0)),
+                reste_a_payer=self._to_number(invoice.get("Reste_A_Payer", 0)),
+                statut=str(invoice.get("Statut") or ""),
+                items=line_items,
+                base_taxable_ht=self._to_number(invoice.get("Base_Taxable_HT", 0)),
+            )
+        except Exception as e:
+            messagebox.showerror("Erreur PDF", f"Impossible de générer la facture PDF.\n\n{e}")
+            return
+
+        messagebox.showinfo("Succès", f"Facture PDF générée:\n{filepath}")
+        try:
+            if os.name == "nt":
+                os.startfile(filepath)
+            elif os.name == "posix":
+                subprocess.run(["xdg-open", filepath], check=False)
+        except Exception:
+            pass
+
+    def _resolve_client_contact(self, invoice):
+        client_id = str(invoice.get("Client_ID") or "").strip()
+        client_name = str(invoice.get("Client_Nom") or "").strip().lower()
+        client_email = ""
+        client_phone = ""
+
+        for client in load_all_clients():
+            ref = str(client.get("ref_client") or "").strip()
+            name = str(client.get("nom") or "").strip().lower()
+            first = str(client.get("prenom") or "").strip().lower()
+            full_name = f"{name} {first}".strip()
+
+            id_match = client_id and ref and ref == client_id
+            name_match = client_name and (client_name == name or client_name == full_name)
+            if not id_match and not name_match:
+                continue
+
+            client_email = str(client.get("email") or "").strip()
+            client_phone = str(client.get("telephone") or "").strip()
+            break
+
+        return client_email, client_phone
+
+    def _build_invoice_pdf_items(self, invoice):
+        """Build detailed PDF lines, especially hotels reserved."""
+        source_type = str(invoice.get("Source_Type") or "")
+        source_ref = str(invoice.get("Source_Ref") or "")
+        client_id = str(invoice.get("Client_ID") or "").strip()
+        client_name = str(invoice.get("Client_Nom") or "").strip()
+        currency = str(invoice.get("Devise") or "Ariary")
+
+        hotel_quotes = load_all_hotel_quotations()
+        items = []
+
+        if source_type == "Devis client":
+            for q in hotel_quotes:
+                q_client_id = str(q.get("client_id") or "").strip()
+                q_client_name = str(q.get("client_name") or "").strip()
+                if client_id and q_client_id != client_id:
+                    continue
+                if not client_id and client_name and q_client_name != client_name:
+                    continue
+
+                nights = int(self._to_number(q.get("nights", 0))) or 1
+                total_price = self._to_number(q.get("total_price", 0))
+                unit_price = total_price / nights if nights else total_price
+                designation = (
+                    f"{q.get('hotel_name', '')} - {q.get('city', '')} - {q.get('room_type', '')}"
+                ).strip(" -")
+                items.append(
+                    {
+                        "designation": designation or "Hôtel réservé",
+                        "nights": nights,
+                        "unit_price": unit_price,
+                        "total": total_price,
+                    }
+                )
+
+        elif source_type == "Hôtel" and "#" in source_ref:
+            try:
+                row_number = int(source_ref.split("#", 1)[1])
+            except Exception:
+                row_number = None
+            if row_number is not None:
+                quote = next(
+                    (q for q in hotel_quotes if int(q.get("row_number", -1)) == row_number),
+                    None,
+                )
+                if quote:
+                    nights = int(self._to_number(quote.get("nights", 0))) or 1
+                    total_price = self._to_number(quote.get("total_price", 0))
+                    unit_price = total_price / nights if nights else total_price
+                    designation = (
+                        f"{quote.get('hotel_name', '')} - {quote.get('city', '')} - {quote.get('room_type', '')}"
+                    ).strip(" -")
+                    items.append(
+                        {
+                            "designation": designation or "Hôtel réservé",
+                            "nights": nights,
+                            "unit_price": unit_price,
+                            "total": total_price,
+                        }
+                    )
+
+        if not items:
+            items = [
+                {
+                    "designation": f"{source_type} - {source_ref}",
+                    "nights": 1,
+                    "unit_price": self._to_number(invoice.get("Montant_HT", 0)),
+                    "total": self._to_number(invoice.get("Montant_HT", 0)),
+                }
+            ]
+
+        # Normalize totals if any line has empty/zero total by recomputing from unit*qty.
+        for line in items:
+            qty = int(self._to_number(line.get("nights", 1))) or 1
+            unit = self._to_number(line.get("unit_price", 0))
+            total = self._to_number(line.get("total", 0))
+            if total <= 0 and unit > 0:
+                line["total"] = unit * qty
+            line["nights"] = qty
+            line["unit_price"] = unit
+            line["currency"] = currency
+        return items
+
+    def _validate_invoice_fields(self):
+        try:
+            montant = self._to_number(self.montant_ht_var.get())
+            cout = self._to_number(self.cout_ht_var.get())
+            marge = self._to_number(self.marge_pct_var.get())
+            tva = self._to_number(self.tva_pct_var.get())
+            acompte = self._to_number(self.acompte_var.get())
+        except Exception:
+            messagebox.showerror("Erreur", "Veuillez saisir des nombres valides.")
+            return False
+
+        if montant <= 0:
+            messagebox.showwarning("Montant HT", "Le montant HT doit être supérieur à 0.")
+            return False
+        if cout < 0 or marge < 0 or tva < 0 or acompte < 0:
+            messagebox.showwarning("Valeurs invalides", "Les valeurs ne peuvent pas être négatives.")
+            return False
+        return True
+
+    def _reset_form(self):
+        self.montant_ht_var.set("0")
+        self.cout_ht_var.set("0")
+        self.marge_pct_var.set("0")
+        self.tva_pct_var.set("20")
+        self.acompte_var.set("0")
+        self.statut_var.set(INVOICE_STATUS_UNPAID)
+        self._refresh_preview()
 
     def _refresh_all(self):
         refresh_financial_state_from_invoices()

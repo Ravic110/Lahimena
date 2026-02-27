@@ -10,6 +10,7 @@ try:
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import cm, inch
     from reportlab.platypus import (
+        Image as RLImage,
         PageBreak,
         Paragraph,
         SimpleDocTemplate,
@@ -25,7 +26,7 @@ except ImportError:
 import os
 from datetime import datetime
 
-from config import DEVIS_FOLDER
+from config import DEVIS_FOLDER, LOGO_PATH
 from utils.logger import logger
 
 
@@ -111,15 +112,36 @@ class QuotationPDF:
             )
         )
 
-    def add_header(self, company_name="Lahimena Tours", address="Madagascar"):
+    def add_header(
+        self, company_name="Lahimena Tours", address="Madagascar", logo_path=None
+    ):
         """Add document header with company info"""
-        header_data = [
-            [Paragraph(f"<b>{company_name}</b>", self.styles["CustomTitle"])],
-            [Paragraph(address, self.styles["CustomSubtitle"])],
-            [Paragraph("DEVIS / QUOTATION", self.styles["CustomSubtitle"])],
+        title_block = [
+            Paragraph(f"<b>{company_name}</b>", self.styles["CustomTitle"]),
+            Paragraph(address, self.styles["CustomSubtitle"]),
+            Paragraph("DEVIS / QUOTATION", self.styles["CustomSubtitle"]),
         ]
 
-        self.elements.append(Table(header_data, colWidths=[19 * cm]))
+        if logo_path and os.path.exists(logo_path):
+            try:
+                logo = RLImage(logo_path, width=2.6 * cm, height=2.6 * cm)
+                header_data = [[logo, title_block[0]], ["", title_block[1]], ["", title_block[2]]]
+                table = Table(header_data, colWidths=[3.0 * cm, 16 * cm])
+                table.setStyle(
+                    TableStyle(
+                        [
+                            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                            ("ALIGN", (0, 0), (0, 0), "LEFT"),
+                        ]
+                    )
+                )
+                self.elements.append(table)
+            except Exception:
+                header_data = [[title_block[0]], [title_block[1]], [title_block[2]]]
+                self.elements.append(Table(header_data, colWidths=[19 * cm]))
+        else:
+            header_data = [[title_block[0]], [title_block[1]], [title_block[2]]]
+            self.elements.append(Table(header_data, colWidths=[19 * cm]))
         self.elements.append(Spacer(1, 0.3 * inch))
 
         logger.debug("Header added to PDF")
@@ -439,7 +461,9 @@ def generate_hotel_quotation_pdf(
         pdf = QuotationPDF(filename)
 
         # Build PDF content
-        pdf.add_header("Lahimena Tours", "Madagascar - Tours & Travel")
+        pdf.add_header(
+            "Lahimena Tours", "Madagascar - Tours & Travel", logo_path=LOGO_PATH
+        )
 
         pdf.add_quotation_info(quote_number, quote_date, client_name, client_email)
 
@@ -514,7 +538,9 @@ def generate_multi_hotel_quotation_pdf(
         filename = os.path.join(output_dir, f"{quote_number}.pdf")
         pdf = QuotationPDF(filename)
 
-        pdf.add_header("Lahimena Tours", "Madagascar - Tours & Travel")
+        pdf.add_header(
+            "Lahimena Tours", "Madagascar - Tours & Travel", logo_path=LOGO_PATH
+        )
         pdf.add_quotation_info(quote_number, quote_date, client_name, client_email)
         pdf.add_client_contact(client_phone)
 
@@ -567,7 +593,9 @@ def generate_client_quotation_pdf(
         filename = os.path.join(output_dir, f"{quote_number}.pdf")
         pdf = QuotationPDF(filename)
 
-        pdf.add_header("Lahimena Tours", "Madagascar - Tours & Travel")
+        pdf.add_header(
+            "Lahimena Tours", "Madagascar - Tours & Travel", logo_path=LOGO_PATH
+        )
         pdf.add_quotation_info(quote_number, quote_date, client_name, client_email)
         pdf.add_client_contact(client_phone)
 
@@ -593,4 +621,105 @@ def generate_client_quotation_pdf(
 
     except Exception as e:
         logger.error(f"Error generating client quotation PDF: {e}", exc_info=True)
+        raise
+
+
+def generate_invoice_pdf(
+    invoice_number,
+    invoice_date,
+    client_name,
+    client_email,
+    client_phone,
+    source_type,
+    source_ref,
+    currency,
+    montant_ht,
+    marge_pct,
+    marge_amount,
+    tva_pct,
+    tva_amount,
+    total_ttc,
+    acompte,
+    reste_a_payer,
+    statut,
+    items=None,
+    base_taxable_ht=None,
+    output_dir="devis",
+):
+    """Generate an invoice PDF from one invoice record."""
+    if not REPORTLAB_AVAILABLE:
+        logger.error("ReportLab not available")
+        raise ImportError("ReportLab required for PDF generation")
+
+    try:
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        filename = os.path.join(output_dir, f"{invoice_number}.pdf")
+        pdf = QuotationPDF(filename)
+
+        pdf.add_header(
+            "Lahimena Tours", "Madagascar - Tours & Travel", logo_path=LOGO_PATH
+        )
+        pdf.add_quotation_info(
+            quote_number=invoice_number,
+            quote_date=invoice_date,
+            client_name=client_name,
+            client_email=client_email,
+        )
+        pdf.add_client_contact(client_phone)
+
+        pdf.add_section_title("Détails de la facture")
+        raw_items = items or [
+            {
+                "designation": f"{source_type} - {source_ref}",
+                "nights": 1,
+                "unit_price": montant_ht,
+                "total": montant_ht,
+            }
+        ]
+
+        # Integrate margin/taxes directly into displayed unit prices.
+        base_sum = sum(float(item.get("total", 0) or 0) for item in raw_items)
+        final_sum = float(total_ttc or 0)
+        coef = (final_sum / base_sum) if base_sum > 0 else 1.0
+        line_items = []
+        for item in raw_items:
+            qty = max(1, int(item.get("nights", 1) or 1))
+            base_total = float(item.get("total", 0) or 0)
+            final_total = base_total * coef
+            unit_price = final_total / qty if qty else final_total
+            line_items.append(
+                {
+                    "designation": item.get("designation", ""),
+                    "nights": qty,
+                    "unit_price": unit_price,
+                    "total": final_total,
+                }
+            )
+
+        pdf.add_line_items_table(line_items, currency=currency)
+
+        subtotal_display = sum(float(item.get("total", 0) or 0) for item in line_items)
+        pdf.add_totals_table(
+            subtotal=subtotal_display,
+            tax=0,
+            total=subtotal_display,
+            currency=currency,
+        )
+
+        pdf.add_terms(
+            "Informations de paiement:\n"
+            f"Statut: {statut}\n"
+            f"Acompte reçu: {acompte:,.2f} {currency}\n"
+            f"Reste à payer: {reste_a_payer:,.2f} {currency}\n"
+            "Prix unitaires affichés: frais et taxes inclus."
+        )
+        pdf.add_footer("Lahimena Tours | Madagascar | Tel: +261-32-XXXX-XXXX")
+
+        filepath = pdf.generate()
+        logger.info(f"Invoice PDF created: {filepath}")
+        return filepath
+    except Exception as e:
+        logger.error(f"Error generating invoice PDF: {e}", exc_info=True)
         raise

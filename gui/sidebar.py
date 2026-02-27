@@ -109,25 +109,11 @@ class Sidebar:
         self._create_button("🏠 Accueil", self._show_home)
         self._create_button("⚙️ Paramétrage", self._show_parametrage_page)
 
-        # Client Information
-        btn1 = self._create_button("🏨 Information client ▶", self._show_client_form)
-        _submenu1_frame = self._create_submenu(
-            btn1,
-            [
-                ("👤 Nouveau client", self._show_client_form),
-                ("📋 Liste clients", self._show_client_list),
-            ],
-        )
+        # Client Information (direct access)
+        _btn1 = self._create_button("🏨 Information client", self._show_client_page)
 
-        # Hotel Quotation
-        btn2 = self._create_button("🏨 Cotation hôtel ▶", None)
-        _submenu2_frame = self._create_submenu(
-            btn2,
-            [
-                ("🆕 Nouvelle cotation", self._show_hotel_quotation),
-                ("📊 Résumé cotations", self._show_hotel_quotation_summary),
-            ],
-        )
+        # Hotel Quotation (direct access)
+        _btn2 = self._create_button("🏨 Cotation hôtel", self._show_hotel_quotation_page)
 
         # Services
         _btn_collective = self._create_button(
@@ -139,25 +125,11 @@ class Sidebar:
         )
         _btn_air = self._create_button("🎯 Billet Avion", self._show_air_ticket_page)
 
-        # Client Quotations
-        btn4 = self._create_button("👥 Devis clients ▶", None)
-        _submenu4_frame = self._create_submenu(
-            btn4,
-            [
-                ("📄 Devis actuels", self._show_current_quotes),
-                ("✏️ Historiques devis", self._show_quote_history),
-            ],
-        )
+        # Client Quotations (direct access)
+        _btn4 = self._create_button("👥 Devis clients", self._show_client_quotes_page)
 
-        # Client Invoices
-        btn5 = self._create_button("💰 Facture clients ▶", None)
-        _submenu5_frame = self._create_submenu(
-            btn5,
-            [
-                ("📄 Factures actuelles", self._show_current_invoices),
-                ("✏️ Historiques factures", self._show_invoice_history),
-            ],
-        )
+        # Client Invoices (direct access)
+        _btn5 = self._create_button("💰 Facture clients", self._show_current_invoices)
 
         # Expenses
         btn6 = self._create_button("📉 Dépenses ▶", None)
@@ -293,19 +265,25 @@ class Sidebar:
         self.main_content_callback("home")
 
     def _show_client_form(self):
-        self.main_content_callback("client_form")
+        self.main_content_callback("client_page")
 
     def _show_client_list(self):
-        self.main_content_callback("client_list")
+        self.main_content_callback("client_page")
+
+    def _show_client_page(self):
+        self.main_content_callback("client_page")
 
     def _show_hotel_list(self):
         self.main_content_callback("hotel_list")
 
     def _show_hotel_quotation(self):
-        self.main_content_callback("hotel_quotation")
+        self.main_content_callback("hotel_quotation_page")
 
     def _show_hotel_quotation_summary(self):
-        self.main_content_callback("hotel_quotation_summary")
+        self.main_content_callback("hotel_quotation_page")
+
+    def _show_hotel_quotation_page(self):
+        self.main_content_callback("hotel_quotation_page")
 
     def _show_transport_page(self):
         self.main_content_callback("transport_page")
@@ -332,10 +310,13 @@ class Sidebar:
         self.main_content_callback("visite_excursion_summary")
 
     def _show_current_quotes(self):
-        self.main_content_callback("current_quotes")
+        self.main_content_callback("client_quotes_page")
 
     def _show_quote_history(self):
-        self.main_content_callback("quote_history")
+        self.main_content_callback("client_quotes_page")
+
+    def _show_client_quotes_page(self):
+        self.main_content_callback("client_quotes_page")
 
     def _show_current_invoices(self):
         self.main_content_callback("current_invoices")

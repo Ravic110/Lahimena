@@ -219,7 +219,7 @@ class TransportQuotation:
 
         tk.Label(
             self.parent,
-            text="Client + transport remplissent automatiquement les données et calculs carburant.",
+            text="1) Sélectionnez le client  2) Choisissez le trajet/transport  3) Vérifiez distance/budget puis Enregistrer.",
             font=LABEL_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
@@ -288,7 +288,7 @@ class TransportQuotation:
 
         tk.Button(
             button_frame,
-            text="🧹 Vider",
+            text="🧹 Réinitialiser",
             command=self._clear,
             bg=BUTTON_BLUE,
             fg="white",
@@ -610,6 +610,17 @@ class TransportQuotation:
         has_data = any(str(v).strip() for v in form_data.values())
         if not has_data:
             messagebox.showwarning("Validation", "Veuillez renseigner au moins un champ avant l'enregistrement.")
+            return
+
+        client_id_header = self._find_header_by_type("client_id")
+        client_name_header = self._find_header_by_type("client_name")
+        client_id = form_data.get(client_id_header, "").strip() if client_id_header else ""
+        client_name = form_data.get(client_name_header, "").strip() if client_name_header else ""
+        if not client_id and not client_name:
+            messagebox.showwarning(
+                "Validation",
+                "Veuillez sélectionner un client avant d'enregistrer la cotation.",
+            )
             return
 
         if self.edit_data and self.row_number is not None:

@@ -54,14 +54,17 @@ class MainContent:
             return
 
         handlers = {
-            "client_form": self._show_client_form,
-            "client_list": self._show_client_list,
+            "client_form": self._show_client_page,
+            "client_list": self._show_client_page,
+            "client_page": self._show_client_page,
             "hotel_form": self._show_hotel_form,
             "hotel_list": self._show_hotel_list,
-            "hotel_quotation": self._show_hotel_quotation,
-            "hotel_quotation_summary": self._show_hotel_quotation_summary,
-            "current_quotes": self._show_client_quotation,
-            "quote_history": self._show_client_quotation_history,
+            "hotel_quotation": self._show_hotel_quotation_page,
+            "hotel_quotation_summary": self._show_hotel_quotation_page,
+            "hotel_quotation_page": self._show_hotel_quotation_page,
+            "current_quotes": self._show_client_quotes_page,
+            "quote_history": self._show_client_quotes_page,
+            "client_quotes_page": self._show_client_quotes_page,
             "collective_expense_quotation": self._show_collective_expense_quotation,
             "collective_expense_summary": self._show_collective_expense_summary,
             "collective_expense_page": self._show_collective_expense_page,
@@ -126,6 +129,12 @@ class MainContent:
 
         ClientList(self.main_scroll, self._edit_client, self._new_client)
 
+    def _show_client_page(self):
+        """Show combined client form + list page."""
+        from gui.forms.client_page import ClientPage
+
+        ClientPage(self.main_scroll)
+
     def _show_hotel_form(self, hotel_to_edit=None):
         """Show hotel form"""
         from gui.forms.hotel_form import HotelForm
@@ -150,6 +159,12 @@ class MainContent:
 
         HotelQuotationSummary(self.main_scroll)
 
+    def _show_hotel_quotation_page(self):
+        """Show combined hotel quotation + summary page."""
+        from gui.forms.hotel_quotation_page import HotelQuotationPage
+
+        HotelQuotationPage(self.main_scroll)
+
     def _show_client_quotation(self):
         """Show client quotation form"""
         from gui.forms.client_quotation import ClientQuotation
@@ -161,6 +176,12 @@ class MainContent:
         from gui.forms.client_quotation_history import ClientQuotationHistory
 
         ClientQuotationHistory(self.main_scroll)
+
+    def _show_client_quotes_page(self):
+        """Show combined client quotation + history page."""
+        from gui.forms.client_quotation_page import ClientQuotationPage
+
+        ClientQuotationPage(self.main_scroll)
 
     def _show_collective_expense_quotation(self):
         """Show collective expense quotation form"""

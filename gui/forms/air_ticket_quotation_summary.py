@@ -162,6 +162,13 @@ class AirTicketQuotationSummary:
             bg=MAIN_BG_COLOR,
         )
         title.pack(pady=(20, 10), fill="x")
+        tk.Label(
+            self.parent,
+            text="Filtrez avec la recherche, puis sélectionnez une ligne avant toute action (modifier/supprimer).",
+            font=ENTRY_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).pack(pady=(0, 8), fill="x")
 
         self.main_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         self.main_frame.pack(fill="both", expand=True, padx=10, pady=(5, 10))
