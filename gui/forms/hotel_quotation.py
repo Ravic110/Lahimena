@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import tkinter as tk
+import unicodedata
 from tkinter import messagebox, ttk
 
 import customtkinter as ctk
@@ -35,7 +36,11 @@ from utils.excel_handler import (
     save_hotel_quotation_to_excel,
 )
 from utils.logger import logger
-from utils.pdf_generator import REPORTLAB_AVAILABLE, generate_hotel_quotation_pdf
+from utils.pdf_generator import (
+    REPORTLAB_AVAILABLE,
+    generate_hotel_quotation_pdf,
+    generate_multi_hotel_quotation_pdf,
+)
 from utils.validators import convert_currency, get_exchange_rates
 
 ROOM_GROUP_LABELS = {
@@ -79,7 +84,9 @@ class HotelQuotation:
         self.selected_hotel = None
         self.last_pricing = None
         self.allowed_itinerary_cities = []
+        self.city_planned_days = {}
         self.preferred_room_type_label = ""
+        self.itinerary_hotels = []
 
         self._create_quotation_form()
 
@@ -90,6 +97,9 @@ class HotelQuotation:
     def _load_and_filter_hotels(self, client_type=None):
         """Load hotels and filter duplicates"""
         hotels = load_all_hotels(client_type)
+        if client_type and not hotels:
+            # Fallback when no hotel exists for the selected pricing mode.
+            hotels = load_all_hotels()
 
         # Remove duplicates based on nom, lieu, and categorie
         unique_hotels = {}
@@ -118,28 +128,112 @@ class HotelQuotation:
         """Parse itinerary city values from saved client data."""
         if not cities_value:
             return []
-        cities = [
-            c.strip() for c in re.split(r"[;,>\n]+", str(cities_value)) if c.strip()
-        ]
+        cities = [c.strip() for c in re.split(r"[,;>/|\n]+", str(cities_value)) if c.strip()]
         parsed = []
         seen = set()
         for city in cities:
             if " - " in city:
                 city = city.split(" - ", 1)[1].strip()
-            if city and city not in seen:
-                seen.add(city)
+            if city:
+                city = re.sub(r"\s+", " ", city).strip()
+            normalized = self._normalize_city(city)
+            if city and normalized and normalized not in seen:
+                seen.add(normalized)
                 parsed.append(city)
         return parsed
+
+    def _parse_itinerary_segments(self, itinerary_value):
+        """Split itinerary raw text into atomic segments."""
+        if not itinerary_value:
+            return []
+        return [
+            segment.strip()
+            for segment in re.split(r"[,;>/|\n]+", str(itinerary_value))
+            if segment and segment.strip()
+        ]
+
+    def _normalize_city(self, city_name):
+        """Normalize city names for resilient matching (case/accent/format)."""
+        if not city_name:
+            return ""
+        text = str(city_name).strip().lower()
+        text = unicodedata.normalize("NFKD", text)
+        text = "".join(ch for ch in text if not unicodedata.combining(ch))
+        # Remove clarifications such as "Ranohira (Isalo)" -> "Ranohira"
+        text = re.sub(r"\([^)]*\)", " ", text)
+        text = re.sub(r"[^a-z0-9]+", " ", text)
+        return re.sub(r"\s+", " ", text).strip()
+
+    def _extract_allowed_cities_from_client(self, client):
+        """Extract ordered itinerary cities selected on the client form."""
+        itinerary_cities = self._parse_itinerary_cities(client.get("ville_arrivee", ""))
+        if not itinerary_cities:
+            itinerary_cities = self._parse_itinerary_cities(
+                client.get("itineraire_circuit", "")
+            )
+
+        depart_city = (client.get("ville_depart") or "").strip()
+        allowed = []
+        seen = set()
+        for city_name in ([depart_city] + itinerary_cities):
+            if city_name and city_name not in seen:
+                seen.add(city_name)
+                allowed.append(city_name)
+        return allowed
+
+    def _extract_city_days_from_client(self, client):
+        """Extract mapping {normalized_city: planned_days} from client itinerary fields."""
+        city_days = {}
+        raw_sources = [
+            client.get("ville_arrivee", ""),
+            client.get("itineraire_circuit", ""),
+        ]
+
+        for source in raw_sources:
+            for segment in self._parse_itinerary_segments(source):
+                planned_days = None
+                day_match = re.search(
+                    r"(\d+)\s*(?:j|jour|jours)\b", segment, flags=re.IGNORECASE
+                )
+                if day_match:
+                    try:
+                        planned_days = int(day_match.group(1))
+                    except Exception:
+                        planned_days = None
+
+                city_name = segment
+                city_name = re.sub(
+                    r"\(\s*\d+\s*(?:j|jour|jours)\s*\)",
+                    "",
+                    city_name,
+                    flags=re.IGNORECASE,
+                )
+                city_name = re.sub(
+                    r"\b\d+\s*(?:j|jour|jours)\b",
+                    "",
+                    city_name,
+                    flags=re.IGNORECASE,
+                )
+                city_name = re.sub(r"^\s*-\s*", "", city_name)
+                city_name = re.sub(r"\s+", " ", city_name).strip(" -")
+                normalized = self._normalize_city(city_name)
+                if normalized and planned_days:
+                    city_days[normalized] = max(1, planned_days)
+
+        return city_days
 
     def _get_city_values(self):
         """Build city values according to current itinerary filter."""
         if self.allowed_itinerary_cities:
-            allowed_set = set(self.allowed_itinerary_cities)
+            allowed_set = {
+                self._normalize_city(city) for city in self.allowed_itinerary_cities
+            }
             cities = sorted(
                 {
                     hotel.get("lieu", "")
                     for hotel in self.hotels
-                    if hotel.get("lieu") and hotel.get("lieu") in allowed_set
+                    if hotel.get("lieu")
+                    and self._normalize_city(hotel.get("lieu")) in allowed_set
                 }
             )
         else:
@@ -674,6 +768,69 @@ class HotelQuotation:
         )
         self.results_text.pack(fill="both", expand=True)
 
+        itinerary_frame = tk.LabelFrame(
+            main_frame,
+            text="Hôtels sélectionnés par ville (itinéraire)",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+            padx=10,
+            pady=10,
+        )
+        itinerary_frame.pack(fill="x", pady=(0, 10))
+
+        itinerary_columns = ("city", "hotel", "room", "nights", "total")
+        self.itinerary_tree = ttk.Treeview(
+            itinerary_frame,
+            columns=itinerary_columns,
+            show="headings",
+            height=5,
+        )
+        self.itinerary_tree.heading("city", text="Ville")
+        self.itinerary_tree.heading("hotel", text="Hôtel")
+        self.itinerary_tree.heading("room", text="Chambre")
+        self.itinerary_tree.heading("nights", text="Nuits")
+        self.itinerary_tree.heading("total", text="Total")
+        self.itinerary_tree.column("city", width=140, anchor="w")
+        self.itinerary_tree.column("hotel", width=220, anchor="w")
+        self.itinerary_tree.column("room", width=170, anchor="w")
+        self.itinerary_tree.column("nights", width=70, anchor="center")
+        self.itinerary_tree.column("total", width=120, anchor="e")
+        self.itinerary_tree.pack(fill="x")
+
+        itinerary_buttons = tk.Frame(itinerary_frame, bg=MAIN_BG_COLOR)
+        itinerary_buttons.pack(fill="x", pady=(8, 0))
+        tk.Button(
+            itinerary_buttons,
+            text="➕ Ajouter cet hôtel",
+            command=self._add_current_hotel_to_itinerary,
+            bg=BUTTON_GREEN,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=10,
+            pady=6,
+        ).pack(side="left", padx=4)
+        tk.Button(
+            itinerary_buttons,
+            text="➖ Retirer sélection",
+            command=self._remove_selected_itinerary_item,
+            bg=BUTTON_ORANGE,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=10,
+            pady=6,
+        ).pack(side="left", padx=4)
+        tk.Button(
+            itinerary_buttons,
+            text="🧹 Vider la liste",
+            command=self._clear_itinerary_hotels,
+            bg=BUTTON_GRAY,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=10,
+            pady=6,
+        ).pack(side="left", padx=4)
+
         # Action buttons
         action_frame = tk.Frame(main_frame, bg=MAIN_BG_COLOR)
         action_frame.pack(fill="x", pady=(0, 10))
@@ -778,10 +935,14 @@ class HotelQuotation:
         """Handle hotel selection"""
         selection = self.hotel_var.get()
         if selection:
+            self.last_pricing = None
             selected_city = self.city_var.get().strip()
+            selected_city_normalized = self._normalize_city(selected_city)
             # Find the selected hotel
             for hotel in self.hotels:
-                if selected_city and (hotel.get("lieu", "").strip() != selected_city):
+                if selected_city and (
+                    self._normalize_city(hotel.get("lieu", "")) != selected_city_normalized
+                ):
                     continue
                 hotel_display = self._hotel_display(hotel)
                 if hotel_display == selection:
@@ -795,18 +956,28 @@ class HotelQuotation:
 
     def _on_city_selected(self, event=None):
         """Filter hotels when a city is selected"""
-        city = self.city_var.get()
+        self.last_pricing = None
+        city = self.city_var.get().strip()
+        city_normalized = self._normalize_city(city)
         allowed_set = (
-            set(self.allowed_itinerary_cities) if self.allowed_itinerary_cities else None
+            {self._normalize_city(c) for c in self.allowed_itinerary_cities}
+            if self.allowed_itinerary_cities
+            else None
         )
         candidates = self.hotels
         if allowed_set:
-            candidates = [h for h in candidates if h.get("lieu") in allowed_set]
+            candidates = [
+                h
+                for h in candidates
+                if self._normalize_city(h.get("lieu")) in allowed_set
+            ]
 
         # Filter hotels by city and update hotel combobox
-        if city:
+        if city_normalized:
             filtered = [
-                self._hotel_display(h) for h in candidates if h.get("lieu") == city
+                self._hotel_display(h)
+                for h in candidates
+                if self._normalize_city(h.get("lieu")) == city_normalized
             ]
         else:
             filtered = [self._hotel_display(h) for h in candidates]
@@ -815,6 +986,109 @@ class HotelQuotation:
         self.hotel_var.set("")
         self.selected_hotel = None
         self._clear_room_selections()
+        self._apply_city_planned_nights(city_normalized)
+
+    def _apply_city_planned_nights(self, city_normalized):
+        """Auto-apply nights from planned days for selected city."""
+        if not city_normalized:
+            return
+        planned_days = self.city_planned_days.get(city_normalized)
+        if not planned_days:
+            return
+        self.nights_var.set(str(max(1, int(planned_days))))
+
+    def _format_amount(self, amount, currency_label):
+        """Format monetary amounts according to current currency."""
+        currency_symbols = {"Ariary": "Ar", "Euro": "EUR", "Dollar US": "USD"}
+        symbol = currency_symbols.get(currency_label, currency_label)
+        if currency_label == "Ariary":
+            return f"{float(amount):,.0f} {symbol}"
+        return f"{float(amount):,.2f} {symbol}"
+
+    def _refresh_itinerary_tree(self):
+        """Refresh itinerary hotel list display."""
+        if not hasattr(self, "itinerary_tree"):
+            return
+        for item_id in self.itinerary_tree.get_children():
+            self.itinerary_tree.delete(item_id)
+
+        for idx, item in enumerate(self.itinerary_hotels, start=1):
+            self.itinerary_tree.insert(
+                "",
+                "end",
+                iid=str(idx - 1),
+                values=(
+                    item.get("city", ""),
+                    item.get("hotel_name", ""),
+                    item.get("room_type", ""),
+                    item.get("nights", 0),
+                    self._format_amount(item.get("total", 0), item.get("currency", "Ariary")),
+                ),
+            )
+
+    def _add_current_hotel_to_itinerary(self):
+        """Add current city/hotel choice to the evolving itinerary list."""
+        if not self.selected_hotel:
+            messagebox.showwarning(
+                "Hôtel non sélectionné",
+                "Veuillez sélectionner un hôtel avant de l'ajouter à la liste.",
+            )
+            return
+
+        if not self.last_pricing:
+            messagebox.showwarning(
+                "Calcul requis",
+                "Veuillez d'abord cliquer sur 'Calculer le prix' pour cet hôtel.",
+            )
+            return
+
+        city = (self.selected_hotel.get("lieu") or self.city_var.get() or "").strip()
+        hotel_name = (self.selected_hotel.get("nom") or "").strip()
+        room_type = self._get_room_display() or (self.room_type_var.get().strip() if hasattr(self, "room_type_var") else "")
+        nights = int(self.nights_var.get() or 1) if hasattr(self, "nights_var") else 1
+        currency_label = self.currency_var.get() if hasattr(self, "currency_var") else "Ariary"
+
+        entry = {
+            "city": city,
+            "hotel_name": hotel_name,
+            "room_type": room_type,
+            "nights": nights,
+            "unit_price": float(self.last_pricing.get("price_per_night", 0.0)),
+            "total": float(self.last_pricing.get("total_price", 0.0)),
+            "currency": currency_label,
+        }
+
+        city_key = self._normalize_city(city)
+        replaced = False
+        for i, existing in enumerate(self.itinerary_hotels):
+            if self._normalize_city(existing.get("city", "")) == city_key:
+                self.itinerary_hotels[i] = entry
+                replaced = True
+                break
+
+        if not replaced:
+            self.itinerary_hotels.append(entry)
+
+        self._refresh_itinerary_tree()
+        logger.info("Hotel itinerary updated with city=%s hotel=%s", city, hotel_name)
+
+    def _remove_selected_itinerary_item(self):
+        """Remove selected city/hotel entry from itinerary list."""
+        if not hasattr(self, "itinerary_tree"):
+            return
+        selected = self.itinerary_tree.selection()
+        if not selected:
+            return
+        indices = sorted((int(item_id) for item_id in selected), reverse=True)
+        for index in indices:
+            if 0 <= index < len(self.itinerary_hotels):
+                self.itinerary_hotels.pop(index)
+        self._refresh_itinerary_tree()
+
+    def _clear_itinerary_hotels(self):
+        """Clear all itinerary hotel entries."""
+        self.itinerary_hotels = []
+        self._refresh_itinerary_tree()
 
     def _clear_room_selections(self):
         """Reset room group/type selections"""
@@ -908,17 +1182,11 @@ class HotelQuotation:
                     self.client_var.set(client.get("ref_client", ""))
 
                     # Restrict available hotels to client's itinerary
-                    depart_city = (client.get("ville_depart") or "").strip()
-                    itinerary_cities = self._parse_itinerary_cities(
-                        client.get("ville_arrivee", "")
+                    self.allowed_itinerary_cities = self._extract_allowed_cities_from_client(
+                        client
                     )
-                    allowed = []
-                    seen = set()
-                    for city_name in [depart_city] + itinerary_cities:
-                        if city_name and city_name not in seen:
-                            seen.add(city_name)
-                            allowed.append(city_name)
-                    self.allowed_itinerary_cities = allowed
+                    self.city_planned_days = self._extract_city_days_from_client(client)
+                    self._clear_itinerary_hotels()
                     self._refresh_city_and_hotel_options()
 
                     # Auto-fill stay parameters from client data
@@ -931,6 +1199,8 @@ class HotelQuotation:
             self.client_phone_var.set("")
             self.preferred_room_type_label = ""
             self.allowed_itinerary_cities = []
+            self.city_planned_days = {}
+            self._clear_itinerary_hotels()
             self._refresh_city_and_hotel_options()
             # Keep default values for numeric fields
             self.nights_var.set("1")
@@ -943,6 +1213,8 @@ class HotelQuotation:
             return
         client_type = self.client_type_var.get()
         self.hotels = self._load_and_filter_hotels(client_type)
+        if not self.hotels:
+            self.hotels = self._load_and_filter_hotels(None)
         self._refresh_city_and_hotel_options(preserve_city=True)
 
     def _update_exchange_rates(self):
@@ -1271,14 +1543,18 @@ class HotelQuotation:
                 else (self.client_var.get().strip() if hasattr(self, "client_var") else "Client")
             )
             client_email = ""
+            client_first_name = ""
 
             # Try to get client email if client selected
             if client_name and client_name != "Sélectionner un client":
                 try:
                     clients = load_all_clients()
                     for client in clients:
-                        if client["client_name"] == client_name:
+                        ref_client = (self.client_var.get().strip() if hasattr(self, "client_var") else "")
+                        full_name = f"{(client.get('nom') or '').strip()} {(client.get('prenom') or '').strip()}".strip()
+                        if (ref_client and client.get("ref_client") == ref_client) or full_name == client_name:
                             client_email = client.get("email", "")
+                            client_first_name = (client.get("prenom") or "").strip()
                             break
                 except Exception as e:
                     logger.warning(f"Could not retrieve client email: {e}")
@@ -1309,7 +1585,6 @@ class HotelQuotation:
             price_per_night = self.last_pricing.get("price_per_night", 0.0)
             total_price = self.last_pricing.get("total_price", 0.0)
 
-            # Generate PDF quotation
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             quote_number = f"DEVIS_HOTEL_{timestamp}"
             devis_folder = DEVIS_FOLDER
@@ -1318,46 +1593,70 @@ class HotelQuotation:
             if not os.path.exists(devis_folder):
                 os.makedirs(devis_folder)
 
-            filename = generate_hotel_quotation_pdf(
-                hotel_name=self.selected_hotel["nom"],
-                client_name=client_name,
-                client_email=client_email,
-                quote_number=quote_number,
-                quote_date=datetime.datetime.now().strftime("%d/%m/%Y"),
-                nights=nights,
-                adults=adults,
-                room_type=room_type,
-                price_per_night=price_per_night,
-                total_price=total_price,
-                currency=currency_code,
-                hotel_location=self.selected_hotel.get("lieu", ""),
-                hotel_category=self.selected_hotel.get("categorie", ""),
-                hotel_contact=self.selected_hotel.get("contact", ""),
-                hotel_email=self.selected_hotel.get("email", ""),
-                output_dir=devis_folder,
-            )
+            if self.itinerary_hotels:
+                items = []
+                subtotal = 0.0
+                for entry in self.itinerary_hotels:
+                    line_total = float(entry.get("total", 0.0))
+                    subtotal += line_total
+                    items.append(
+                        {
+                            "designation": f"{entry.get('hotel_name', '')} - {entry.get('city', '')} ({entry.get('room_type', '')})",
+                            "nights": int(entry.get("nights", 1) or 1),
+                            "unit_price": float(entry.get("unit_price", 0.0)),
+                            "total": line_total,
+                        }
+                    )
+
+                filename = generate_multi_hotel_quotation_pdf(
+                    client_name=client_name,
+                    client_email=client_email,
+                    client_phone=self.client_phone_var.get().strip() if hasattr(self, "client_phone_var") else "",
+                    quote_number=f"DEVIS_HOTEL_MULTI_{timestamp}",
+                    quote_date=datetime.datetime.now().strftime("%d/%m/%Y"),
+                    items=items,
+                    currency=currency_code,
+                    subtotal=subtotal,
+                    total=subtotal,
+                    output_dir=devis_folder,
+                )
+            else:
+                filename = generate_hotel_quotation_pdf(
+                    hotel_name=self.selected_hotel["nom"],
+                    client_name=client_name,
+                    client_email=client_email,
+                    quote_number=quote_number,
+                    quote_date=datetime.datetime.now().strftime("%d/%m/%Y"),
+                    nights=nights,
+                    adults=adults,
+                    room_type=room_type,
+                    price_per_night=price_per_night,
+                    total_price=total_price,
+                    currency=currency_code,
+                    hotel_location=self.selected_hotel.get("lieu", ""),
+                    hotel_category=self.selected_hotel.get("categorie", ""),
+                    hotel_contact=self.selected_hotel.get("contact", ""),
+                    hotel_email=self.selected_hotel.get("email", ""),
+                    output_dir=devis_folder,
+                )
 
             # Save quotation to COTATION_H sheet
             try:
-                quotation_data = {
+                base_quotation_data = {
                     "client_id": (
                         self.client_var.get().split(" - ")[0]
                         if " - " in self.client_var.get()
                         else (self.client_var.get().strip() or client_name)
                     ),
                     "client_name": client_name,
-                    "hotel_name": self.selected_hotel["nom"],
-                    "city": self.selected_hotel.get("lieu", ""),
-                    "total_price": total_price,
+                    "client_first_name": client_first_name,
                     "currency": currency,
-                    "nights": nights,
                     "adults": adults,
                     "children": (
                         int(self.children_var.get())
                         if hasattr(self, "children_var")
                         else 0
                     ),
-                    "room_type": room_type,
                     "meal_plan": (
                         self.meal_var.get() if hasattr(self, "meal_var") else ""
                     ),
@@ -1366,10 +1665,41 @@ class HotelQuotation:
                     ),
                     "quote_date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 }
-                save_hotel_quotation_to_excel(quotation_data)
-                logger.info(
-                    f"Quotation saved to COTATION_H sheet: {client_name} - {self.selected_hotel['nom']}"
-                )
+                if self.itinerary_hotels:
+                    for entry in self.itinerary_hotels:
+                        quotation_data = dict(base_quotation_data)
+                        quotation_data.update(
+                            {
+                                "hotel_name": entry.get("hotel_name", ""),
+                                "city": entry.get("city", ""),
+                                "total_price": entry.get("total", 0.0),
+                                "nights": entry.get("nights", 1),
+                                "room_type": entry.get("room_type", ""),
+                            }
+                        )
+                        save_hotel_quotation_to_excel(quotation_data)
+                    logger.info(
+                        "Multi-hotel quotation saved to COTATION_H sheet: %s (%d lines)",
+                        client_name,
+                        len(self.itinerary_hotels),
+                    )
+                else:
+                    quotation_data = dict(base_quotation_data)
+                    quotation_data.update(
+                        {
+                            "hotel_name": self.selected_hotel["nom"],
+                            "city": self.selected_hotel.get("lieu", ""),
+                            "total_price": total_price,
+                            "nights": nights,
+                            "room_type": room_type,
+                        }
+                    )
+                    save_hotel_quotation_to_excel(quotation_data)
+                    logger.info(
+                        "Quotation saved to COTATION_H sheet: %s - %s",
+                        client_name,
+                        self.selected_hotel["nom"],
+                    )
             except Exception as e:
                 logger.warning(f"Could not save quotation to Excel: {e}")
 
@@ -1408,6 +1738,8 @@ class HotelQuotation:
         self.last_pricing = None
         self.preferred_room_type_label = ""
         self.allowed_itinerary_cities = []
+        self.city_planned_days = {}
+        self._clear_itinerary_hotels()
         self.nights_var.set("1")
         self.adults_var.set("2")
         self.children_var.set("0")

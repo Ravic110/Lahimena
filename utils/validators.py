@@ -105,7 +105,10 @@ def get_exchange_rates():
         return rates
     except Exception as e:
         # Fallback to hardcoded rates if API fails
-        print(f"Warning: Could not fetch exchange rates: {e}. Using fallback rates.")
+        logger.warning(
+            "Could not fetch exchange rates: %s. Using fallback rates.",
+            e,
+        )
         return {
             "EUR": 5235.0,  # Approximate 1 EUR = 5235 MGA
             "USD": 4900.0,  # Approximate 1 USD = 4900 MGA

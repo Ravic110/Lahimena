@@ -11,6 +11,39 @@ _config_path = os.path.join(os.path.dirname(__file__), "config.json")
 
 # internal config dictionary
 _cfg = {}
+_ALLOWED_CONFIG_KEYS = {
+    "APP_TITLE",
+    "APP_GEOMETRY",
+    "APPEARANCE_MODE",
+    "DEFAULT_COLOR_THEME",
+    "CURRENT_THEME",
+    "CLIENT_EXCEL_PATH",
+    "HOTEL_EXCEL_PATH",
+}
+
+
+def _sanitize_config(raw_cfg):
+    """Return only allowed config keys from a user-provided dict."""
+    if not isinstance(raw_cfg, dict):
+        return {}
+    return {k: v for k, v in raw_cfg.items() if k in _ALLOWED_CONFIG_KEYS}
+
+
+def _propagate_config_overrides():
+    """Propagate sanitized config values to already-defined globals."""
+    for key, val in _cfg.items():
+        if key in globals():
+            globals()[key] = val
+
+    # Recompute derived absolute paths when base constants are already loaded.
+    if "BASE_DIR" in globals():
+        globals()["CLIENT_EXCEL_PATH"] = os.path.join(
+            BASE_DIR, _cfg.get("CLIENT_EXCEL_PATH", "data.xlsx")
+        )
+        globals()["HOTEL_EXCEL_PATH"] = os.path.join(
+            BASE_DIR, _cfg.get("HOTEL_EXCEL_PATH", "data-hotel.xlsx")
+        )
+        globals()["FINANCIAL_EXCEL_PATH"] = globals()["CLIENT_EXCEL_PATH"]
 
 
 def load_config(path=None):
@@ -21,14 +54,12 @@ def load_config(path=None):
     if os.path.exists(path):
         try:
             with open(path, "r") as f:
-                _cfg = json.load(f)
+                _cfg = _sanitize_config(json.load(f))
         except Exception:
             _cfg = {}
     else:
         _cfg = {}
-    # propagate overrides to existing globals if they already exist
-    for key, val in _cfg.items():
-        globals()[key] = val
+    _propagate_config_overrides()
 
 
 # initialize at import
@@ -87,6 +118,9 @@ THEMES = {
         "BUTTON_GRAY": "#64748B",
     },
 }
+
+if CURRENT_THEME not in THEMES:
+    CURRENT_THEME = "dark"
 
 # Colors (active theme)
 SIDEBAR_BG_COLOR = THEMES[CURRENT_THEME]["SIDEBAR_BG_COLOR"]

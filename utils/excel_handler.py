@@ -1643,6 +1643,7 @@ def save_hotel_quotation_to_excel(quotation_data):
                 "Date",
                 "ID_Client",
                 "Nom_Client",
+                "Prénom_Client",
                 "Hôtel",
                 "Ville",
                 "Nuits",
@@ -1667,37 +1668,48 @@ def save_hotel_quotation_to_excel(quotation_data):
         # Find next row
         next_row = ws.max_row + 1
 
-        # Save data
-        ws[f"A{next_row}"] = quotation_data.get(
-            "quote_date", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        )
-        ws[f"B{next_row}"] = quotation_data.get("client_id", "")
-        ws[f"C{next_row}"] = quotation_data.get("client_name", "")
-        ws[f"D{next_row}"] = quotation_data.get("hotel_name", "")
-        ws[f"E{next_row}"] = quotation_data.get("city", "")
-        ws[f"F{next_row}"] = quotation_data.get("nights", 0)
-        ws[f"G{next_row}"] = quotation_data.get("room_type", "")
-        ws[f"H{next_row}"] = quotation_data.get("adults", 0)
-        ws[f"I{next_row}"] = quotation_data.get("children", 0)
-        ws[f"J{next_row}"] = quotation_data.get("meal_plan", "")
-        ws[f"K{next_row}"] = quotation_data.get("period", "")
-        ws[f"L{next_row}"] = _parse_num(quotation_data.get("total_price", 0))
-        ws[f"M{next_row}"] = quotation_data.get("currency", "Ariary")
+        # Ensure headers for existing files where columns could be missing
+        header_map = _ensure_headers(ws, headers)
+
+        row_values = {
+            "Date": quotation_data.get(
+                "quote_date", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ),
+            "ID_Client": quotation_data.get("client_id", ""),
+            "Nom_Client": quotation_data.get("client_name", ""),
+            "Prénom_Client": quotation_data.get("client_first_name", ""),
+            "Hôtel": quotation_data.get("hotel_name", ""),
+            "Ville": quotation_data.get("city", ""),
+            "Nuits": quotation_data.get("nights", 0),
+            "Type_Chambre": quotation_data.get("room_type", ""),
+            "Adultes": quotation_data.get("adults", 0),
+            "Enfants": quotation_data.get("children", 0),
+            "Plan_Repas": quotation_data.get("meal_plan", ""),
+            "Période": quotation_data.get("period", ""),
+            "Total_Devise": _parse_num(quotation_data.get("total_price", 0)),
+            "Devise": quotation_data.get("currency", "Ariary"),
+        }
+
+        for header, value in row_values.items():
+            col_idx = header_map.get(header)
+            if col_idx:
+                ws.cell(row=next_row, column=col_idx, value=value)
 
         # Adjust column widths
         ws.column_dimensions["A"].width = 16
         ws.column_dimensions["B"].width = 12
         ws.column_dimensions["C"].width = 20
-        ws.column_dimensions["D"].width = 25
-        ws.column_dimensions["E"].width = 12
-        ws.column_dimensions["F"].width = 8
-        ws.column_dimensions["G"].width = 14
-        ws.column_dimensions["H"].width = 8
+        ws.column_dimensions["D"].width = 16
+        ws.column_dimensions["E"].width = 25
+        ws.column_dimensions["F"].width = 12
+        ws.column_dimensions["G"].width = 8
+        ws.column_dimensions["H"].width = 14
         ws.column_dimensions["I"].width = 8
-        ws.column_dimensions["J"].width = 18
-        ws.column_dimensions["K"].width = 12
-        ws.column_dimensions["L"].width = 14
-        ws.column_dimensions["M"].width = 10
+        ws.column_dimensions["J"].width = 8
+        ws.column_dimensions["K"].width = 18
+        ws.column_dimensions["L"].width = 12
+        ws.column_dimensions["M"].width = 14
+        ws.column_dimensions["N"].width = 10
 
         wb.save(CLIENT_EXCEL_PATH)
         logger.info(f"Quotation saved to row {next_row} in {COTATION_H_SHEET_NAME}")

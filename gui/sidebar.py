@@ -107,7 +107,6 @@ class Sidebar:
         """Create all menu buttons"""
         # Home
         self._create_button("🏠 Accueil", self._show_home)
-        self._create_button("⚙️ Paramétrage", self._show_parametrage_page)
 
         # Client Information (direct access)
         _btn1 = self._create_button("🏨 Information client", self._show_client_page)

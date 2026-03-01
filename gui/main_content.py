@@ -307,7 +307,10 @@ class MainContent:
         """Show combined transport page (form + summary)."""
         from gui.forms.transport_page import TransportPage
 
-        TransportPage(self.main_scroll)
+        TransportPage(
+            self.main_scroll,
+            navigate_callback=lambda page: self.update_content(page),
+        )
 
     def _show_transport_db_page(self):
         """Show transport DB management page."""

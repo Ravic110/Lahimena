@@ -10,6 +10,11 @@ requires-python = ">=3.7"
 # (core runtime requirements)
 dependencies = [
     "customtkinter>=5.2.0",
+    "Pillow>=9.0.0",
+    "openpyxl>=3.0.0",
+    "phonenumbers>=8.12.0",
+    "requests>=2.25.0",
+    "reportlab>=3.6.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -30,14 +35,8 @@ exclude = [
 
 # optional dependencies can be grouped under named extras
 [project.optional-dependencies]
-# extras used by the main GUI for added features
-extras = [
-    "Pillow>=9.0.0",
-    "openpyxl>=3.0.0",
-    "phonenumbers>=8.12.0",
-    "requests>=2.25.0",
-    "reportlab>=3.6.0",
-]
+# placeholder extra for optional add-ons
+extras = []
 
 # financial extra for TsaraKonta, includes its own dependencies
 financial = [
