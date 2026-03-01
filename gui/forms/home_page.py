@@ -5,6 +5,12 @@ Home page view for the main content area.
 from datetime import datetime
 
 import customtkinter as ctk
+from utils.excel_handler import (
+    load_all_clients,
+    load_all_collective_expense_quotations,
+    load_all_hotel_quotations,
+    load_all_invoices,
+)
 
 
 class HomePage:
@@ -14,16 +20,79 @@ class HomePage:
         self.parent = parent
         self.navigate_callback = navigate_callback
         self._tips = [
-            "Astuce: commencez par creer un client avant la cotation.",
-            "Astuce: verifiez la liste hotels pour reutiliser une fiche existante.",
-            "Astuce: utilisez le resume des cotations pour un suivi rapide.",
+            "Astuce: commencez par creer un client avant de lancer la cotation hotel.",
+            "Astuce: en cotation hotel, ajoutez chaque ville/hotel avec le bouton 'Ajouter cet hotel'.",
+            "Astuce: le resume des cotations hotel affiche maintenant un tableau simple des grandes lignes.",
+            "Astuce: le bouton Parametre est disponible dans la fenetre Transport.",
         ]
         self._tip_index = 0
         self.clock_label = None
         self.tip_label = None
+        self.dashboard_stats = self._load_dashboard_stats()
         self._build_ui()
         self._start_clock()
         self._start_tip_rotation()
+
+    def _to_number(self, value):
+        try:
+            if value is None or value == "":
+                return 0.0
+            if isinstance(value, (int, float)):
+                return float(value)
+            text = str(value).strip().replace(" ", "").replace(",", ".")
+            cleaned = ""
+            dot_seen = False
+            for ch in text:
+                if ch.isdigit() or ch == "-":
+                    cleaned += ch
+                elif ch == "." and not dot_seen:
+                    cleaned += ch
+                    dot_seen = True
+            return float(cleaned) if cleaned not in ("", "-", ".") else 0.0
+        except Exception:
+            return 0.0
+
+    def _load_dashboard_stats(self):
+        """Load small dashboard counters and totals for home page."""
+        stats = {
+            "clients": 0,
+            "collective_count": 0,
+            "collective_total": 0.0,
+            "quotes_count": 0,
+            "quotes_total": 0.0,
+            "invoices_count": 0,
+            "invoices_total": 0.0,
+        }
+        try:
+            clients = load_all_clients()
+            stats["clients"] = len(clients)
+        except Exception:
+            pass
+        try:
+            collective = load_all_collective_expense_quotations()
+            stats["collective_count"] = len(collective)
+            stats["collective_total"] = sum(
+                self._to_number(item.get("Total_Devise", 0)) for item in collective
+            )
+        except Exception:
+            pass
+        try:
+            quotes = load_all_hotel_quotations()
+            stats["quotes_count"] = len(quotes)
+            stats["quotes_total"] = sum(
+                self._to_number(item.get("total_price", 0)) for item in quotes
+            )
+        except Exception:
+            pass
+        try:
+            invoices = load_all_invoices()
+            stats["invoices_count"] = len(invoices)
+            stats["invoices_total"] = sum(
+                self._to_number(item.get("Total_TTC", 0)) for item in invoices
+            )
+        except Exception:
+            pass
+        return stats
 
     def _build_ui(self):
         shell = ctk.CTkFrame(self.parent, fg_color="transparent")
@@ -70,27 +139,36 @@ class HomePage:
         quick_actions.pack(fill="x", pady=(0, 14))
 
         self._add_quick_action(
-            quick_actions, "Nouveau client", "client_form", "#059669", "#047857"
+            quick_actions, "Demande client", "client_page", "#059669", "#047857"
         )
         self._add_quick_action(
-            quick_actions, "Nouvelle cotation", "hotel_quotation", "#0284C7", "#0369A1"
+            quick_actions,
+            "Cotation hotel multi-villes",
+            "hotel_quotation_page",
+            "#0284C7",
+            "#0369A1",
         )
         self._add_quick_action(
-            quick_actions, "Liste hotels", "hotel_list", "#6D28D9", "#5B21B6"
+            quick_actions, "Transport + Parametre", "transport_page", "#475569", "#334155"
+        )
+        self._add_quick_action(
+            quick_actions, "Frais collectifs", "collective_expense_page", "#B45309", "#92400E"
+        )
+        self._add_quick_action(
+            quick_actions, "Devis clients", "client_quotes_page", "#4F46E5", "#4338CA"
+        )
+        self._add_quick_action(
+            quick_actions, "Factures clients", "current_invoices", "#DC2626", "#B91C1C"
         )
 
         cards_container = ctk.CTkFrame(shell, fg_color="transparent")
         cards_container.pack(fill="both", expand=True)
 
+        self._add_dashboard(cards_container)
         self._add_card(
             cards_container,
             "Demarrage rapide",
-            "1) Creez un client\n2) Ajoutez ou choisissez un hotel\n3) Lancez une cotation",
-        )
-        self._add_card(
-            cards_container,
-            "Raccourcis utiles",
-            "Client, cotation hotel, resume de cotations et liste hotels.",
+            "1) Creez/selectionnez un client\n2) Choisissez une ville de l'itineraire\n3) Calculez puis ajoutez l'hotel dans la liste evolutive\n4) Generez le devis final",
         )
 
         tip_card = self._add_card(
@@ -136,6 +214,62 @@ class HomePage:
             widget.bind("<Leave>", on_leave)
 
         return {"frame": card, "body_label": body_label}
+
+    def _add_dashboard(self, parent):
+        """Small synthetic dashboard with key counters."""
+        wrapper = ctk.CTkFrame(parent, fg_color="#1F2937", corner_radius=14)
+        wrapper.pack(fill="x", pady=8)
+
+        ctk.CTkLabel(
+            wrapper,
+            text="Dashboard synthetique",
+            font=ctk.CTkFont(size=17, weight="bold"),
+            text_color="#F8FAFC",
+        ).pack(anchor="w", padx=16, pady=(12, 10))
+
+        grid = ctk.CTkFrame(wrapper, fg_color="transparent")
+        grid.pack(fill="x", padx=12, pady=(0, 12))
+        for col in range(4):
+            grid.grid_columnconfigure(col, weight=1)
+
+        cards = [
+            (
+                "Clients",
+                f"{self.dashboard_stats['clients']}",
+                "#0EA5E9",
+            ),
+            (
+                "Frais collectifs",
+                f"{self.dashboard_stats['collective_count']} | {self.dashboard_stats['collective_total']:,.0f} MGA",
+                "#F59E0B",
+            ),
+            (
+                "Devis hotel",
+                f"{self.dashboard_stats['quotes_count']} | {self.dashboard_stats['quotes_total']:,.0f} MGA",
+                "#22C55E",
+            ),
+            (
+                "Factures clients",
+                f"{self.dashboard_stats['invoices_count']} | {self.dashboard_stats['invoices_total']:,.0f} MGA",
+                "#EF4444",
+            ),
+        ]
+
+        for idx, (title, value, color) in enumerate(cards):
+            card = ctk.CTkFrame(grid, fg_color="#111827", corner_radius=12)
+            card.grid(row=0, column=idx, sticky="nsew", padx=6, pady=4)
+            ctk.CTkLabel(
+                card,
+                text=title,
+                font=ctk.CTkFont(size=12, weight="bold"),
+                text_color="#CBD5E1",
+            ).pack(anchor="w", padx=10, pady=(10, 2))
+            ctk.CTkLabel(
+                card,
+                text=value,
+                font=ctk.CTkFont(size=15, weight="bold"),
+                text_color=color,
+            ).pack(anchor="w", padx=10, pady=(0, 10))
 
     def _add_quick_action(self, parent, text, route, color, hover):
         btn = ctk.CTkButton(

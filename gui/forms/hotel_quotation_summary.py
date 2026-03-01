@@ -30,7 +30,7 @@ from utils.logger import logger
 
 class HotelQuotationSummary:
     """
-    Component to display hotel quotations grouped by client or city with totals
+    Component to display hotel quotations in a simple summary table.
     """
 
     def __init__(self, parent):
@@ -42,10 +42,7 @@ class HotelQuotationSummary:
         """
         self.parent = parent
         self.quotations = []
-        self.grouped_by_client = {}
-        self.grouped_by_city = {}
-        self.grouped_by_hotel = {}
-        self.current_view = "by_client"  # 'by_client' or 'by_city'
+        self.tree = None
         self.search_var = None
 
         self._load_quotations()
@@ -55,16 +52,10 @@ class HotelQuotationSummary:
         """Load quotations from Excel"""
         try:
             self.quotations = load_all_hotel_quotations()
-            self.grouped_by_client = get_quotations_grouped_by_client()
-            self.grouped_by_city = get_quotations_by_city()
-            self.grouped_by_hotel = self._get_quotations_by_hotel()
             logger.info(f"Loaded {len(self.quotations)} quotations")
         except Exception as e:
             logger.error(f"Error loading quotations: {e}", exc_info=True)
             self.quotations = []
-            self.grouped_by_client = {}
-            self.grouped_by_city = {}
-            self.grouped_by_hotel = {}
 
     def _create_interface(self):
         """Create the quotation summary interface"""
@@ -86,10 +77,6 @@ class HotelQuotationSummary:
         self.main_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         self.main_frame.pack(fill="both", expand=True, padx=10, pady=(5, 10))
 
-        # View selection frame
-        view_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
-        view_frame.pack(fill="x", padx=8, pady=(0, 10))
-
         style = ttk.Style()
         style.configure(
             "Treeview",
@@ -99,29 +86,9 @@ class HotelQuotationSummary:
         )
         style.map("Treeview", background=[("selected", BUTTON_GREEN)])
 
-        tk.Label(
-            view_frame,
-            text="Afficher par:",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(side="left")
-
-        self.view_var = tk.StringVar(value="by_client")
-        view_combo = ttk.Combobox(
-            view_frame,
-            textvariable=self.view_var,
-            values=["Par client", "Par ville", "Par hôtel"],
-            font=ENTRY_FONT,
-            width=20,
-            state="readonly",
-        )
-        view_combo.pack(side="left", padx=(10, 20))
-        view_combo.bind("<<ComboboxSelected>>", self._on_view_changed)
-
         # Search frame
         search_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
-        search_frame.pack(fill="x", padx=8, pady=(0, 10))
+        search_frame.pack(fill="x", padx=8, pady=(0, 8))
 
         tk.Label(
             search_frame,
@@ -144,7 +111,7 @@ class HotelQuotationSummary:
         self.search_var.trace("w", self._on_search_changed)
 
         refresh_btn = tk.Button(
-            view_frame,
+            search_frame,
             text="🔄 Rafraîchir",
             command=self._refresh_data,
             bg=BUTTON_BLUE,
@@ -155,12 +122,21 @@ class HotelQuotationSummary:
         )
         refresh_btn.pack(side="left")
 
+        self.kpi_label = tk.Label(
+            self.main_frame,
+            text="",
+            font=LABEL_FONT,
+            fg=ACCENT_TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+            anchor="w",
+        )
+        self.kpi_label.pack(fill="x", padx=8, pady=(0, 8))
+
         # Main content frame
         self.content_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
         self.content_frame.pack(fill="both", expand=True, padx=0, pady=(0, 0))
 
-        # Display the current view
-        self._display_by_client()
+        self._display_simple_table()
 
     def _get_quotations_by_hotel(self):
         """Group quotations by hotel with subtotals"""
@@ -195,13 +171,98 @@ class HotelQuotationSummary:
 
     def _on_search_changed(self, *args):
         """Handle search query change"""
-        view = self.view_var.get()
-        if "client" in view.lower():
-            self._display_by_client()
-        elif "ville" in view.lower():
-            self._display_by_city()
-        else:
-            self._display_by_hotel()
+        self._display_simple_table()
+
+    def _format_total(self, value, currency):
+        try:
+            return f"{float(value):,.2f} {currency}"
+        except Exception:
+            return f"{value} {currency}"
+
+    def _display_simple_table(self):
+        """Display quotations as a simple table with key information only."""
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+
+        query = self._get_search_query()
+        rows = []
+        for q in self.quotations:
+            if query:
+                haystack = " ".join(
+                    [
+                        str(q.get("quote_date", "")),
+                        str(q.get("client_id", "")),
+                        str(q.get("client_name", "")),
+                        str(q.get("hotel_name", "")),
+                        str(q.get("city", "")),
+                        str(q.get("room_type", "")),
+                    ]
+                ).lower()
+                if query not in haystack:
+                    continue
+            rows.append(q)
+
+        total_amount = sum(float(q.get("total_price", 0) or 0) for q in rows)
+        self.kpi_label.config(
+            text=f"Lignes: {len(rows)}   |   Total: {total_amount:,.2f}"
+        )
+
+        if not rows:
+            tk.Label(
+                self.content_frame,
+                text="Aucune cotation trouvée",
+                font=LABEL_FONT,
+                fg=TEXT_COLOR,
+                bg=MAIN_BG_COLOR,
+            ).pack(pady=20)
+            self.tree = None
+            return
+
+        table_frame = tk.Frame(self.content_frame, bg=MAIN_BG_COLOR)
+        table_frame.pack(fill="both", expand=True, padx=8, pady=(0, 0))
+
+        columns = ("date", "client", "ville", "hotel", "nuits", "total")
+        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings")
+        self.tree.heading("date", text="Date")
+        self.tree.heading("client", text="Client")
+        self.tree.heading("ville", text="Ville")
+        self.tree.heading("hotel", text="Hôtel")
+        self.tree.heading("nuits", text="Nuits")
+        self.tree.heading("total", text="Total")
+
+        self.tree.column("date", width=130, anchor="w")
+        self.tree.column("client", width=170, anchor="w")
+        self.tree.column("ville", width=120, anchor="w")
+        self.tree.column("hotel", width=220, anchor="w")
+        self.tree.column("nuits", width=70, anchor="center")
+        self.tree.column("total", width=130, anchor="e")
+
+        for q in rows:
+            self.tree.insert(
+                "",
+                "end",
+                values=(
+                    q.get("quote_date", ""),
+                    q.get("client_name", ""),
+                    q.get("city", ""),
+                    q.get("hotel_name", ""),
+                    q.get("nights", ""),
+                    self._format_total(q.get("total_price", 0), q.get("currency", "")),
+                ),
+            )
+
+        scrollbar_y = ttk.Scrollbar(
+            table_frame, orient="vertical", command=self.tree.yview
+        )
+        scrollbar_x = ttk.Scrollbar(
+            table_frame, orient="horizontal", command=self.tree.xview
+        )
+        self.tree.configure(
+            yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set
+        )
+        self.tree.pack(side="left", fill="both", expand=True)
+        scrollbar_y.pack(side="right", fill="y")
+        scrollbar_x.pack(side="bottom", fill="x")
 
     def _display_by_client(self):
         """Display quotations grouped by client"""
@@ -669,11 +730,4 @@ class HotelQuotationSummary:
     def _refresh_data(self):
         """Refresh quotation data"""
         self._load_quotations()
-        view = self.view_var.get()
-        if "client" in view.lower():
-            self._display_by_client()
-        elif "ville" in view.lower():
-            self._display_by_city()
-        else:
-            self._display_by_hotel()
-        messagebox.showinfo("✅ Succès", "Les données ont été actualisées.")
+        self._display_simple_table()

@@ -119,9 +119,6 @@ class Sidebar:
             "🎯 Frais collectifs", self._show_collective_expense_page
         )
         _btn_transport = self._create_button("🎯 Transport", self._show_transport_page)
-        _btn_visite = self._create_button(
-            "🎯 Visite & Excursions", self._show_visite_excursion_summary
-        )
         _btn_air = self._create_button("🎯 Billet Avion", self._show_air_ticket_page)
 
         # Client Quotations (direct access)
@@ -140,46 +137,18 @@ class Sidebar:
             ],
         )
 
-        # Hotel Database
-        btn7 = self._create_button("🏨 Hôtel (DB) ▶", self._show_hotel_list)
-        _submenu7_frame = self._create_submenu(
-            btn7,
+        # Unified Databases section
+        btn_db = self._create_button("🏨 Bases de données (BDD) ▶", None)
+        _submenu_db_frame = self._create_submenu(
+            btn_db,
             [
-                ("📋 Liste hôtels", self._show_hotel_list),
+                ("📋 Hôtels", self._show_hotel_list),
                 ("➕ Ajout hôtel", self._show_add_hotel),
-            ],
-        )
-
-        # Collective Expenses Database
-        btn8 = self._create_button("🏨 Frais collectif (DB) ▶", None)
-        _submenu8_frame = self._create_submenu(
-            btn8,
-            [
-                ("📋 Liste frais collectifs", self._show_collective_expense_list),
-                ("➕ Ajouter", self._show_add_collective_expense),
-            ],
-        )
-
-        # Transport Database
-        _btn9 = self._create_button("🏨 Transport (DB)", self._show_transport_db_page)
-
-        # Avion Database
-        btn9b = self._create_button("🏨 Avion (DB) ▶", None)
-        _submenu9b_frame = self._create_submenu(
-            btn9b,
-            [
-                ("📋 Liste avion", self._show_air_ticket_list_db),
-                ("➕ Ajouter", self._show_add_air_ticket_db),
-            ],
-        )
-
-        # Visite & Excursions Database
-        btn9c = self._create_button("🏨 Visite & Excursions (DB) ▶", None)
-        _submenu9c_frame = self._create_submenu(
-            btn9c,
-            [
-                ("📋 Liste visites", self._show_visite_excursion_list_db),
-                ("➕ Ajouter", self._show_add_visite_excursion_db),
+                ("📋 Frais collectifs", self._show_collective_expense_list),
+                ("➕ Ajout frais collectif", self._show_add_collective_expense),
+                ("📋 Transport", self._show_transport_db_page),
+                ("📋 Billets avion", self._show_air_ticket_list_db),
+                ("➕ Ajout billet avion", self._show_add_air_ticket_db),
             ],
         )
 

@@ -573,27 +573,6 @@ class ClientForm:
         )
         self.check_enfant_widget.pack(anchor="w", pady=(0, 15))
 
-        # Nombre de participants et composition
-        tk.Label(
-            self.main_frame,
-            text="Nombre total de participants *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.entry_nombre_participants = tk.Entry(
-            self.main_frame,
-            font=ENTRY_FONT,
-            width=40,
-            bg=READONLY_BG_COLOR,
-            fg=TEXT_COLOR,
-            readonlybackground=READONLY_BG_COLOR,
-            disabledforeground=TEXT_COLOR,
-            insertbackground=TEXT_COLOR,
-        )
-        self.entry_nombre_participants.pack(fill="x", pady=(0, 15))
-        self.entry_nombre_participants.config(state="readonly")
-
         # Composition par âge
         composition_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
         composition_frame.pack(fill="x", pady=(0, 15))
@@ -651,6 +630,27 @@ class ClientForm:
         self.entry_bebes_0_2.bind(
             "<KeyRelease>", lambda e: self._update_participants_total()
         )
+
+        # Nombre total de participants (affiché sous la composition)
+        tk.Label(
+            self.main_frame,
+            text="Nombre total de participants *",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).pack(anchor="w")
+        self.entry_nombre_participants = tk.Entry(
+            self.main_frame,
+            font=ENTRY_FONT,
+            width=40,
+            bg=READONLY_BG_COLOR,
+            fg=TEXT_COLOR,
+            readonlybackground=READONLY_BG_COLOR,
+            disabledforeground=TEXT_COLOR,
+            insertbackground=TEXT_COLOR,
+        )
+        self.entry_nombre_participants.pack(fill="x", pady=(0, 15))
+        self.entry_nombre_participants.config(state="readonly")
 
         # ===== SECTION: CONTACTS =====
         section_label = tk.Label(
@@ -841,18 +841,10 @@ class ClientForm:
         )
         self.combo_TypeHebergement.pack(fill="x", pady=(0, 15))
 
-        # Room type
-        tk.Label(
-            self.main_frame,
-            text="Type de chambre *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
+        # Room type (hidden from UI; still auto-managed from rooming list)
         self.combo_TypeChambre = ttk.Combobox(
             self.main_frame, values=TYPE_CHAMBRES, state="readonly", width=37
         )
-        self.combo_TypeChambre.pack(fill="x", pady=(0, 15))
 
         # Package type
         tk.Label(
@@ -986,18 +978,11 @@ class ClientForm:
             width=18,
         ).pack(anchor="e", pady=(0, 15))
 
-        # Type d'hôtel à la ville d'arrivée
-        tk.Label(
-            self.main_frame,
-            text="Type d'hôtel à la ville d'arrivée",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
+        # Type d'hôtel à la ville d'arrivée (hidden from UI)
         self.combo_type_hotel_arrivee = ttk.Combobox(
             self.main_frame, values=HOTEL_ARRIVAL_TYPES, state="readonly", width=37
         )
-        self.combo_type_hotel_arrivee.pack(fill="x", pady=(0, 30))
+        # Not packed on purpose: field removed from visible form.
 
         # Buttons
         btn_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
