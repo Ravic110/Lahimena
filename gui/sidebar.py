@@ -128,7 +128,7 @@ class Sidebar:
         _btn10 = self._create_button("📊 Etat Financier", self._show_financial_home)
 
         # Marketing placeholder
-        _btn11 = self._create_button("📣 markeing", self._show_markeing_page)
+        _btn11 = self._create_button("📣 marketing", self._show_marketing_page)
 
     def _create_button(self, text, command=None):
         """Create a sidebar button"""
@@ -220,8 +220,8 @@ class Sidebar:
     def _show_billing_quotes_hub_page(self):
         self.main_content_callback("billing_quotes_hub_page")
 
-    def _show_markeing_page(self):
-        self.main_content_callback("markeing_page")
+    def _show_marketing_page(self):
+        self.main_content_callback("marketing_page")
 
     def _show_hotel_quotation(self):
         self.main_content_callback("hotel_quotation_page")
