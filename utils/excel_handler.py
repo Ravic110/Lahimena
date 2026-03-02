@@ -13,6 +13,7 @@ except ImportError:
 import os
 import re
 import shutil
+import zipfile
 from datetime import datetime, time, timedelta
 
 from config import (
@@ -1944,24 +1945,25 @@ def save_hotel_quotation_to_excel(quotation_data):
             else:
                 ws = wb[COTATION_H_SHEET_NAME]
 
+        headers = [
+            "Date",
+            "ID_Client",
+            "Nom_Client",
+            "Prénom_Client",
+            "Hôtel",
+            "Ville",
+            "Nuits",
+            "Type_Chambre",
+            "Adultes",
+            "Enfants",
+            "Plan_Repas",
+            "Période",
+            "Total_Devise",
+            "Devise",
+        ]
+
         # Add headers if this is the first row
         if ws.max_row == 1 or ws[f"A1"].value is None:
-            headers = [
-                "Date",
-                "ID_Client",
-                "Nom_Client",
-                "Prénom_Client",
-                "Hôtel",
-                "Ville",
-                "Nuits",
-                "Type_Chambre",
-                "Adultes",
-                "Enfants",
-                "Plan_Repas",
-                "Période",
-                "Total_Devise",
-                "Devise",
-            ]
             for col, header in enumerate(headers, start=1):
                 cell = ws.cell(row=1, column=col)
                 cell.value = header
@@ -2047,6 +2049,16 @@ def load_all_hotel_quotations():
             return []
 
         ws = wb[COTATION_H_SHEET_NAME]
+        header_map = _get_header_map(ws, 1)
+
+        def _cell(row_idx, *aliases, default=""):
+            for alias in aliases:
+                col = header_map.get(alias)
+                if col:
+                    value = ws.cell(row=row_idx, column=col).value
+                    if value not in (None, ""):
+                        return value
+            return default
 
         quotations = []
         # Start from row 2 (skip headers)
@@ -2056,19 +2068,37 @@ def load_all_hotel_quotations():
 
             quotation = {
                 "row_number": row,
-                "quote_date": ws[f"A{row}"].value or "",
-                "client_id": ws[f"B{row}"].value or "",
-                "client_name": ws[f"C{row}"].value or "",
-                "hotel_name": ws[f"D{row}"].value or "",
-                "city": ws[f"E{row}"].value or "",
-                "nights": _parse_num(ws[f"F{row}"].value),
-                "room_type": ws[f"G{row}"].value or "",
-                "adults": _parse_num(ws[f"H{row}"].value),
-                "children": _parse_num(ws[f"I{row}"].value),
-                "meal_plan": ws[f"J{row}"].value or "",
-                "period": ws[f"K{row}"].value or "",
-                "total_price": _parse_num(ws[f"L{row}"].value),
-                "currency": ws[f"M{row}"].value or "Ariary",
+                "quote_date": _cell(row, "Date", default=ws[f"A{row}"].value or ""),
+                "client_id": _cell(row, "ID_Client", default=ws[f"B{row}"].value or ""),
+                "client_name": _cell(
+                    row, "Nom_Client", default=ws[f"C{row}"].value or ""
+                ),
+                "hotel_name": _cell(
+                    row, "Hôtel", "Hotel", default=ws[f"D{row}"].value or ""
+                ),
+                "city": _cell(row, "Ville", default=ws[f"E{row}"].value or ""),
+                "nights": _parse_num(
+                    _cell(row, "Nuits", default=ws[f"F{row}"].value or 0)
+                ),
+                "room_type": _cell(
+                    row, "Type_Chambre", default=ws[f"G{row}"].value or ""
+                ),
+                "adults": _parse_num(
+                    _cell(row, "Adultes", default=ws[f"H{row}"].value or 0)
+                ),
+                "children": _parse_num(
+                    _cell(row, "Enfants", default=ws[f"I{row}"].value or 0)
+                ),
+                "meal_plan": _cell(
+                    row, "Plan_Repas", default=ws[f"J{row}"].value or ""
+                ),
+                "period": _cell(row, "Période", default=ws[f"K{row}"].value or ""),
+                "total_price": _parse_num(
+                    _cell(row, "Total_Devise", default=ws[f"L{row}"].value or 0)
+                ),
+                "currency": _cell(
+                    row, "Devise", default=ws[f"M{row}"].value or "Ariary"
+                ),
             }
             quotations.append(quotation)
 
@@ -2380,7 +2410,8 @@ def update_collective_expense_db_row(row_number, row_data):
         ws.cell(row=row_number, column=2, value=row_data.get("prestataire", ""))
         ws.cell(row=row_number, column=3, value=row_data.get("designation", ""))
         ws.cell(row=row_number, column=4, value=_parse_num(row_data.get("montant", 0)))
-        ws.cell(row=row_number, column=5, value=row_data.get("id_circuit", ""))
+        if "id_circuit" in row_data:
+            ws.cell(row=row_number, column=5, value=row_data.get("id_circuit", ""))
 
         wb.save(HOTEL_EXCEL_PATH)
         return 0
@@ -4346,6 +4377,9 @@ def _load_km_mada_rows():
         return []
 
     if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+    if not zipfile.is_zipfile(HOTEL_EXCEL_PATH):
+        # Avoid repeated openpyxl exceptions when the workbook is temporarily invalid/corrupted.
         return []
 
     wb = None

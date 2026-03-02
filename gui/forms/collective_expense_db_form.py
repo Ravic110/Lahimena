@@ -60,7 +60,6 @@ class CollectiveExpenseDBForm:
             ("prestataire", "PRESTATAIRES"),
             ("designation", "DESIGNATION"),
             ("montant", "MONTANT"),
-            ("id_circuit", "ID circuit"),
         ]
 
         for idx, (key, label) in enumerate(fields):

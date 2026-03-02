@@ -1837,6 +1837,7 @@ class HotelQuotation:
 
             # Save quotation to COTATION_H sheet
             try:
+                save_errors = 0
                 base_quotation_data = {
                     "client_id": (
                         self.client_var.get().split(" - ")[0]
@@ -1872,7 +1873,8 @@ class HotelQuotation:
                                 "room_type": entry.get("room_type", ""),
                             }
                         )
-                        save_hotel_quotation_to_excel(quotation_data)
+                        if save_hotel_quotation_to_excel(quotation_data) == -1:
+                            save_errors += 1
                     logger.info(
                         "Multi-hotel quotation saved to COTATION_H sheet: %s (%d lines)",
                         client_name,
@@ -1889,11 +1891,17 @@ class HotelQuotation:
                             "room_type": room_type,
                         }
                     )
-                    save_hotel_quotation_to_excel(quotation_data)
+                    if save_hotel_quotation_to_excel(quotation_data) == -1:
+                        save_errors += 1
                     logger.info(
                         "Quotation saved to COTATION_H sheet: %s - %s",
                         client_name,
                         self.selected_hotel["nom"],
+                    )
+                if save_errors:
+                    messagebox.showwarning(
+                        "Enregistrement partiel",
+                        "Le devis PDF a été généré, mais l'enregistrement Excel de certaines lignes a échoué.",
                     )
             except Exception as e:
                 logger.warning(f"Could not save quotation to Excel: {e}")
