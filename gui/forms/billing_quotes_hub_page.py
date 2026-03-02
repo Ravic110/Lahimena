@@ -29,7 +29,7 @@ class BillingQuotesHubPage:
 
         ctk.CTkLabel(
             hero,
-            text="Gestion centralisee des devis et de la facturation clients.",
+            text="Gestion centralisee des devis, factures et depenses.",
             font=ctk.CTkFont(size=15),
             text_color="#CBD5E1",
         ).pack(anchor="w", padx=24, pady=(0, 14))
@@ -64,6 +64,14 @@ class BillingQuotesHubPage:
             title="Facture clients",
             fg_color="#9A3412",
             action=("Ouvrir", "current_invoices"),
+        )
+        self._add_group(
+            grid,
+            row=1,
+            col=0,
+            title="Depenses",
+            fg_color="#0F766E",
+            action=("Ouvrir", "expenses_page"),
         )
 
     def _add_group(self, parent, row, col, title, fg_color, action):

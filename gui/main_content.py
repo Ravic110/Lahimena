@@ -71,6 +71,7 @@ class MainContent:
             "collective_expense_quotation": self._show_collective_expense_quotation,
             "collective_expense_summary": self._show_collective_expense_summary,
             "collective_expense_page": self._show_collective_expense_page,
+            "expenses_page": self._show_expenses_page,
             "transport_page": self._show_transport_page,
             "transport_db_page": self._show_transport_db_page,
             "circuit_db_page": self._show_circuit_db_page,
@@ -233,7 +234,16 @@ class MainContent:
 
         CollectiveExpensePage(
             self.main_scroll,
-            on_back_to_cotation=lambda: self.update_content("cotation_hub_page"),
+            on_back_to_hub=lambda: self.update_content("billing_quotes_hub_page"),
+        )
+
+    def _show_expenses_page(self):
+        """Show temporary empty expenses page."""
+        from gui.forms.expenses_page import ExpensesPage
+
+        ExpensesPage(
+            self.main_scroll,
+            on_back_to_hub=lambda: self.update_content("billing_quotes_hub_page"),
         )
 
     def _show_collective_expense_quotation_for_edit(self, data, row_number):

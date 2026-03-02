@@ -16,9 +16,9 @@ class CollectiveExpensePage:
     Display collective expense quotation form and summary on the same page.
     """
 
-    def __init__(self, parent, on_back_to_cotation=None):
+    def __init__(self, parent, on_back_to_hub=None):
         self.parent = parent
-        self.on_back_to_cotation = on_back_to_cotation
+        self.on_back_to_hub = on_back_to_hub
         self.form_container = None
         self.summary_container = None
 
@@ -30,13 +30,13 @@ class CollectiveExpensePage:
         for widget in self.parent.winfo_children():
             widget.destroy()
 
-        if self.on_back_to_cotation:
+        if self.on_back_to_hub:
             top_actions = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
             top_actions.pack(fill="x", padx=20, pady=(4, 2))
             tk.Button(
                 top_actions,
-                text="⬅ Retour vers Cotation",
-                command=self._go_back_to_cotation,
+                text="⬅ Retour vers Factures / Devis",
+                command=self._go_back_to_hub,
                 bg=BUTTON_BLUE,
                 fg="white",
                 font=BUTTON_FONT,
@@ -81,6 +81,6 @@ class CollectiveExpensePage:
     def _on_add_requested(self):
         self._show_form()
 
-    def _go_back_to_cotation(self):
-        if self.on_back_to_cotation:
-            self.on_back_to_cotation()
+    def _go_back_to_hub(self):
+        if self.on_back_to_hub:
+            self.on_back_to_hub()

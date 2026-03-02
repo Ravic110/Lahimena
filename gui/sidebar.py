@@ -119,16 +119,6 @@ class Sidebar:
             "📑 Factures / Devis", self._show_billing_quotes_hub_page
         )
 
-        # Expenses
-        btn6 = self._create_button("📉 Dépenses ▶", None)
-        _submenu6_frame = self._create_submenu(
-            btn6,
-            [
-                ("📄 Factures actuelles", self._show_current_expenses),
-                ("✏️ Historiques factures", self._show_expense_history),
-            ],
-        )
-
         # Unified Databases section (dedicated hub page)
         _btn_db = self._create_button(
             "🏨 Bases de données (BDD)", self._show_database_hub_page
@@ -137,13 +127,8 @@ class Sidebar:
         # Financial Statements (single entry point, no sidebar submenu)
         _btn10 = self._create_button("📊 Etat Financier", self._show_financial_home)
 
-        # Accounting Entry
-        _btn11 = self._create_button("📊 Saisie comptable", self._show_accounting_entry)
-
-        # Excel Editor
-        _btn12 = self._create_button(
-            "📊 Éditeur Excel 'calcul' ▶", self._show_excel_editor
-        )
+        # Marketing placeholder
+        _btn11 = self._create_button("📣 markeing", self._show_markeing_page)
 
     def _create_button(self, text, command=None):
         """Create a sidebar button"""
@@ -234,6 +219,9 @@ class Sidebar:
 
     def _show_billing_quotes_hub_page(self):
         self.main_content_callback("billing_quotes_hub_page")
+
+    def _show_markeing_page(self):
+        self.main_content_callback("markeing_page")
 
     def _show_hotel_quotation(self):
         self.main_content_callback("hotel_quotation_page")
