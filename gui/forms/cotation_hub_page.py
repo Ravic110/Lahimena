@@ -51,6 +51,14 @@ class CotationHubPage:
             grid,
             row=0,
             col=1,
+            title="Frais collectifs",
+            fg_color="#9A3412",
+            action=("Ouvrir", "collective_expense_page"),
+        )
+        self._add_group(
+            grid,
+            row=1,
+            col=0,
             title="Transport",
             fg_color="#0F766E",
             action=("Ouvrir", "transport_page"),
@@ -58,7 +66,7 @@ class CotationHubPage:
         self._add_group(
             grid,
             row=1,
-            col=0,
+            col=1,
             title="Billets avion",
             fg_color="#6D28D9",
             action=("Ouvrir", "air_ticket_page"),
