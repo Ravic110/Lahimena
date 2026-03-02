@@ -146,6 +146,7 @@ class Sidebar:
                 ("➕ Ajout hôtel", self._show_add_hotel),
                 ("📋 Frais collectifs", self._show_collective_expense_list),
                 ("➕ Ajout frais collectif", self._show_add_collective_expense),
+                ("📋 Circuits", self._show_circuit_db_page),
                 ("📋 Transport", self._show_transport_db_page),
                 ("📋 Billets avion", self._show_air_ticket_list_db),
                 ("➕ Ajout billet avion", self._show_add_air_ticket_db),
@@ -309,6 +310,9 @@ class Sidebar:
 
     def _show_transport_db_page(self):
         self.main_content_callback("transport_db_page")
+
+    def _show_circuit_db_page(self):
+        self.main_content_callback("circuit_db_page")
 
     def _show_air_ticket_list_db(self):
         self.main_content_callback("air_ticket_db_list")

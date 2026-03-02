@@ -70,6 +70,7 @@ class MainContent:
             "collective_expense_page": self._show_collective_expense_page,
             "transport_page": self._show_transport_page,
             "transport_db_page": self._show_transport_db_page,
+            "circuit_db_page": self._show_circuit_db_page,
             "air_ticket_page": self._show_air_ticket_page,
             "air_ticket_quotation": self._show_air_ticket_quotation,
             "air_ticket_summary": self._show_air_ticket_summary,
@@ -317,6 +318,12 @@ class MainContent:
         from gui.forms.transport_db_page import TransportDBPage
 
         TransportDBPage(self.main_scroll)
+
+    def _show_circuit_db_page(self):
+        """Show circuit DB management page."""
+        from gui.forms.circuit_db_page import CircuitDBPage
+
+        CircuitDBPage(self.main_scroll)
 
     def _show_parametrage_page(self):
         """Show combined parameter page (form + summary)."""

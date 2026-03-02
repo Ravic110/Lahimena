@@ -1439,6 +1439,12 @@ class ClientForm:
             or existing_circuit.get("condition_physique_circuit", ""),
             "type_voiture_circuit": selected_circuit.get("type_voiture")
             or existing_circuit.get("type_voiture_circuit", ""),
+            "hotels_defaut_villes_circuit": selected_circuit.get("hotels_defaut_villes")
+            or existing_circuit.get("hotels_defaut_villes_circuit", ""),
+            "prestations_incluses_circuit": selected_circuit.get("prestations_incluses")
+            or existing_circuit.get("prestations_incluses_circuit", ""),
+            "transports_associes_circuit": selected_circuit.get("transports_associes")
+            or existing_circuit.get("transports_associes_circuit", ""),
             "ville_depart": self.combo_ville_depart.get().strip(),
             "ville_arrivee": ", ".join(self._get_itinerary_cities()),
             "type_hotel_arrivee": self.combo_type_hotel_arrivee.get(),

@@ -436,6 +436,9 @@ def _save_client_infos_to_excel(client_data):
         "Durée Circuit",
         "Condition Physique Circuit",
         "Type Voiture Circuit",
+        "Hôtels Défaut Circuit",
+        "Prestations Incluses Circuit",
+        "Transports Associés Circuit",
         "Ville Départ",
         "Ville Arrivée",
         "Type Hôtel Arrivée",
@@ -514,6 +517,19 @@ def _save_client_infos_to_excel(client_data):
             "condition_physique_circuit",
         ],
         "Type Voiture Circuit": ["Type_Voiture_Circuit", "type_voiture_circuit"],
+        "Hôtels Défaut Circuit": [
+            "Hotels_Defaut_Villes_Circuit",
+            "hotels_defaut_villes_circuit",
+            "hotels_defaut_circuit",
+        ],
+        "Prestations Incluses Circuit": [
+            "Prestations_Incluses_Circuit",
+            "prestations_incluses_circuit",
+        ],
+        "Transports Associés Circuit": [
+            "Transports_Associes_Circuit",
+            "transports_associes_circuit",
+        ],
         "Ville Départ": ["Ville_Depart", "ville_depart"],
         "Ville Arrivée": ["Ville_Arrivee", "ville_arrivee"],
         "Type Hôtel Arrivée": ["Type_Hotel_Arrivee", "type_hotel_arrivee"],
@@ -763,6 +779,16 @@ def _load_client_infos_map():
             "condition_physique_circuit": _cell(row, "Condition Physique Circuit")
             or "",
             "type_voiture_circuit": _cell(row, "Type Voiture Circuit") or "",
+            "hotels_defaut_villes_circuit": _cell(row, "Hôtels Défaut Circuit")
+            or _cell(row, "Hotels Defaut Circuit")
+            or "",
+            "prestations_incluses_circuit": _cell(
+                row, "Prestations Incluses Circuit"
+            )
+            or "",
+            "transports_associes_circuit": _cell(row, "Transports Associés Circuit")
+            or _cell(row, "Transports Associes Circuit")
+            or "",
             "ville_depart": _cell(row, "Ville Départ") or "",
             "ville_arrivee": _cell(row, "Ville Arrivée") or "",
             "type_hotel_arrivee": _cell(row, "Type Hôtel Arrivée") or "",
@@ -1084,12 +1110,46 @@ def load_circuit_catalog():
     itinerary_col = _find_header_column(
         header_map, "itinéraire", "itineraire", "Itinéraire"
     )
+    cities_col = _find_header_column(
+        header_map,
+        "Villes parcourues",
+        "Villes du circuit",
+        "Villes",
+    )
     activity_col = _find_header_column(header_map, "Activité", "Activite")
     duration_col = _find_header_column(header_map, "Durée", "Duree")
     fitness_col = _find_header_column(
         header_map, "condition physique", "Condition Physique"
     )
     vehicle_col = _find_header_column(header_map, "Type de voiture", "Voiture")
+    default_hotels_col = _find_header_column(
+        header_map,
+        "Hôtels défaut par ville",
+        "Hotels defaut par ville",
+        "Hôtels par défaut par ville",
+        "Hotels par defaut par ville",
+        "Hôtels par ville",
+        "Hotels par ville",
+        "Hôtels défaut",
+        "Hotels defaut",
+        "Hôtels défaut circuit",
+        "Hotels defaut circuit",
+    )
+    included_services_col = _find_header_column(
+        header_map,
+        "Prestations incluses",
+        "Prestations incluses circuit",
+        "Prestations circuit",
+    )
+    linked_transports_col = _find_header_column(
+        header_map,
+        "Transports associés",
+        "Transports associes",
+        "Transports associés circuit",
+        "Transports associes circuit",
+        "Transport associé",
+        "Transport associe",
+    )
 
     if not name_col:
         return []
@@ -1110,6 +1170,13 @@ def load_circuit_catalog():
             if itinerary_col and ws.cell(row=row, column=itinerary_col).value is not None
             else ""
         )
+        cities = (
+            str(ws.cell(row=row, column=cities_col).value).strip()
+            if cities_col and ws.cell(row=row, column=cities_col).value is not None
+            else ""
+        )
+        if not itinerary and cities:
+            itinerary = cities
         activity = (
             str(ws.cell(row=row, column=activity_col).value).strip()
             if activity_col and ws.cell(row=row, column=activity_col).value is not None
@@ -1135,16 +1202,38 @@ def load_circuit_catalog():
             if id_col and ws.cell(row=row, column=id_col).value is not None
             else ""
         )
+        default_hotels = (
+            str(ws.cell(row=row, column=default_hotels_col).value).strip()
+            if default_hotels_col
+            and ws.cell(row=row, column=default_hotels_col).value is not None
+            else ""
+        )
+        included_services = (
+            str(ws.cell(row=row, column=included_services_col).value).strip()
+            if included_services_col
+            and ws.cell(row=row, column=included_services_col).value is not None
+            else ""
+        )
+        linked_transports = (
+            str(ws.cell(row=row, column=linked_transports_col).value).strip()
+            if linked_transports_col
+            and ws.cell(row=row, column=linked_transports_col).value is not None
+            else ""
+        )
 
         circuits.append(
             {
                 "id_circuit": circuit_id,
                 "nom": name,
                 "itineraire": itinerary,
+                "villes_parcourues": cities,
                 "activite": activity,
                 "duree": duration,
                 "condition_physique": fitness,
                 "type_voiture": vehicle,
+                "hotels_defaut_villes": default_hotels,
+                "prestations_incluses": included_services,
+                "transports_associes": linked_transports,
             }
         )
 
@@ -1159,6 +1248,224 @@ def load_all_circuits():
         list: List of circuit names
     """
     return [circuit["nom"] for circuit in load_circuit_catalog() if circuit.get("nom")]
+
+
+def get_circuit_db_headers():
+    """Load header list from data-hotel.xlsx / Circuits."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if "Circuits" not in wb.sheetnames:
+            return []
+
+        ws = wb["Circuits"]
+        default_headers = [
+            "ID circuit",
+            "Nom du circuit",
+            "itinéraire",
+            "Villes parcourues",
+            "Activité",
+            "Durée",
+            "condition physique",
+            "Type de voiture",
+            "Hôtels défaut par ville",
+            "Prestations incluses",
+            "Transports associés",
+        ]
+        header_map = _ensure_headers(ws, default_headers)
+        wb.save(HOTEL_EXCEL_PATH)
+        return list(header_map.keys())
+    except Exception as e:
+        logger.error(f"Failed to load circuit DB headers: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_circuit_db_rows():
+    """Load raw DB rows from data-hotel.xlsx / Circuits."""
+    if not OPENPYXL_AVAILABLE:
+        return []
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if "Circuits" not in wb.sheetnames:
+            return []
+
+        ws = wb["Circuits"]
+        header_map = _get_header_map(ws, 1)
+        if not header_map:
+            return []
+
+        headers = list(header_map.keys())
+        rows = []
+        for row_idx in range(2, ws.max_row + 1):
+            row_dict = {"row_number": row_idx}
+            has_values = False
+            for header in headers:
+                col = header_map[header]
+                value = ws.cell(row=row_idx, column=col).value
+                if value not in (None, ""):
+                    has_values = True
+                row_dict[header] = "" if value is None else value
+            if has_values:
+                rows.append(row_dict)
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to load circuit DB rows: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_circuit_db_row(row_data):
+    """Save one row into data-hotel.xlsx / Circuits."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    wb = None
+    try:
+        if not os.path.exists(HOTEL_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Circuits"
+        else:
+            wb = load_workbook(HOTEL_EXCEL_PATH)
+            if "Circuits" not in wb.sheetnames:
+                ws = wb.create_sheet("Circuits")
+            else:
+                ws = wb["Circuits"]
+
+        default_headers = [
+            "ID circuit",
+            "Nom du circuit",
+            "itinéraire",
+            "Villes parcourues",
+            "Activité",
+            "Durée",
+            "condition physique",
+            "Type de voiture",
+            "Hôtels défaut par ville",
+            "Prestations incluses",
+            "Transports associés",
+        ]
+        header_map = _ensure_headers(ws, default_headers)
+        if row_data:
+            header_map = _ensure_headers(ws, list(row_data.keys()))
+        if not header_map:
+            return -1
+
+        next_row = 2
+        while True:
+            has_data = False
+            for header, col in header_map.items():
+                if ws.cell(row=next_row, column=col).value not in (None, ""):
+                    has_data = True
+                    break
+            if not has_data:
+                break
+            next_row += 1
+
+        for header, col in header_map.items():
+            ws.cell(row=next_row, column=col, value=row_data.get(header, ""))
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return next_row
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save circuit DB row: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def update_circuit_db_row(row_number, row_data):
+    """Update one row in data-hotel.xlsx / Circuits."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return -1
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if "Circuits" not in wb.sheetnames:
+            return -1
+
+        ws = wb["Circuits"]
+        header_map = _get_header_map(ws, 1)
+        if not header_map:
+            return -1
+
+        for header, col in header_map.items():
+            ws.cell(row=row_number, column=col, value=row_data.get(header, ""))
+
+        wb.save(HOTEL_EXCEL_PATH)
+        return 0
+    except PermissionError:
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to update circuit DB row {row_number}: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def delete_circuit_db_row(row_number):
+    """Delete one row from data-hotel.xlsx / Circuits."""
+    if not OPENPYXL_AVAILABLE:
+        return False
+
+    if not os.path.exists(HOTEL_EXCEL_PATH):
+        return False
+
+    wb = None
+    try:
+        wb = load_workbook(HOTEL_EXCEL_PATH)
+        if "Circuits" not in wb.sheetnames:
+            return False
+
+        ws = wb["Circuits"]
+        ws.delete_rows(row_number)
+        wb.save(HOTEL_EXCEL_PATH)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete circuit DB row {row_number}: {e}", exc_info=True)
+        return False
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
 
 
 def save_hotel_to_excel(hotel_data):

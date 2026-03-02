@@ -44,6 +44,9 @@ class ClientData:
         self.duree_circuit = ""
         self.condition_physique_circuit = ""
         self.type_voiture_circuit = ""
+        self.hotels_defaut_villes_circuit = ""
+        self.prestations_incluses_circuit = ""
+        self.transports_associes_circuit = ""
         self.ville_depart = ""
         self.ville_arrivee = ""
         self.type_hotel_arrivee = ""
@@ -93,6 +96,9 @@ class ClientData:
             "Duree_Circuit": self.duree_circuit,
             "Condition_Physique_Circuit": self.condition_physique_circuit,
             "Type_Voiture_Circuit": self.type_voiture_circuit,
+            "Hotels_Defaut_Villes_Circuit": self.hotels_defaut_villes_circuit,
+            "Prestations_Incluses_Circuit": self.prestations_incluses_circuit,
+            "Transports_Associes_Circuit": self.transports_associes_circuit,
             "Ville_Depart": self.ville_depart,
             "Ville_Arrivee": self.ville_arrivee,
             "Type_Hotel_Arrivee": self.type_hotel_arrivee,
@@ -150,6 +156,15 @@ class ClientData:
             "condition_physique_circuit", ""
         )
         client.type_voiture_circuit = form_data.get("type_voiture_circuit", "")
+        client.hotels_defaut_villes_circuit = form_data.get(
+            "hotels_defaut_villes_circuit", ""
+        )
+        client.prestations_incluses_circuit = form_data.get(
+            "prestations_incluses_circuit", ""
+        )
+        client.transports_associes_circuit = form_data.get(
+            "transports_associes_circuit", ""
+        )
         client.ville_depart = form_data.get("ville_depart", "")
         client.ville_arrivee = form_data.get("ville_arrivee", "")
         client.type_hotel_arrivee = form_data.get("type_hotel_arrivee", "")

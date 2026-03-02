@@ -222,6 +222,195 @@ class HotelQuotation:
 
         return city_days
 
+    def _parse_default_hotels_by_city(self, raw_value):
+        """Parse a serialized city->hotel mapping string from client circuit metadata."""
+        parsed = []
+        if not raw_value:
+            return parsed
+
+        for chunk in re.split(r"[|\n;]+", str(raw_value)):
+            part = chunk.strip()
+            if not part:
+                continue
+            city = ""
+            hotel = ""
+            for separator in (":", "=", "->", "=>"):
+                if separator in part:
+                    left, right = part.split(separator, 1)
+                    city = left.strip()
+                    hotel = right.strip()
+                    break
+            if city and hotel:
+                parsed.append((city, hotel))
+        return parsed
+
+    def _find_hotel_record(self, city_name, hotel_name):
+        """Find a hotel in loaded data by city and name with resilient matching."""
+        city_key = self._normalize_city(city_name)
+        hotel_key = self._normalize_city(hotel_name)
+        if not city_key or not hotel_key:
+            return None
+
+        # Exact city + exact name
+        for hotel in self.hotels:
+            if (
+                self._normalize_city(hotel.get("lieu", "")) == city_key
+                and self._normalize_city(hotel.get("nom", "")) == hotel_key
+            ):
+                return hotel
+
+        # Exact city + partial name
+        for hotel in self.hotels:
+            if self._normalize_city(hotel.get("lieu", "")) != city_key:
+                continue
+            candidate = self._normalize_city(hotel.get("nom", ""))
+            if hotel_key in candidate or candidate in hotel_key:
+                return hotel
+        return None
+
+    def _select_room_for_hotel(self, hotel):
+        """Choose an initial room selection for a hotel."""
+        rates = hotel.get("room_rates", {})
+        preferred_type = (self.preferred_room_type_label or "").strip()
+
+        # Try preferred room type first across all groups
+        preferred_key = ROOM_TYPE_KEYS.get(preferred_type)
+        if preferred_key:
+            for group_key, group_label in ROOM_GROUP_LABELS.items():
+                group_rates = rates.get(group_key, {})
+                if group_rates.get(preferred_key):
+                    return group_label, preferred_type
+
+        # Fallback: first available room in configured group/type order
+        for group_key, group_label in ROOM_GROUP_LABELS.items():
+            group_rates = rates.get(group_key, {})
+            for room_key, room_label in ROOM_TYPE_LABELS.items():
+                if group_rates.get(room_key):
+                    return group_label, room_label
+
+        return "Standard", preferred_type or "Double"
+
+    def _compute_hotel_total(self, hotel, nights, adults, children, room_group_label, room_type_label):
+        """Compute pricing for a hotel entry using the same rules as manual calculation."""
+        room_group_key = ROOM_GROUP_KEYS.get(room_group_label, "standard")
+        room_type_key = ROOM_TYPE_KEYS.get(room_type_label, "")
+
+        room_price = 0
+        if room_type_key:
+            room_price = (
+                hotel.get("room_rates", {}).get(room_group_key, {}).get(room_type_key, 0)
+            )
+
+        if room_price == 0:
+            # Legacy fallback fields
+            if room_type_label == "Single" and hotel.get("chambre_single"):
+                room_price = hotel["chambre_single"]
+            elif room_type_label == "Double" and hotel.get("chambre_double"):
+                room_price = hotel["chambre_double"]
+            elif room_type_label == "Triple" and hotel.get("chambre_double"):
+                room_price = hotel["chambre_double"]
+            elif room_type_label in ("Familliale", "Familiale") and hotel.get(
+                "chambre_familiale"
+            ):
+                room_price = hotel["chambre_familiale"]
+
+        if room_price == 0:
+            return None
+
+        base_price = float(room_price) * nights
+        meals = hotel.get("meals", {})
+        petit_dej = meals.get("petit_dejeuner", hotel.get("petit_dejeuner", 0))
+        dejeuner = meals.get("dejeuner", hotel.get("dejeuner", 0))
+        diner = meals.get("diner", hotel.get("diner", 0))
+        meal_price = 0.0
+        meal_plan = self.meal_var.get() if hasattr(self, "meal_var") else ""
+        pax = max(0, adults + children)
+        if meal_plan == "Petit déjeuner" and petit_dej:
+            meal_price = float(petit_dej) * nights * pax
+        elif meal_plan == "Demi-pension" and dejeuner and diner:
+            meal_price = float(dejeuner + diner) * nights * pax
+        elif meal_plan == "Pension complète" and petit_dej and dejeuner and diner:
+            meal_price = float(petit_dej + dejeuner + diner) * nights * pax
+
+        total_price = base_price + meal_price
+        if hasattr(self, "client_type_var") and self.client_type_var.get() == "PBC":
+            total_price *= 1.2
+
+        currency_label = self.currency_var.get() if hasattr(self, "currency_var") else "Ariary"
+        if currency_label != "Ariary":
+            rates = get_exchange_rates()
+            total_price = convert_currency(total_price, "Ariary", currency_label, rates)
+
+        return {
+            "unit_price": float(total_price / nights) if nights else 0.0,
+            "total": float(total_price),
+            "currency": currency_label,
+        }
+
+    def _prefill_itinerary_hotels_from_client_defaults(self, client):
+        """Preload itinerary hotels from 'hotels default by city' when available."""
+        raw_mapping = client.get("hotels_defaut_villes_circuit", "")
+        parsed_mapping = self._parse_default_hotels_by_city(raw_mapping)
+        if not parsed_mapping:
+            return
+
+        allowed_set = (
+            {self._normalize_city(c) for c in self.allowed_itinerary_cities}
+            if self.allowed_itinerary_cities
+            else set()
+        )
+        try:
+            nights = max(1, int(str(self.nights_var.get() or "1").strip()))
+        except Exception:
+            nights = 1
+        try:
+            adults = max(1, int(str(self.adults_var.get() or "2").strip()))
+        except Exception:
+            adults = 2
+        try:
+            children = max(0, int(str(self.children_var.get() or "0").strip()))
+        except Exception:
+            children = 0
+
+        prefilled = []
+        for city_name, hotel_name in parsed_mapping:
+            city_key = self._normalize_city(city_name)
+            if allowed_set and city_key not in allowed_set:
+                continue
+
+            hotel = self._find_hotel_record(city_name, hotel_name)
+            if not hotel:
+                continue
+
+            actual_city = (hotel.get("lieu") or city_name).strip()
+            planned_nights = self.city_planned_days.get(
+                self._normalize_city(actual_city), nights
+            )
+            planned_nights = max(1, int(planned_nights or 1))
+
+            room_group, room_type = self._select_room_for_hotel(hotel)
+            pricing = self._compute_hotel_total(
+                hotel, planned_nights, adults, children, room_group, room_type
+            )
+            if not pricing:
+                continue
+
+            prefilled.append(
+                {
+                    "city": actual_city,
+                    "hotel_name": (hotel.get("nom") or hotel_name).strip(),
+                    "room_type": f"{room_group} / {room_type}".strip(" /"),
+                    "nights": planned_nights,
+                    "unit_price": pricing["unit_price"],
+                    "total": pricing["total"],
+                    "currency": pricing["currency"],
+                }
+            )
+
+        if prefilled:
+            self.itinerary_hotels = prefilled
+            self._refresh_itinerary_tree()
+
     def _get_city_values(self):
         """Build city values according to current itinerary filter."""
         if self.allowed_itinerary_cities:
@@ -1187,10 +1376,11 @@ class HotelQuotation:
                     )
                     self.city_planned_days = self._extract_city_days_from_client(client)
                     self._clear_itinerary_hotels()
-                    self._refresh_city_and_hotel_options()
 
                     # Auto-fill stay parameters from client data
                     self._apply_client_stay_defaults(client)
+                    self._prefill_itinerary_hotels_from_client_defaults(client)
+                    self._refresh_city_and_hotel_options()
                     break
         else:
             # Clear fields if no client selected
@@ -1507,14 +1697,16 @@ class HotelQuotation:
 
     def _generate_quote(self):
         """Generate a formal quote"""
-        if not self.selected_hotel:
+        use_itinerary = bool(self.itinerary_hotels)
+
+        if not use_itinerary and not self.selected_hotel:
             messagebox.showwarning(
                 "Hôtel non sélectionné",
                 "Veuillez d'abord sélectionner un hôtel et calculer le prix.",
             )
             return
 
-        if not self.results_text.get(1.0, tk.END).strip():
+        if not use_itinerary and not self.results_text.get(1.0, tk.END).strip():
             messagebox.showwarning(
                 "Calcul manquant", "Veuillez d'abord calculer le prix."
             )
@@ -1574,16 +1766,19 @@ class HotelQuotation:
             except (ValueError, TypeError):
                 adults = 1
 
-            # Extract latest computed pricing
-            if not self.last_pricing:
-                messagebox.showwarning(
-                    "Calcul manquant",
-                    "Veuillez recalculer le devis avant de générer le PDF.",
-                )
-                return
-
-            price_per_night = self.last_pricing.get("price_per_night", 0.0)
-            total_price = self.last_pricing.get("total_price", 0.0)
+            # Extract latest computed pricing for single-hotel flow
+            if not use_itinerary:
+                if not self.last_pricing:
+                    messagebox.showwarning(
+                        "Calcul manquant",
+                        "Veuillez recalculer le devis avant de générer le PDF.",
+                    )
+                    return
+                price_per_night = self.last_pricing.get("price_per_night", 0.0)
+                total_price = self.last_pricing.get("total_price", 0.0)
+            else:
+                price_per_night = 0.0
+                total_price = 0.0
 
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             quote_number = f"DEVIS_HOTEL_{timestamp}"
