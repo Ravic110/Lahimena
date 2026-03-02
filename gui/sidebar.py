@@ -111,21 +111,13 @@ class Sidebar:
         # Client Information (direct access)
         _btn1 = self._create_button("🏨 Information client", self._show_client_page)
 
-        # Hotel Quotation (direct access)
-        _btn2 = self._create_button("🏨 Cotation hôtel", self._show_hotel_quotation_page)
+        # Quotation module hub
+        _btn2 = self._create_button("🧾 Cotation", self._show_cotation_hub_page)
 
-        # Services
-        _btn_collective = self._create_button(
-            "🎯 Frais collectifs", self._show_collective_expense_page
+        # Invoices / Quotes hub
+        _btn4 = self._create_button(
+            "📑 Factures / Devis", self._show_billing_quotes_hub_page
         )
-        _btn_transport = self._create_button("🎯 Transport", self._show_transport_page)
-        _btn_air = self._create_button("🎯 Billet Avion", self._show_air_ticket_page)
-
-        # Client Quotations (direct access)
-        _btn4 = self._create_button("👥 Devis clients", self._show_client_quotes_page)
-
-        # Client Invoices (direct access)
-        _btn5 = self._create_button("💰 Facture clients", self._show_current_invoices)
 
         # Expenses
         btn6 = self._create_button("📉 Dépenses ▶", None)
@@ -137,20 +129,9 @@ class Sidebar:
             ],
         )
 
-        # Unified Databases section
-        btn_db = self._create_button("🏨 Bases de données (BDD) ▶", None)
-        _submenu_db_frame = self._create_submenu(
-            btn_db,
-            [
-                ("📋 Hôtels", self._show_hotel_list),
-                ("➕ Ajout hôtel", self._show_add_hotel),
-                ("📋 Frais collectifs", self._show_collective_expense_list),
-                ("➕ Ajout frais collectif", self._show_add_collective_expense),
-                ("📋 Circuits", self._show_circuit_db_page),
-                ("📋 Transport", self._show_transport_db_page),
-                ("📋 Billets avion", self._show_air_ticket_list_db),
-                ("➕ Ajout billet avion", self._show_add_air_ticket_db),
-            ],
+        # Unified Databases section (dedicated hub page)
+        _btn_db = self._create_button(
+            "🏨 Bases de données (BDD)", self._show_database_hub_page
         )
 
         # Financial Statements (single entry point, no sidebar submenu)
@@ -244,6 +225,15 @@ class Sidebar:
 
     def _show_hotel_list(self):
         self.main_content_callback("hotel_list")
+
+    def _show_cotation_hub_page(self):
+        self.main_content_callback("cotation_hub_page")
+
+    def _show_database_hub_page(self):
+        self.main_content_callback("database_hub_page")
+
+    def _show_billing_quotes_hub_page(self):
+        self.main_content_callback("billing_quotes_hub_page")
 
     def _show_hotel_quotation(self):
         self.main_content_callback("hotel_quotation_page")

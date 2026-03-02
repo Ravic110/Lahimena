@@ -79,6 +79,7 @@ class TransportQuotation:
 
         self.prestataires = []
         self.reperes = []
+        self._km_data_warning_shown = False
 
         self._load_base_data()
         self._load_headers()
@@ -106,6 +107,12 @@ class TransportQuotation:
 
         self.prestataires = get_transport_prestataires()
         self.reperes = get_km_mada_reperes()
+
+    def _has_repere(self, repere):
+        lookup = str(repere or "").strip().lower()
+        if not lookup:
+            return False
+        return any(str(value or "").strip().lower() == lookup for value in self.reperes)
 
     def _load_headers(self):
         headers = get_transport_headers()
@@ -501,7 +508,7 @@ class TransportQuotation:
         text = str(value).strip().replace(" ", "").replace(",", ".")
         try:
             return float(text)
-        except Exception:
+        except ValueError:
             return 0.0
 
     def _format_number(self, value):
@@ -563,6 +570,12 @@ class TransportQuotation:
         distance = 0.0
         duration = 0.0
         if departure and arrival:
+            if (not self._has_repere(departure) or not self._has_repere(arrival)) and not self._km_data_warning_shown:
+                self._km_data_warning_shown = True
+                messagebox.showwarning(
+                    "Référentiel KM_MADA",
+                    "Certains repères KM_MADA sont introuvables. Les calculs distance/durée utilisent 0 pour ces étapes.",
+                )
             km_depart = self._to_float(get_km_mada_km_for_repere(departure))
             km_arrivee = self._to_float(get_km_mada_km_for_repere(arrival))
             distance = abs(km_arrivee - km_depart)
@@ -599,7 +612,7 @@ class TransportQuotation:
 
             self._on_prestataire_changed()
             self._update_distance_and_budget()
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
             logger.error(f"Error loading transport edit data: {e}", exc_info=True)
 
     def _collect_form_data(self):

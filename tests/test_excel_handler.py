@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from utils.excel_handler import (
+    _invalidate_km_mada_cache,
+    _load_km_mada_rows,
     _parse_num,
     create_backup,
     load_all_clients,
@@ -147,3 +149,18 @@ class TestErrorHandling:
                 result = create_backup("/path/to/file.xlsx")
                 # Should return None on error
                 assert result is None
+
+
+class TestKmMadaLoading:
+    """Test KM_MADA loading resilience."""
+
+    def test_load_km_mada_rows_invalid_zip_file(self, tmp_path, monkeypatch):
+        invalid_file = tmp_path / "not_an_excel.xlsx"
+        invalid_file.write_text("not a zip content")
+
+        monkeypatch.setattr("utils.excel_handler.HOTEL_EXCEL_PATH", str(invalid_file))
+        monkeypatch.setattr("utils.excel_handler.OPENPYXL_AVAILABLE", True)
+        _invalidate_km_mada_cache()
+
+        rows = _load_km_mada_rows()
+        assert rows == []

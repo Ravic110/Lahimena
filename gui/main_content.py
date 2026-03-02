@@ -57,6 +57,9 @@ class MainContent:
             "client_form": self._show_client_page,
             "client_list": self._show_client_page,
             "client_page": self._show_client_page,
+            "billing_quotes_hub_page": self._show_billing_quotes_hub_page,
+            "cotation_hub_page": self._show_cotation_hub_page,
+            "database_hub_page": self._show_database_hub_page,
             "hotel_form": self._show_hotel_form,
             "hotel_list": self._show_hotel_list,
             "hotel_quotation": self._show_hotel_quotation_page,
@@ -136,17 +139,45 @@ class MainContent:
 
         ClientPage(self.main_scroll)
 
+    def _show_database_hub_page(self):
+        """Show dedicated database hub page."""
+        from gui.forms.database_hub_page import DatabaseHubPage
+
+        DatabaseHubPage(self.main_scroll, self.update_content)
+
+    def _show_cotation_hub_page(self):
+        """Show dedicated quotation hub page."""
+        from gui.forms.cotation_hub_page import CotationHubPage
+
+        CotationHubPage(self.main_scroll, self.update_content)
+
+    def _show_billing_quotes_hub_page(self):
+        """Show dedicated hub for invoices and client quotes."""
+        from gui.forms.billing_quotes_hub_page import BillingQuotesHubPage
+
+        BillingQuotesHubPage(self.main_scroll, self.update_content)
+
     def _show_hotel_form(self, hotel_to_edit=None):
         """Show hotel form"""
         from gui.forms.hotel_form import HotelForm
 
-        HotelForm(self.main_scroll, hotel_to_edit, self._on_hotel_saved)
+        HotelForm(
+            self.main_scroll,
+            hotel_to_edit,
+            self._on_hotel_saved,
+            on_back_to_db=lambda: self.update_content("database_hub_page"),
+        )
 
     def _show_hotel_list(self):
         """Show hotel list"""
         from gui.forms.hotel_list import HotelList
 
-        HotelList(self.main_scroll, self._edit_hotel, self._new_hotel)
+        HotelList(
+            self.main_scroll,
+            self._edit_hotel,
+            self._new_hotel,
+            on_back_to_db=lambda: self.update_content("database_hub_page"),
+        )
 
     def _show_hotel_quotation(self):
         """Show hotel quotation form"""
@@ -164,7 +195,10 @@ class MainContent:
         """Show combined hotel quotation + summary page."""
         from gui.forms.hotel_quotation_page import HotelQuotationPage
 
-        HotelQuotationPage(self.main_scroll)
+        HotelQuotationPage(
+            self.main_scroll,
+            on_back_to_cotation=lambda: self.update_content("cotation_hub_page"),
+        )
 
     def _show_client_quotation(self):
         """Show client quotation form"""
@@ -182,7 +216,10 @@ class MainContent:
         """Show combined client quotation + history page."""
         from gui.forms.client_quotation_page import ClientQuotationPage
 
-        ClientQuotationPage(self.main_scroll)
+        ClientQuotationPage(
+            self.main_scroll,
+            on_back_to_hub=lambda: self.update_content("billing_quotes_hub_page"),
+        )
 
     def _show_collective_expense_quotation(self):
         """Show collective expense quotation form"""
@@ -194,7 +231,10 @@ class MainContent:
         """Show combined collective expense page (form + summary)."""
         from gui.forms.collective_expense_page import CollectiveExpensePage
 
-        CollectiveExpensePage(self.main_scroll)
+        CollectiveExpensePage(
+            self.main_scroll,
+            on_back_to_cotation=lambda: self.update_content("cotation_hub_page"),
+        )
 
     def _show_collective_expense_quotation_for_edit(self, data, row_number):
         """Show collective expense quotation form in edit mode"""
@@ -238,7 +278,10 @@ class MainContent:
         """Show combined air ticket page (form + summary)."""
         from gui.forms.air_ticket_page import AirTicketPage
 
-        AirTicketPage(self.main_scroll)
+        AirTicketPage(
+            self.main_scroll,
+            on_back_to_cotation=lambda: self.update_content("cotation_hub_page"),
+        )
 
     def _show_air_ticket_quotation_for_edit(self, data, row_number):
         """Show air ticket quotation in edit mode."""
@@ -311,19 +354,26 @@ class MainContent:
         TransportPage(
             self.main_scroll,
             navigate_callback=lambda page: self.update_content(page),
+            on_back_to_cotation=lambda: self.update_content("cotation_hub_page"),
         )
 
     def _show_transport_db_page(self):
         """Show transport DB management page."""
         from gui.forms.transport_db_page import TransportDBPage
 
-        TransportDBPage(self.main_scroll)
+        TransportDBPage(
+            self.main_scroll,
+            on_back_to_db=lambda: self.update_content("database_hub_page"),
+        )
 
     def _show_circuit_db_page(self):
         """Show circuit DB management page."""
         from gui.forms.circuit_db_page import CircuitDBPage
 
-        CircuitDBPage(self.main_scroll)
+        CircuitDBPage(
+            self.main_scroll,
+            on_back_to_db=lambda: self.update_content("database_hub_page"),
+        )
 
     def _show_parametrage_page(self):
         """Show combined parameter page (form + summary)."""
@@ -335,7 +385,10 @@ class MainContent:
         """Show client invoice management."""
         from gui.forms.invoice_management import InvoiceManagement
 
-        InvoiceManagement(self.main_scroll)
+        InvoiceManagement(
+            self.main_scroll,
+            on_back_to_hub=lambda: self.update_content("billing_quotes_hub_page"),
+        )
 
     def _show_collective_expense_db_form(self, row_to_edit=None, row_number=None):
         """Show collective expense DB form."""
@@ -349,6 +402,7 @@ class MainContent:
             edit_data=row_to_edit,
             row_number=row_number,
             callback_on_done=on_done,
+            on_back_to_db=lambda: self.update_content("database_hub_page"),
         )
 
     def _show_collective_expense_db_list(self):
@@ -365,6 +419,7 @@ class MainContent:
             self.main_scroll,
             on_edit_row=on_edit,
             on_new_row=on_new,
+            on_back_to_db=lambda: self.update_content("database_hub_page"),
         )
 
     def _show_air_ticket_db_form(self, row_to_edit=None, row_number=None):
@@ -379,6 +434,7 @@ class MainContent:
             edit_data=row_to_edit,
             row_number=row_number,
             callback_on_done=on_done,
+            on_back_to_db=lambda: self.update_content("database_hub_page"),
         )
 
     def _show_air_ticket_db_list(self):
@@ -395,6 +451,7 @@ class MainContent:
             self.main_scroll,
             on_edit_row=on_edit,
             on_new_row=on_new,
+            on_back_to_db=lambda: self.update_content("database_hub_page"),
         )
 
     def _show_visite_excursion_db_form(self, row_to_edit=None, row_number=None):

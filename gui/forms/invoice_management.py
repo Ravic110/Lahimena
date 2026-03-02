@@ -40,20 +40,18 @@ from utils.pdf_generator import REPORTLAB_AVAILABLE, generate_invoice_pdf
 class InvoiceManagement:
     """Create and track invoices with VAT, margins, deposits and statuses."""
 
-    SOURCE_TYPES = [
-        "Hôtel",
-        "Frais collectifs",
-        "Visite & Excursion",
-        "Billet avion",
-        "Transport",
-    ]
+    SOURCE_TYPES = ["Client"]
 
-    def __init__(self, parent):
+    def __init__(self, parent, on_back_to_hub=None):
         self.parent = parent
+        self.on_back_to_hub = on_back_to_hub
         self.source_rows = []
         self.invoices = []
         self.source_map = {}
         self.invoice_tree = None
+        self.acompte_entry = None
+        self.acompte_pct_entry = None
+        self._syncing_acompte_fields = False
         self.preview_labels = {}
 
         self.source_type_var = tk.StringVar(value=self.SOURCE_TYPES[0])
@@ -62,6 +60,7 @@ class InvoiceManagement:
         self.cout_ht_var = tk.StringVar(value="0")
         self.marge_pct_var = tk.StringVar(value="0")
         self.tva_pct_var = tk.StringVar(value="20")
+        self.acompte_pct_var = tk.StringVar(value="0")
         self.acompte_var = tk.StringVar(value="0")
         self.statut_var = tk.StringVar(value=INVOICE_STATUS_UNPAID)
 
@@ -87,6 +86,20 @@ class InvoiceManagement:
             bg=MAIN_BG_COLOR,
         ).pack(pady=(0, 8), fill="x")
 
+        if self.on_back_to_hub:
+            top_actions = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
+            top_actions.pack(fill="x", padx=16, pady=(0, 8))
+            tk.Button(
+                top_actions,
+                text="⬅ Retour vers Factures / Devis",
+                command=self._go_back_to_hub,
+                bg=BUTTON_BLUE,
+                fg="white",
+                font=BUTTON_FONT,
+                padx=12,
+                pady=5,
+            ).pack(side="left")
+
         root = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         root.pack(fill="both", expand=True, padx=16, pady=(0, 12))
 
@@ -107,11 +120,14 @@ class InvoiceManagement:
         self._field(form, 3, "Coût HT", self._entry(form, self.cout_ht_var))
         self._field(form, 4, "Marge (%)", self._entry(form, self.marge_pct_var))
         self._field(form, 5, "TVA (%)", self._entry(form, self.tva_pct_var))
-        self._field(form, 6, "Acompte", self._entry(form, self.acompte_var))
-        self._field(form, 7, "Statut", self._status_combo(form))
+        self.acompte_pct_entry = self._entry(form, self.acompte_pct_var)
+        self._field(form, 6, "Acompte (%)", self.acompte_pct_entry)
+        self.acompte_entry = self._entry(form, self.acompte_var)
+        self._field(form, 7, "Acompte", self.acompte_entry)
+        self._field(form, 8, "Statut", self._status_combo(form))
 
         actions = tk.Frame(form, bg=MAIN_BG_COLOR)
-        actions.grid(row=8, column=0, columnspan=2, sticky="w", pady=(10, 0))
+        actions.grid(row=9, column=0, columnspan=2, sticky="w", pady=(10, 0))
 
         tk.Button(
             actions,
@@ -169,7 +185,7 @@ class InvoiceManagement:
         ).pack(side="left", padx=(8, 0))
 
         preview = tk.Frame(form, bg=INPUT_BG_COLOR, bd=1, relief="ridge")
-        preview.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        preview.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(10, 0))
         self.preview_labels["base"] = tk.Label(
             preview, text="Base taxable HT: 0.00", font=LABEL_FONT, fg=TEXT_COLOR, bg=INPUT_BG_COLOR
         )
@@ -297,18 +313,78 @@ class InvoiceManagement:
             width=24,
             state="readonly",
         )
-        combo.bind("<<ComboboxSelected>>", lambda _e: self._refresh_preview())
+        combo.bind("<<ComboboxSelected>>", self._on_status_changed)
         return combo
 
+    def _go_back_to_hub(self):
+        if self.on_back_to_hub:
+            self.on_back_to_hub()
+
     def _bind_preview_updates(self):
-        for var in (
-            self.montant_ht_var,
-            self.cout_ht_var,
-            self.marge_pct_var,
-            self.tva_pct_var,
-            self.acompte_var,
-        ):
+        for var in (self.montant_ht_var, self.cout_ht_var, self.marge_pct_var, self.tva_pct_var):
             var.trace_add("write", lambda *_args: self._refresh_preview())
+        self.acompte_pct_var.trace_add("write", lambda *_args: self._on_acompte_pct_changed())
+        self.acompte_var.trace_add("write", lambda *_args: self._on_acompte_amount_changed())
+        self._apply_acompte_lock()
+        self._refresh_preview()
+
+    def _apply_acompte_lock(self):
+        if not self.acompte_entry or not self.acompte_pct_entry:
+            return
+        status = self.statut_var.get()
+        if status in (INVOICE_STATUS_UNPAID, INVOICE_STATUS_PAID):
+            self.acompte_pct_entry.config(state="disabled")
+            self.acompte_entry.config(state="disabled")
+        else:
+            self.acompte_pct_entry.config(state="normal")
+            self.acompte_entry.config(state="normal")
+
+    def _on_status_changed(self, _event=None):
+        self._apply_acompte_lock()
+        self._refresh_preview()
+
+    def _current_total_ttc(self):
+        totals = calculate_invoice_totals(
+            montant_ht=self.montant_ht_var.get(),
+            cout_ht=self.cout_ht_var.get(),
+            marge_pct=self.marge_pct_var.get(),
+            tva_pct=self.tva_pct_var.get(),
+            acompte=0,
+            statut=INVOICE_STATUS_PARTIAL,
+        )
+        return self._to_number(totals.get("Total_TTC", 0))
+
+    def _on_acompte_pct_changed(self):
+        if self._syncing_acompte_fields:
+            return
+        self._syncing_acompte_fields = True
+        try:
+            total_ttc = self._current_total_ttc()
+            pct = max(0.0, self._to_number(self.acompte_pct_var.get()))
+            if pct > 100:
+                pct = 100.0
+            amount = (total_ttc * pct) / 100.0 if total_ttc > 0 else 0.0
+            self.acompte_var.set(f"{amount:.2f}")
+        finally:
+            self._syncing_acompte_fields = False
+        self._refresh_preview()
+
+    def _on_acompte_amount_changed(self):
+        if self._syncing_acompte_fields:
+            return
+        self._syncing_acompte_fields = True
+        try:
+            total_ttc = self._current_total_ttc()
+            amount = max(0.0, self._to_number(self.acompte_var.get()))
+            if total_ttc > 0:
+                pct = (amount / total_ttc) * 100.0
+            else:
+                pct = 0.0
+            if pct > 100:
+                pct = 100.0
+            self.acompte_pct_var.set(f"{pct:.2f}")
+        finally:
+            self._syncing_acompte_fields = False
         self._refresh_preview()
 
     def _refresh_preview(self):
@@ -323,6 +399,16 @@ class InvoiceManagement:
             )
         except Exception:
             return
+
+        status = self.statut_var.get()
+        if status == INVOICE_STATUS_UNPAID and self._to_number(self.acompte_var.get()) != 0:
+            self.acompte_var.set("0")
+            return
+        if status == INVOICE_STATUS_PAID:
+            expected = self._to_number(totals.get("Total_TTC", 0))
+            if abs(self._to_number(self.acompte_var.get()) - expected) > 0.005:
+                self.acompte_var.set(f"{expected:.2f}")
+                return
 
         self.preview_labels["base"].config(
             text=f"Base taxable HT: {self._to_number(totals.get('Base_Taxable_HT', 0)):,.2f}"
@@ -369,10 +455,14 @@ class InvoiceManagement:
         row_number = row.get("row_number", "")
         client = row.get("client", "")
         total = row.get("montant_ht", 0)
+        if source_type == "Client":
+            client_id = row.get("client_id", "")
+            if client_id:
+                return f"{client_id} - {client} - {total:,.2f}"
+            return f"{client} - {total:,.2f}"
         return f"{source_type}#{row_number} - {client} - {total:,.2f}"
 
-    def _load_source_rows(self):
-        source_type = self.source_type_var.get()
+    def _rows_for_source_type(self, source_type):
         rows = []
 
         if source_type == "Hôtel":
@@ -453,6 +543,50 @@ class InvoiceManagement:
                         "cout_ht": cout,
                     }
                 )
+        return rows
+
+    def _build_client_source_rows(self):
+        source_rows = []
+        for source_type in (
+            "Hôtel",
+            "Frais collectifs",
+            "Visite & Excursion",
+            "Billet avion",
+            "Transport",
+        ):
+            source_rows.extend(self._rows_for_source_type(source_type))
+
+        grouped = {}
+        for row in source_rows:
+            montant = self._to_number(row.get("montant_ht", 0))
+            if montant <= 0:
+                continue
+
+            client_id = str(row.get("client_id") or "").strip()
+            client_name = str(row.get("client") or "").strip() or "Client inconnu"
+            key = client_id if client_id else f"name:{self._normalize(client_name)}"
+            if key not in grouped:
+                grouped[key] = {
+                    "source_type": "Client",
+                    "row_number": "",
+                    "source_ref": f"Client#{client_id}" if client_id else f"Client#{client_name}",
+                    "client_id": client_id,
+                    "client": client_name,
+                    "devise": str(row.get("devise") or "Ariary"),
+                    "montant_ht": 0.0,
+                    "cout_ht": 0.0,
+                }
+            grouped[key]["montant_ht"] += montant
+            grouped[key]["cout_ht"] += self._to_number(row.get("cout_ht", 0))
+
+        return list(grouped.values())
+
+    def _load_source_rows(self):
+        source_type = self.source_type_var.get()
+        if source_type == "Client":
+            rows = self._build_client_source_rows()
+        else:
+            rows = self._rows_for_source_type(source_type)
 
         self.source_rows = [row for row in rows if self._to_number(row.get("montant_ht", 0)) > 0]
         self.source_map = {self._display_source(row): row for row in self.source_rows}
@@ -577,6 +711,7 @@ class InvoiceManagement:
         self.tva_pct_var.set(str(selected.get("TVA_%", 0)))
         self.acompte_var.set(str(selected.get("Acompte", 0)))
         self.statut_var.set(selected.get("Statut", INVOICE_STATUS_UNPAID))
+        self._apply_acompte_lock()
         self._refresh_preview()
 
     def _update_selected_invoice(self):
@@ -718,7 +853,7 @@ class InvoiceManagement:
         hotel_quotes = load_all_hotel_quotations()
         items = []
 
-        if source_type == "Devis client":
+        if source_type in ("Devis client", "Client"):
             for q in hotel_quotes:
                 q_client_id = str(q.get("client_id") or "").strip()
                 q_client_name = str(q.get("client_name") or "").strip()
@@ -797,7 +932,7 @@ class InvoiceManagement:
             marge = self._to_number(self.marge_pct_var.get())
             tva = self._to_number(self.tva_pct_var.get())
             acompte = self._to_number(self.acompte_var.get())
-        except Exception:
+        except (TypeError, ValueError):
             messagebox.showerror("Erreur", "Veuillez saisir des nombres valides.")
             return False
 
@@ -814,8 +949,10 @@ class InvoiceManagement:
         self.cout_ht_var.set("0")
         self.marge_pct_var.set("0")
         self.tva_pct_var.set("20")
+        self.acompte_pct_var.set("0")
         self.acompte_var.set("0")
         self.statut_var.set(INVOICE_STATUS_UNPAID)
+        self._apply_acompte_lock()
         self._refresh_preview()
 
     def _refresh_all(self):

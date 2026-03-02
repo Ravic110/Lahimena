@@ -24,10 +24,11 @@ from utils.excel_handler import (
 
 
 class AirTicketDBList:
-    def __init__(self, parent, on_edit_row=None, on_new_row=None):
+    def __init__(self, parent, on_edit_row=None, on_new_row=None, on_back_to_db=None):
         self.parent = parent
         self.on_edit_row = on_edit_row
         self.on_new_row = on_new_row
+        self.on_back_to_db = on_back_to_db
         self.headers = []
         self.rows = []
         self.filtered_rows = []
@@ -118,6 +119,16 @@ class AirTicketDBList:
         )
         self.btn_delete.pack(side="left", padx=5)
 
+        if self.on_back_to_db:
+            tk.Button(
+                btn_frame,
+                text="⬅ Retour BDD",
+                command=self._go_back_to_db,
+                bg=BUTTON_BLUE,
+                fg="white",
+                font=BUTTON_FONT,
+            ).pack(side="right", padx=5)
+
         tree_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         tree_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
@@ -161,6 +172,10 @@ class AirTicketDBList:
         self.status_label.pack(anchor="w", padx=20, pady=(0, 10))
 
         self._load_rows()
+
+    def _go_back_to_db(self):
+        if self.on_back_to_db:
+            self.on_back_to_db()
 
     def _configure_tree_columns(self):
         self.tree.delete(*self.tree.get_children())

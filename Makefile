@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-cov test-verbose install-test clean
+.PHONY: test test-unit test-cov test-verbose install-test clean lint-strict
 
 # Run all tests
 test:
@@ -23,6 +23,10 @@ install-test:
 # Run tests and show coverage
 coverage:
 	pytest --cov=. --cov-report=html --cov-report=term-missing tests/
+
+# Run strict lint on modules excluded by default flake8 config
+lint-strict:
+	flake8 gui/forms finances/tsarakonta --jobs=1 --max-line-length=88 --extend-ignore=E501,F401,F722,W293,W291,E203,F541,W503,F841 --statistics --count
 
 # Clean up test artifacts
 clean:

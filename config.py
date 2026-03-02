@@ -19,6 +19,10 @@ _ALLOWED_CONFIG_KEYS = {
     "CURRENT_THEME",
     "CLIENT_EXCEL_PATH",
     "HOTEL_EXCEL_PATH",
+    "COMPANY_NAME",
+    "COMPANY_TAGLINE",
+    "COMPANY_PHONE",
+    "PDF_FOOTER_TEXT",
 }
 
 
@@ -68,6 +72,12 @@ load_config()
 # Application settings
 APP_TITLE = "Lahimena Tours Devis Generation"
 APP_GEOMETRY = "1200x500"
+COMPANY_NAME = _cfg.get("COMPANY_NAME", "Lahimena Tours")
+COMPANY_TAGLINE = _cfg.get("COMPANY_TAGLINE", "Madagascar - Tours & Travel")
+COMPANY_PHONE = _cfg.get("COMPANY_PHONE", "+261-34-00-000-00")
+PDF_FOOTER_TEXT = _cfg.get(
+    "PDF_FOOTER_TEXT", f"{COMPANY_NAME} | Madagascar | Tel: {COMPANY_PHONE}"
+)
 
 # override from JSON config if provided
 if "APP_TITLE" in _cfg:

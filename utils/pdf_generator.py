@@ -26,7 +26,13 @@ except ImportError:
 import os
 from datetime import datetime
 
-from config import DEVIS_FOLDER, LOGO_PATH
+from config import (
+    COMPANY_NAME,
+    COMPANY_TAGLINE,
+    DEVIS_FOLDER,
+    LOGO_PATH,
+    PDF_FOOTER_TEXT,
+)
 from utils.logger import logger
 
 
@@ -462,7 +468,7 @@ def generate_hotel_quotation_pdf(
 
         # Build PDF content
         pdf.add_header(
-            "Lahimena Tours", "Madagascar - Tours & Travel", logo_path=LOGO_PATH
+            COMPANY_NAME, COMPANY_TAGLINE, logo_path=LOGO_PATH
         )
 
         pdf.add_quotation_info(quote_number, quote_date, client_name, client_email)
@@ -499,7 +505,7 @@ def generate_hotel_quotation_pdf(
         details_text += "\nTarif valide 30 jours"
 
         pdf.add_terms(details_text)
-        pdf.add_footer("Lahimena Tours | Madagascar | Tel: +261-32-XXXX-XXXX")
+        pdf.add_footer(PDF_FOOTER_TEXT)
 
         # Generate PDF
         filepath = pdf.generate()
@@ -539,7 +545,7 @@ def generate_multi_hotel_quotation_pdf(
         pdf = QuotationPDF(filename)
 
         pdf.add_header(
-            "Lahimena Tours", "Madagascar - Tours & Travel", logo_path=LOGO_PATH
+            COMPANY_NAME, COMPANY_TAGLINE, logo_path=LOGO_PATH
         )
         pdf.add_quotation_info(quote_number, quote_date, client_name, client_email)
         pdf.add_client_contact(client_phone)
@@ -552,7 +558,7 @@ def generate_multi_hotel_quotation_pdf(
         pdf.add_terms(
             "Conditions: Tarifs sujets à modification. Validité du devis: 30 jours."
         )
-        pdf.add_footer("Lahimena Tours | Madagascar | Tel: +261-32-XXXX-XXXX")
+        pdf.add_footer(PDF_FOOTER_TEXT)
 
         filepath = pdf.generate()
         logger.info(f"Multi-hotel quotation PDF created: {filepath}")
@@ -594,7 +600,7 @@ def generate_client_quotation_pdf(
         pdf = QuotationPDF(filename)
 
         pdf.add_header(
-            "Lahimena Tours", "Madagascar - Tours & Travel", logo_path=LOGO_PATH
+            COMPANY_NAME, COMPANY_TAGLINE, logo_path=LOGO_PATH
         )
         pdf.add_quotation_info(quote_number, quote_date, client_name, client_email)
         pdf.add_client_contact(client_phone)
@@ -613,7 +619,7 @@ def generate_client_quotation_pdf(
             "Conditions: Tarifs sujets à modification. Validité du devis: 30 jours.\n"
             f"Marge appliquée: {margin_pct:,.2f}% | TVA appliquée: {tva_pct:,.2f}%."
         )
-        pdf.add_footer("Lahimena Tours | Madagascar | Tel: +261-32-XXXX-XXXX")
+        pdf.add_footer(PDF_FOOTER_TEXT)
 
         filepath = pdf.generate()
         logger.info(f"Client quotation PDF created: {filepath}")
@@ -659,7 +665,7 @@ def generate_invoice_pdf(
         pdf = QuotationPDF(filename)
 
         pdf.add_header(
-            "Lahimena Tours", "Madagascar - Tours & Travel", logo_path=LOGO_PATH
+            COMPANY_NAME, COMPANY_TAGLINE, logo_path=LOGO_PATH
         )
         pdf.add_quotation_info(
             quote_number=invoice_number,
@@ -715,7 +721,7 @@ def generate_invoice_pdf(
             f"Reste à payer: {reste_a_payer:,.2f} {currency}\n"
             "Prix unitaires affichés: frais et taxes inclus."
         )
-        pdf.add_footer("Lahimena Tours | Madagascar | Tel: +261-32-XXXX-XXXX")
+        pdf.add_footer(PDF_FOOTER_TEXT)
 
         filepath = pdf.generate()
         logger.info(f"Invoice PDF created: {filepath}")

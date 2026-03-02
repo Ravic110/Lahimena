@@ -33,13 +33,15 @@ from utils.excel_handler import (
     save_circuit_db_row,
     update_circuit_db_row,
 )
+from utils.logger import logger
 
 
 class CircuitDBPage:
     """Circuits DB CRUD page."""
 
-    def __init__(self, parent):
+    def __init__(self, parent, on_back_to_db=None):
         self.parent = parent
+        self.on_back_to_db = on_back_to_db
         self.headers = []
         self.rows = []
         self.filtered_rows = []
@@ -111,6 +113,16 @@ class CircuitDBPage:
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
         ).pack(pady=(0, 8))
+
+        if self.on_back_to_db:
+            tk.Button(
+                self.parent,
+                text="⬅ Retour vers Bases de données",
+                command=self._go_back_to_db,
+                bg=BUTTON_BLUE,
+                fg="white",
+                font=BUTTON_FONT,
+            ).pack(anchor="w", padx=16, pady=(0, 8))
 
         search_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         search_frame.pack(fill="x", padx=16, pady=(0, 8))
@@ -231,11 +243,16 @@ class CircuitDBPage:
 
         self._load_data()
 
+    def _go_back_to_db(self):
+        if self.on_back_to_db:
+            self.on_back_to_db()
+
     def _load_hotel_reference(self):
         """Load hotels used for city -> hotel matching."""
         try:
             hotels = load_all_hotels()
-        except Exception:
+        except (FileNotFoundError, PermissionError, OSError, ValueError) as exc:
+            logger.warning(f"Unable to load hotel reference for circuits: {exc}")
             hotels = []
 
         unique_hotels = {}
@@ -259,13 +276,17 @@ class CircuitDBPage:
         seen = set()
         try:
             prestataires = get_transport_prestataires()
-        except Exception:
+        except (FileNotFoundError, PermissionError, OSError, ValueError) as exc:
+            logger.warning(f"Unable to load transport prestataires for circuits: {exc}")
             prestataires = []
 
         for prestataire in prestataires:
             try:
                 vehicle_types = get_transport_vehicle_types(prestataire) or []
-            except Exception:
+            except (FileNotFoundError, PermissionError, OSError, ValueError) as exc:
+                logger.warning(
+                    f"Unable to load vehicle types for prestataire '{prestataire}': {exc}"
+                )
                 vehicle_types = []
             for vehicle in vehicle_types:
                 data = get_transport_vehicle_data(prestataire, vehicle) or {}
@@ -317,8 +338,8 @@ class CircuitDBPage:
                 value = str(prestataire).strip()
                 if value:
                     options.add(value)
-        except Exception:
-            pass
+        except (FileNotFoundError, PermissionError, OSError, ValueError) as exc:
+            logger.warning(f"Unable to load collective expense prestataires: {exc}")
 
         if self.included_services_header:
             for row in self.rows:
@@ -1342,7 +1363,7 @@ class CircuitDBPage:
 
         try:
             row_number = int(selection[0])
-        except Exception:
+        except (TypeError, ValueError):
             return
 
         row_data = next((r for r in self.rows if r.get("row_number") == row_number), None)
@@ -1370,7 +1391,7 @@ class CircuitDBPage:
 
         try:
             row_number = int(selection[0])
-        except Exception:
+        except (TypeError, ValueError):
             return
 
         success = delete_circuit_db_row(row_number)

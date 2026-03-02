@@ -23,11 +23,19 @@ from utils.excel_handler import (
 
 
 class AirTicketDBForm:
-    def __init__(self, parent, edit_data=None, row_number=None, callback_on_done=None):
+    def __init__(
+        self,
+        parent,
+        edit_data=None,
+        row_number=None,
+        callback_on_done=None,
+        on_back_to_db=None,
+    ):
         self.parent = parent
         self.edit_data = edit_data
         self.row_number = row_number
         self.callback_on_done = callback_on_done
+        self.on_back_to_db = on_back_to_db
         self.headers = []
         self.vars = {}
         self._load_headers()
@@ -130,6 +138,18 @@ class AirTicketDBForm:
                 pady=6,
             ).pack(side="left")
 
+        if self.on_back_to_db:
+            tk.Button(
+                btn_frame,
+                text="⬅ Retour BDD",
+                command=self._go_back_to_db,
+                bg=BUTTON_BLUE,
+                fg="white",
+                font=BUTTON_FONT,
+                padx=16,
+                pady=6,
+            ).pack(side="right")
+
     def _load_edit_data(self):
         for header in self.headers:
             self.vars[header].set(str(self.edit_data.get(header, "")))
@@ -174,3 +194,7 @@ class AirTicketDBForm:
     def _clear(self):
         for var in self.vars.values():
             var.set("")
+
+    def _go_back_to_db(self):
+        if self.on_back_to_db:
+            self.on_back_to_db()

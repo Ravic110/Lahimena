@@ -415,8 +415,9 @@ class _SheetCrudPanel:
 class TransportDBPage:
     """Transport DB management page for TRANSPORT and KM_MADA sheets."""
 
-    def __init__(self, parent):
+    def __init__(self, parent, on_back_to_db=None):
         self.parent = parent
+        self.on_back_to_db = on_back_to_db
         self._create_page()
 
     def _create_page(self):
@@ -438,6 +439,16 @@ class TransportDBPage:
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
         ).pack(pady=(0, 8))
+
+        if self.on_back_to_db:
+            tk.Button(
+                self.parent,
+                text="⬅ Retour vers Bases de données",
+                command=self._go_back_to_db,
+                bg=BUTTON_BLUE,
+                fg="white",
+                font=BUTTON_FONT,
+            ).pack(anchor="w", padx=16, pady=(0, 8))
 
         container = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         container.pack(fill="both", expand=True, padx=14, pady=(0, 12))
@@ -472,3 +483,7 @@ class TransportDBPage:
             update_row=update_km_mada_db_row,
             delete_row=delete_km_mada_db_row,
         )
+
+    def _go_back_to_db(self):
+        if self.on_back_to_db:
+            self.on_back_to_db()

@@ -36,3 +36,7 @@ def test_config_ignores_unknown_keys(tmp_path):
 
     assert config.APP_TITLE == "Allowed"
     assert not hasattr(config, "UNSAFE_KEY")
+
+
+def test_pdf_footer_text_has_no_placeholder():
+    assert "XXXX" not in config.PDF_FOOTER_TEXT

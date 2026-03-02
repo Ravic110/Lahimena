@@ -28,6 +28,14 @@ jobs:
           flake8 .
           black --check .
           isort --check-only .
+      - name: Run strict lint on excluded modules (non-blocking)
+        continue-on-error: true
+        run: |
+          flake8 gui/forms finances/tsarakonta \
+            --jobs=1 \
+            --max-line-length=88 \
+            --extend-ignore=E501,F401,F722,W293,W291,E203,F541,W503,F841 \
+            --statistics --count
       - name: Run tests
         run: |
           pytest --cov=utils --cov=models --cov-report=xml tests/

@@ -28,7 +28,7 @@ class HotelList:
     Hotel list component with search and management features
     """
 
-    def __init__(self, parent, on_edit_hotel=None, on_new_hotel=None):
+    def __init__(self, parent, on_edit_hotel=None, on_new_hotel=None, on_back_to_db=None):
         """
         Initialize hotel list
 
@@ -40,6 +40,7 @@ class HotelList:
         self.parent = parent
         self.on_edit_hotel = on_edit_hotel
         self.on_new_hotel = on_new_hotel
+        self.on_back_to_db = on_back_to_db
         self.hotels = []
         self.filtered_hotels = []
 
@@ -151,13 +152,19 @@ class HotelList:
         )
         self.btn_delete.pack(side="left", padx=5)
 
+        if self.on_back_to_db:
+            tk.Button(
+                btn_frame,
+                text="⬅ Retour BDD",
+                command=self._go_back_to_db,
+                bg=BUTTON_BLUE,
+                fg="white",
+                font=BUTTON_FONT,
+            ).pack(side="right", padx=5)
+
         # Treeview frame
         tree_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         tree_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
-
-        # Scrollbars
-        v_scrollbar = ttk.Scrollbar(tree_frame, orient="vertical")
-        h_scrollbar = ttk.Scrollbar(tree_frame, orient="horizontal")
 
         # Style for better selection appearance
         style = ttk.Style()
@@ -185,13 +192,8 @@ class HotelList:
             tree_frame,
             columns=columns,
             show="headings",
-            yscrollcommand=v_scrollbar.set,
-            xscrollcommand=h_scrollbar.set,
             style="Treeview",
         )
-
-        v_scrollbar.config(command=self.tree.yview)
-        h_scrollbar.config(command=self.tree.xview)
 
         # Configure columns
         column_headers = {
@@ -223,9 +225,7 @@ class HotelList:
             self.tree.column(col, width=column_widths[col], minwidth=column_widths[col])
 
         # Pack treeview and scrollbars
-        self.tree.pack(side="left", fill="both", expand=True)
-        v_scrollbar.pack(side="right", fill="y")
-        h_scrollbar.pack(side="bottom", fill="x")
+        self.tree.pack(fill="both", expand=True)
 
         # Context menu
         self.context_menu = tk.Menu(self.parent, tearoff=0)
@@ -246,6 +246,10 @@ class HotelList:
 
         # Load hotels
         self._load_hotels()
+
+    def _go_back_to_db(self):
+        if self.on_back_to_db:
+            self.on_back_to_db()
 
     def _load_hotels(self):
         """Load and display all hotels"""

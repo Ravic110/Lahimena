@@ -12,9 +12,10 @@ from gui.forms.transport_quotation_summary import TransportQuotationSummary
 class TransportPage:
     """Display transport quotation form and summary on the same page."""
 
-    def __init__(self, parent, navigate_callback=None):
+    def __init__(self, parent, navigate_callback=None, on_back_to_cotation=None):
         self.parent = parent
         self.navigate_callback = navigate_callback
+        self.on_back_to_cotation = on_back_to_cotation
         self.form_container = None
         self.form_body = None
         self.summary_container = None
@@ -32,6 +33,17 @@ class TransportPage:
 
         top_actions = tk.Frame(self.form_container, bg=MAIN_BG_COLOR)
         top_actions.pack(fill="x", padx=20, pady=(4, 2))
+        if self.on_back_to_cotation:
+            tk.Button(
+                top_actions,
+                text="⬅ Retour vers Cotation",
+                command=self._go_back_to_cotation,
+                bg=BUTTON_BLUE,
+                fg="white",
+                font=BUTTON_FONT,
+                padx=8,
+                pady=3,
+            ).pack(side="left")
         tk.Button(
             top_actions,
             text="⚙ Paramètre",
@@ -83,3 +95,7 @@ class TransportPage:
     def _open_parametrage(self):
         if self.navigate_callback:
             self.navigate_callback("parametrage_page")
+
+    def _go_back_to_cotation(self):
+        if self.on_back_to_cotation:
+            self.on_back_to_cotation()

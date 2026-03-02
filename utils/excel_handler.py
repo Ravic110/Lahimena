@@ -5,6 +5,7 @@ Excel file handling utilities
 try:
     from openpyxl import Workbook, load_workbook
     from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
 
     OPENPYXL_AVAILABLE = True
 except ImportError:
@@ -15,6 +16,7 @@ import re
 import shutil
 import zipfile
 from datetime import datetime, time, timedelta
+from time import monotonic
 
 from config import (
     CLIENT_EXCEL_PATH,
@@ -44,6 +46,35 @@ from utils.cache import (
     invalidate_hotel_cache,
 )
 from utils.logger import logger
+
+
+_KM_MADA_CACHE_TTL_SECONDS = 10.0
+_KM_MADA_CACHE = {
+    "path": None,
+    "mtime": None,
+    "loaded_at": 0.0,
+    "rows": [],
+    "lookup": {},
+}
+_THROTTLED_ERROR_STATE = {}
+_THROTTLED_ERROR_WINDOW_SECONDS = 30.0
+
+
+def _log_error_throttled(key, message, exc_info=True):
+    """Log repeated errors at most once per throttling window."""
+    now = monotonic()
+    last = _THROTTLED_ERROR_STATE.get(key, 0.0)
+    if now - last >= _THROTTLED_ERROR_WINDOW_SECONDS:
+        _THROTTLED_ERROR_STATE[key] = now
+        logger.error(message, exc_info=exc_info)
+
+
+def _invalidate_km_mada_cache():
+    _KM_MADA_CACHE["path"] = None
+    _KM_MADA_CACHE["mtime"] = None
+    _KM_MADA_CACHE["loaded_at"] = 0.0
+    _KM_MADA_CACHE["rows"] = []
+    _KM_MADA_CACHE["lookup"] = {}
 
 
 def _parse_num(val):
@@ -377,15 +408,16 @@ def save_client_to_excel(client_data):
             )
 
     # Auto-adjust column widths
-    for column in ws.columns:
+    for col_idx in range(1, ws.max_column + 1):
         max_length = 0
-        column_letter = column[0].column_letter
-        for cell in column:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except (TypeError, AttributeError):
-                pass
+        column_letter = get_column_letter(col_idx)
+        for row_idx in range(1, ws.max_row + 1):
+            value = ws.cell(row=row_idx, column=col_idx).value
+            if value is None:
+                continue
+            value_len = len(str(value))
+            if value_len > max_length:
+                max_length = value_len
         ws.column_dimensions[column_letter].width = min(max_length + 2, 25)
 
     wb.save(CLIENT_EXCEL_PATH)
@@ -976,9 +1008,9 @@ def load_all_hotels(client_type=None):
                         hotel["extras"][extra_key] = value
 
             raw_category_norm = raw_category.strip().upper()
-            if raw_category_norm in ("TO", "PBC", "DU"):
+            if raw_category_norm in ("TO", "PBC", "TCO", "PCB", "DU"):
                 hotel["type_client"] = raw_category_norm
-                hotel["categorie"] = ""
+                hotel["categorie"] = raw_category_norm
             else:
                 hotel["categorie"] = raw_category
                 hotel["type_client"] = ""
@@ -993,11 +1025,25 @@ def load_all_hotels(client_type=None):
             hotel["chambre_double"] = standard_rates.get(
                 "double", 0
             ) or standard_rates.get("twin", 0)
+            hotel["chambre_twin"] = standard_rates.get("twin", 0)
             hotel["chambre_familiale"] = standard_rates.get("familiale", 0)
+            hotel["chambre_triple"] = standard_rates.get("triple", 0)
+            hotel["chambre_chauffeur"] = standard_rates.get("chauffeur", 0)
+            hotel["dortoir"] = standard_rates.get("dortoir", 0)
             hotel["lit_supp"] = standard_rates.get("supp", 0)
+            villa_rates = hotel["room_rates"].get("villa", {})
+            hotel["villa_single"] = villa_rates.get("single", 0)
+            hotel["villa_double"] = villa_rates.get("double", 0)
+            hotel["villa_twin"] = villa_rates.get("twin", 0)
+            hotel["villa_familiale"] = villa_rates.get("familiale", 0)
+            hotel["villa_triple"] = villa_rates.get("triple", 0)
+            hotel["villa_studios"] = villa_rates.get("studios", 0)
+            hotel["villa_vip"] = villa_rates.get("vip", 0)
+            hotel["villa_supp"] = villa_rates.get("supp", 0)
             hotel["petit_dejeuner"] = hotel["meals"].get("petit_dejeuner", 0)
             hotel["dejeuner"] = hotel["meals"].get("dejeuner", 0)
             hotel["diner"] = hotel["meals"].get("diner", 0)
+            hotel["inclus"] = str(hotel["extras"].get("inclue", "")).strip()
 
             if (
                 client_type
@@ -1485,7 +1531,7 @@ def save_hotel_to_excel(hotel_data):
 
     # Create backup before modifying Excel file
     create_backup(HOTEL_EXCEL_PATH)
-    # Create file if it doesn't exist
+    # Legacy flat headers, kept for backward compatibility with old sheets.
     hotel_headers = [
         "Ville",
         "HTL",
@@ -1533,53 +1579,134 @@ def save_hotel_to_excel(hotel_data):
     # Open existing file again
     wb = load_workbook(HOTEL_EXCEL_PATH)
     ws = wb[HOTEL_SHEET_NAME]
-    header_map = _ensure_headers(ws, hotel_headers, hotel_header_style)
 
-    # Find last empty row (column A)
+    header_map_row1 = _get_header_map(ws, 1)
+    header_map_row2 = _get_header_map(ws, 2)
+    use_grouped_format = (
+        "Ville" in header_map_row2 and "HTL" in header_map_row2 and "Ville" not in header_map_row1
+    )
+
     last_row = ws.max_row + 1
+    if use_grouped_format:
+        last_row = max(3, last_row)
+        grouped_map = {
+            (str(group).strip(), str(header).strip()): col
+            for group, header, col in _iter_grouped_columns(ws, 1, 2)
+        }
 
-    field_map = {
-        "Ville": ["Lieu", "lieu"],
-        "HTL": ["Nom", "nom"],
-        "CATÉGORIE": ["Catégorie", "categorie"],
-        "UNITÉ": ["Unité", "unite"],
-        "SPL": ["Chambre_Single", "chambre_single"],
-        "DBL": ["Chambre_Double", "chambre_double"],
-        "TWINS": ["Chambre_Double", "chambre_double"],
-        "FML": ["Chambre_Familiale", "chambre_familiale"],
-        "SUPP": ["Lit_Supp", "lit_supp"],
-        "SUITE": ["Suite", "suite"],
-        "PDJ": ["Petit_Déjeuner", "petit_dejeuner"],
-        "DJ": ["Déjeuner", "dejeuner"],
-        "DR": ["Dîner", "diner"],
-        "ID": ["ID", "id"],
-        "TYPE_HEBERGEMENT": ["Type_Hébergement", "type_hebergement"],
-        "TYPE_CLIENT": ["Type_Client", "type_client"],
-        "CONTACT": ["Contact", "contact"],
-        "EMAIL": ["Email", "email"],
-        "DESCRIPTION": ["Description", "description"],
-        "DAY_USE": ["Day_Use", "day_use"],
-        "VIGNETTE": ["Vignette", "vignette"],
-        "TAXE_SEJOUR": ["Taxe_Séjour", "taxe_sejour"],
-    }
-    for header, keys in field_map.items():
-        col = header_map.get(header)
-        if col:
-            value = _first_available(hotel_data, keys, "")
-            if header == "UNITÉ" and value == "":
-                value = "$"
+        def _set(group, header, keys, default=""):
+            col = grouped_map.get((group, header))
+            if not col:
+                return
+            value = _first_available(hotel_data, keys, default)
             ws.cell(row=last_row, column=col, value=value)
 
+        # HOTEL block
+        _set("Hotel", "Ville", ["Lieu", "lieu"])
+        _set("Hotel", "HTL", ["Nom", "nom"])
+        _set("Hotel", "NB ETOILE", ["Type_Client", "type_client"], "")
+        _set("Hotel", "CATÉGORIE", ["Catégorie", "categorie"], "")
+        _set("Hotel", "UNITÉ", ["Unité", "unite"], "MGA")
+
+        # STANDARD block
+        _set("STANDARD", "SPL", ["Chambre_Single", "chambre_single"])
+        _set("STANDARD", "DBL", ["Chambre_Double", "chambre_double"])
+        _set("STANDARD", "TWINS", ["Chambre_Twin", "chambre_twin", "Chambre_Double", "chambre_double"])
+        _set("STANDARD", "FML", ["Chambre_Familiale", "chambre_familiale"])
+        _set("STANDARD", "triple", ["Chambre_Triple", "chambre_triple"])
+        _set("STANDARD", "Chambre chauffeur", ["Chambre_Chauffeur", "chambre_chauffeur"])
+        _set("STANDARD", "dortoir", ["Dortoir", "dortoir"])
+        _set("STANDARD", "SUPP", ["Lit_Supp", "lit_supp"])
+
+        # BUNGALOWS
+        _set("BUNGALOWS", "SPL", ["Bungalow_Single", "bungalow_single"])
+        _set("BUNGALOWS", "DBL", ["Bungalow_Double", "bungalow_double"])
+        _set("BUNGALOWS", "TWINS", ["Bungalow_Twin", "bungalow_twin"])
+        _set("BUNGALOWS", "FML", ["Bungalow_Familiale", "bungalow_familiale"])
+        _set("BUNGALOWS", "Triple", ["Bungalow_Triple", "bungalow_triple"])
+        _set("BUNGALOWS", "SUPP", ["Bungalow_Supp", "bungalow_supp"])
+
+        # DE LUXE
+        _set("DE LUXE", "SPL", ["Deluxe_Single", "deluxe_single"])
+        _set("DE LUXE", "DBL", ["Deluxe_Double", "deluxe_double"])
+        _set("DE LUXE", "TWINS", ["Deluxe_Twin", "deluxe_twin"])
+        _set("DE LUXE", "FML", ["Deluxe_Familiale", "deluxe_familiale"])
+        _set("DE LUXE", "triple", ["Deluxe_Triple", "deluxe_triple"])
+        _set("DE LUXE", "SUPP", ["Deluxe_Supp", "deluxe_supp"])
+
+        # SUITE
+        _set("SUITE", "SPL", ["Suite_Single", "suite_single"])
+        _set("SUITE", "DBL", ["Suite_Double", "suite_double"])
+        _set("SUITE", "TWINS", ["Suite_Twin", "suite_twin"])
+        _set("SUITE", "FML", ["Suite_Familiale", "suite_familiale"])
+        _set("SUITE", "triple", ["Suite_Triple", "suite_triple"])
+        _set("SUITE", "studios", ["Suite_Studios", "suite_studios"])
+        _set("SUITE", "VIP", ["Suite_VIP", "suite_vip"])
+        _set("SUITE", "SUPP", ["Suite_Supp", "suite_supp"])
+
+        # VILLA
+        _set("Villa", "SPL", ["Villa_Single", "villa_single"])
+        _set("Villa", "DBL", ["Villa_Double", "villa_double"])
+        _set("Villa", "TWINS", ["Villa_Twin", "villa_twin"])
+        _set("Villa", "FML", ["Villa_Familiale", "villa_familiale"])
+        _set("Villa", "triple", ["Villa_Triple", "villa_triple"])
+        _set("Villa", "studios", ["Villa_Studios", "villa_studios"])
+        _set("Villa", "VIP", ["Villa_VIP", "villa_vip"])
+        _set("Villa", "SUPP", ["Villa_Supp", "villa_supp"])
+
+        # TAXE / REPAS / AUTRES
+        _set("TAXE", "Vignette", ["Vignette", "vignette"])
+        _set("TAXE", "Taxe de séjour", ["Taxe_Séjour", "taxe_sejour"])
+        _set("REPAS", "PDJ", ["Petit_Déjeuner", "petit_dejeuner"])
+        _set("REPAS", "DJ", ["Déjeuner", "dejeuner"])
+        _set("REPAS", "DR", ["Dîner", "diner"])
+        _set("Autres informations et remarques", "Inclus", ["Inclus", "inclus", "Description", "description"])
+        _set("Autres informations et remarques", "Inclus ", ["Inclus", "inclus", "Description", "description"])
+    else:
+        header_map = _ensure_headers(ws, hotel_headers, hotel_header_style)
+        field_map = {
+            "Ville": ["Lieu", "lieu"],
+            "HTL": ["Nom", "nom"],
+            "CATÉGORIE": ["Catégorie", "categorie"],
+            "UNITÉ": ["Unité", "unite"],
+            "SPL": ["Chambre_Single", "chambre_single"],
+            "DBL": ["Chambre_Double", "chambre_double"],
+            "TWINS": ["Chambre_Double", "chambre_double"],
+            "FML": ["Chambre_Familiale", "chambre_familiale"],
+            "SUPP": ["Lit_Supp", "lit_supp"],
+            "SUITE": ["Suite", "suite"],
+            "PDJ": ["Petit_Déjeuner", "petit_dejeuner"],
+            "DJ": ["Déjeuner", "dejeuner"],
+            "DR": ["Dîner", "diner"],
+            "ID": ["ID", "id"],
+            "TYPE_HEBERGEMENT": ["Type_Hébergement", "type_hebergement"],
+            "TYPE_CLIENT": ["Type_Client", "type_client"],
+            "CONTACT": ["Contact", "contact"],
+            "EMAIL": ["Email", "email"],
+            "DESCRIPTION": ["Description", "description"],
+            "DAY_USE": ["Day_Use", "day_use"],
+            "VIGNETTE": ["Vignette", "vignette"],
+            "TAXE_SEJOUR": ["Taxe_Séjour", "taxe_sejour"],
+        }
+        for header, keys in field_map.items():
+            col = header_map.get(header)
+            if col:
+                value = _first_available(hotel_data, keys, "")
+                if header == "UNITÉ" and value == "":
+                    value = "MGA"
+                ws.cell(row=last_row, column=col, value=value)
+
     # Auto-adjust column widths
-    for column in ws.columns:
+    for col_idx in range(1, ws.max_column + 1):
         max_length = 0
-        column_letter = column[0].column_letter
-        for cell in column:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except (TypeError, AttributeError):
-                pass
+        column_letter = get_column_letter(col_idx)
+        for row_idx in range(1, ws.max_row + 1):
+            value = ws.cell(row=row_idx, column=col_idx).value
+            if value is None:
+                continue
+            value_len = len(str(value))
+            if value_len > max_length:
+                max_length = value_len
         ws.column_dimensions[column_letter].width = min(max_length + 2, 25)
 
     wb.save(HOTEL_EXCEL_PATH)
@@ -1613,6 +1740,11 @@ def update_hotel_in_excel(row_number, hotel_data):
         return False
 
     ws = wb[HOTEL_SHEET_NAME]
+    header_map_row1 = _get_header_map(ws, 1)
+    header_map_row2 = _get_header_map(ws, 2)
+    use_grouped_format = (
+        "Ville" in header_map_row2 and "HTL" in header_map_row2 and "Ville" not in header_map_row1
+    )
     hotel_headers = [
         "Ville",
         "HTL",
@@ -1644,39 +1776,100 @@ def update_hotel_in_excel(row_number, hotel_data):
         ),
         "alignment": Alignment(horizontal="center"),
     }
-    header_map = _ensure_headers(ws, hotel_headers, hotel_header_style)
+    if use_grouped_format:
+        grouped_map = {
+            (str(group).strip(), str(header).strip()): col
+            for group, header, col in _iter_grouped_columns(ws, 1, 2)
+        }
 
-    field_map = {
-        "Ville": ["Lieu", "lieu"],
-        "HTL": ["Nom", "nom"],
-        "CATÉGORIE": ["Catégorie", "categorie"],
-        "UNITÉ": ["Unité", "unite"],
-        "SPL": ["Chambre_Single", "chambre_single"],
-        "DBL": ["Chambre_Double", "chambre_double"],
-        "TWINS": ["Chambre_Double", "chambre_double"],
-        "FML": ["Chambre_Familiale", "chambre_familiale"],
-        "SUPP": ["Lit_Supp", "lit_supp"],
-        "SUITE": ["Suite", "suite"],
-        "PDJ": ["Petit_Déjeuner", "petit_dejeuner"],
-        "DJ": ["Déjeuner", "dejeuner"],
-        "DR": ["Dîner", "diner"],
-        "ID": ["ID", "id"],
-        "TYPE_HEBERGEMENT": ["Type_Hébergement", "type_hebergement"],
-        "TYPE_CLIENT": ["Type_Client", "type_client"],
-        "CONTACT": ["Contact", "contact"],
-        "EMAIL": ["Email", "email"],
-        "DESCRIPTION": ["Description", "description"],
-        "DAY_USE": ["Day_Use", "day_use"],
-        "VIGNETTE": ["Vignette", "vignette"],
-        "TAXE_SEJOUR": ["Taxe_Séjour", "taxe_sejour"],
-    }
-    for header, keys in field_map.items():
-        col = header_map.get(header)
-        if col:
-            value = _first_available(hotel_data, keys, "")
-            if header == "UNITÉ" and value == "":
-                value = "$"
+        def _set(group, header, keys, default=""):
+            col = grouped_map.get((group, header))
+            if not col:
+                return
+            value = _first_available(hotel_data, keys, default)
             ws.cell(row=row_number, column=col, value=value)
+
+        _set("Hotel", "Ville", ["Lieu", "lieu"])
+        _set("Hotel", "HTL", ["Nom", "nom"])
+        _set("Hotel", "NB ETOILE", ["Type_Client", "type_client"], "")
+        _set("Hotel", "CATÉGORIE", ["Catégorie", "categorie"], "")
+        _set("Hotel", "UNITÉ", ["Unité", "unite"], "MGA")
+        _set("STANDARD", "SPL", ["Chambre_Single", "chambre_single"])
+        _set("STANDARD", "DBL", ["Chambre_Double", "chambre_double"])
+        _set("STANDARD", "TWINS", ["Chambre_Twin", "chambre_twin", "Chambre_Double", "chambre_double"])
+        _set("STANDARD", "FML", ["Chambre_Familiale", "chambre_familiale"])
+        _set("STANDARD", "triple", ["Chambre_Triple", "chambre_triple"])
+        _set("STANDARD", "Chambre chauffeur", ["Chambre_Chauffeur", "chambre_chauffeur"])
+        _set("STANDARD", "dortoir", ["Dortoir", "dortoir"])
+        _set("STANDARD", "SUPP", ["Lit_Supp", "lit_supp"])
+        _set("BUNGALOWS", "SPL", ["Bungalow_Single", "bungalow_single"])
+        _set("BUNGALOWS", "DBL", ["Bungalow_Double", "bungalow_double"])
+        _set("BUNGALOWS", "TWINS", ["Bungalow_Twin", "bungalow_twin"])
+        _set("BUNGALOWS", "FML", ["Bungalow_Familiale", "bungalow_familiale"])
+        _set("BUNGALOWS", "Triple", ["Bungalow_Triple", "bungalow_triple"])
+        _set("BUNGALOWS", "SUPP", ["Bungalow_Supp", "bungalow_supp"])
+        _set("DE LUXE", "SPL", ["Deluxe_Single", "deluxe_single"])
+        _set("DE LUXE", "DBL", ["Deluxe_Double", "deluxe_double"])
+        _set("DE LUXE", "TWINS", ["Deluxe_Twin", "deluxe_twin"])
+        _set("DE LUXE", "FML", ["Deluxe_Familiale", "deluxe_familiale"])
+        _set("DE LUXE", "triple", ["Deluxe_Triple", "deluxe_triple"])
+        _set("DE LUXE", "SUPP", ["Deluxe_Supp", "deluxe_supp"])
+        _set("SUITE", "SPL", ["Suite_Single", "suite_single"])
+        _set("SUITE", "DBL", ["Suite_Double", "suite_double"])
+        _set("SUITE", "TWINS", ["Suite_Twin", "suite_twin"])
+        _set("SUITE", "FML", ["Suite_Familiale", "suite_familiale"])
+        _set("SUITE", "triple", ["Suite_Triple", "suite_triple"])
+        _set("SUITE", "studios", ["Suite_Studios", "suite_studios"])
+        _set("SUITE", "VIP", ["Suite_VIP", "suite_vip"])
+        _set("SUITE", "SUPP", ["Suite_Supp", "suite_supp"])
+        _set("Villa", "SPL", ["Villa_Single", "villa_single"])
+        _set("Villa", "DBL", ["Villa_Double", "villa_double"])
+        _set("Villa", "TWINS", ["Villa_Twin", "villa_twin"])
+        _set("Villa", "FML", ["Villa_Familiale", "villa_familiale"])
+        _set("Villa", "triple", ["Villa_Triple", "villa_triple"])
+        _set("Villa", "studios", ["Villa_Studios", "villa_studios"])
+        _set("Villa", "VIP", ["Villa_VIP", "villa_vip"])
+        _set("Villa", "SUPP", ["Villa_Supp", "villa_supp"])
+        _set("TAXE", "Vignette", ["Vignette", "vignette"])
+        _set("TAXE", "Taxe de séjour", ["Taxe_Séjour", "taxe_sejour"])
+        _set("REPAS", "PDJ", ["Petit_Déjeuner", "petit_dejeuner"])
+        _set("REPAS", "DJ", ["Déjeuner", "dejeuner"])
+        _set("REPAS", "DR", ["Dîner", "diner"])
+        _set("Autres informations et remarques", "Inclus", ["Inclus", "inclus", "Description", "description"])
+        _set("Autres informations et remarques", "Inclus ", ["Inclus", "inclus", "Description", "description"])
+    else:
+        header_map = _ensure_headers(ws, hotel_headers, hotel_header_style)
+        field_map = {
+            "Ville": ["Lieu", "lieu"],
+            "HTL": ["Nom", "nom"],
+            "CATÉGORIE": ["Catégorie", "categorie"],
+            "UNITÉ": ["Unité", "unite"],
+            "SPL": ["Chambre_Single", "chambre_single"],
+            "DBL": ["Chambre_Double", "chambre_double"],
+            "TWINS": ["Chambre_Double", "chambre_double"],
+            "FML": ["Chambre_Familiale", "chambre_familiale"],
+            "SUPP": ["Lit_Supp", "lit_supp"],
+            "SUITE": ["Suite", "suite"],
+            "PDJ": ["Petit_Déjeuner", "petit_dejeuner"],
+            "DJ": ["Déjeuner", "dejeuner"],
+            "DR": ["Dîner", "diner"],
+            "ID": ["ID", "id"],
+            "TYPE_HEBERGEMENT": ["Type_Hébergement", "type_hebergement"],
+            "TYPE_CLIENT": ["Type_Client", "type_client"],
+            "CONTACT": ["Contact", "contact"],
+            "EMAIL": ["Email", "email"],
+            "DESCRIPTION": ["Description", "description"],
+            "DAY_USE": ["Day_Use", "day_use"],
+            "VIGNETTE": ["Vignette", "vignette"],
+            "TAXE_SEJOUR": ["Taxe_Séjour", "taxe_sejour"],
+        }
+        for header, keys in field_map.items():
+            col = header_map.get(header)
+            if col:
+                value = _first_available(hotel_data, keys, "")
+                if header == "UNITÉ" and value == "":
+                    value = "MGA"
+                ws.cell(row=row_number, column=col, value=value)
 
     wb.save(HOTEL_EXCEL_PATH)
     invalidate_hotel_cache()
@@ -4377,15 +4570,27 @@ def _load_km_mada_rows():
         return []
 
     if not os.path.exists(HOTEL_EXCEL_PATH):
+        _invalidate_km_mada_cache()
         return []
     if not zipfile.is_zipfile(HOTEL_EXCEL_PATH):
         # Avoid repeated openpyxl exceptions when the workbook is temporarily invalid/corrupted.
+        _invalidate_km_mada_cache()
         return []
+
+    mtime = os.path.getmtime(HOTEL_EXCEL_PATH)
+    now = monotonic()
+    if (
+        _KM_MADA_CACHE["path"] == HOTEL_EXCEL_PATH
+        and _KM_MADA_CACHE["mtime"] == mtime
+        and (now - _KM_MADA_CACHE["loaded_at"]) <= _KM_MADA_CACHE_TTL_SECONDS
+    ):
+        return list(_KM_MADA_CACHE["rows"])
 
     wb = None
     try:
         wb = load_workbook(HOTEL_EXCEL_PATH, data_only=True)
         if KM_MADA_SHEET_NAME not in wb.sheetnames:
+            _invalidate_km_mada_cache()
             return []
 
         ws = wb[KM_MADA_SHEET_NAME]
@@ -4449,9 +4654,34 @@ def _load_km_mada_rows():
                 }
             )
 
+        lookup = {}
+        for row in rows:
+            repere = str(row.get("repere") or "").strip().lower()
+            if repere:
+                lookup[repere] = row
+        _KM_MADA_CACHE["path"] = HOTEL_EXCEL_PATH
+        _KM_MADA_CACHE["mtime"] = mtime
+        _KM_MADA_CACHE["loaded_at"] = now
+        _KM_MADA_CACHE["rows"] = rows
+        _KM_MADA_CACHE["lookup"] = lookup
         return rows
+    except zipfile.BadZipFile as e:
+        _invalidate_km_mada_cache()
+        _log_error_throttled(
+            "km_mada_bad_zip",
+            f"Failed to load KM_MADA rows (invalid workbook): {e}",
+            exc_info=True,
+        )
+        return []
+    except PermissionError as e:
+        _log_error_throttled(
+            "km_mada_permission",
+            f"Failed to load KM_MADA rows (permission error): {e}",
+            exc_info=True,
+        )
+        return []
     except Exception as e:
-        logger.error(f"Failed to load KM_MADA rows: {e}", exc_info=True)
+        _log_error_throttled("km_mada_unexpected", f"Failed to load KM_MADA rows: {e}")
         return []
     finally:
         if wb is not None:
@@ -4462,7 +4692,8 @@ def _load_km_mada_rows():
 
 
 def get_km_mada_reperes():
-    values = {row.get("repere") for row in _load_km_mada_rows() if row.get("repere")}
+    rows = _load_km_mada_rows()
+    values = {row.get("repere") for row in rows if row.get("repere")}
     return sorted(values)
 
 
@@ -4471,7 +4702,11 @@ def get_km_mada_km_for_repere(repere):
     if not lookup:
         return 0
 
-    for row in _load_km_mada_rows():
+    rows = _load_km_mada_rows()
+    cached_row = _KM_MADA_CACHE["lookup"].get(lookup)
+    if cached_row:
+        return _parse_num(cached_row.get("km", 0))
+    for row in rows:
         if str(row.get("repere") or "").strip().lower() == lookup:
             return _parse_num(row.get("km", 0))
     return 0
@@ -4482,7 +4717,11 @@ def get_km_mada_duration_for_repere(repere):
     if not lookup:
         return 0.0
 
-    for row in _load_km_mada_rows():
+    rows = _load_km_mada_rows()
+    cached_row = _KM_MADA_CACHE["lookup"].get(lookup)
+    if cached_row:
+        return _parse_duration_hours(cached_row.get("duree", 0))
+    for row in rows:
         if str(row.get("repere") or "").strip().lower() == lookup:
             return _parse_duration_hours(row.get("duree", 0))
     return 0.0
@@ -4842,6 +5081,7 @@ def save_transport_db_row(row_data):
             ws.cell(row=next_row, column=header_map[header], value=row_data.get(header, ""))
 
         wb.save(HOTEL_EXCEL_PATH)
+        _invalidate_km_mada_cache()
         return next_row
     except PermissionError:
         return -2
@@ -4879,6 +5119,7 @@ def update_transport_db_row(row_number, row_data):
             ws.cell(row=row_number, column=col, value=row_data.get(header, ""))
 
         wb.save(HOTEL_EXCEL_PATH)
+        _invalidate_km_mada_cache()
         return 0
     except PermissionError:
         return -2
@@ -4969,7 +5210,7 @@ def get_km_mada_db_headers():
         if not header_map:
             return []
         return list(header_map.keys())
-    except Exception as e:
+    except (PermissionError, OSError, ValueError, zipfile.BadZipFile) as e:
         logger.error(f"Failed to load KM_MADA DB headers: {e}", exc_info=True)
         return []
     finally:
@@ -5013,7 +5254,7 @@ def load_km_mada_db_rows():
             if has_values:
                 rows.append(row_dict)
         return rows
-    except Exception as e:
+    except (PermissionError, OSError, ValueError, zipfile.BadZipFile) as e:
         logger.error(f"Failed to load KM_MADA DB rows: {e}", exc_info=True)
         return []
     finally:
@@ -5072,7 +5313,7 @@ def save_km_mada_db_row(row_data):
         return next_row
     except PermissionError:
         return -2
-    except Exception as e:
+    except (OSError, ValueError, KeyError) as e:
         logger.error(f"Failed to save KM_MADA DB row: {e}", exc_info=True)
         return -1
     finally:
@@ -5109,7 +5350,7 @@ def update_km_mada_db_row(row_number, row_data):
         return 0
     except PermissionError:
         return -2
-    except Exception as e:
+    except (OSError, ValueError, KeyError) as e:
         logger.error(f"Failed to update KM_MADA DB row {row_number}: {e}", exc_info=True)
         return -1
     finally:
@@ -5137,8 +5378,9 @@ def delete_km_mada_db_row(row_number):
         ws = wb[KM_MADA_SHEET_NAME]
         ws.delete_rows(row_number)
         wb.save(HOTEL_EXCEL_PATH)
+        _invalidate_km_mada_cache()
         return True
-    except Exception as e:
+    except (OSError, ValueError, KeyError) as e:
         logger.error(f"Failed to delete KM_MADA DB row {row_number}: {e}", exc_info=True)
         return False
     finally:
