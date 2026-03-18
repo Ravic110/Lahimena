@@ -363,7 +363,7 @@ class TransportQuotation:
             tk.Button(
                 frame,
                 text="📅",
-                font=("Arial", 12),
+                font=("Poppins", 12),
                 width=3,
                 bg=BUTTON_GREEN,
                 fg="white",

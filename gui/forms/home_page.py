@@ -3,8 +3,25 @@ Home page view for the main content area.
 """
 
 from datetime import datetime
+import threading
 
 import customtkinter as ctk
+
+from config import (
+    ACCENT_TEXT_COLOR,
+    BUTTON_BLUE,
+    BUTTON_GREEN,
+    BUTTON_GREEN_HOVER,
+    BUTTON_ORANGE,
+    BUTTON_RED,
+    CARD_BG_COLOR,
+    CARD_HOVER_BG_COLOR,
+    INPUT_BG_COLOR,
+    MAIN_BG_COLOR,
+    MUTED_TEXT_COLOR,
+    PANEL_BG_COLOR,
+    TEXT_COLOR,
+)
 from utils.excel_handler import (
     load_all_clients,
     load_all_collective_expense_quotations,
@@ -28,10 +45,61 @@ class HomePage:
         self._tip_index = 0
         self.clock_label = None
         self.tip_label = None
-        self.dashboard_stats = self._load_dashboard_stats()
+        self.dashboard_stats = self._empty_dashboard_stats()
+        self._dashboard_value_labels = {}
+        self._pending_dashboard_stats = None
         self._build_ui()
+        self._load_dashboard_stats_async()
+        self._poll_dashboard_stats()
         self._start_clock()
         self._start_tip_rotation()
+
+    def _empty_dashboard_stats(self):
+        return {
+            "clients": 0,
+            "collective_count": 0,
+            "collective_total": 0.0,
+            "quotes_count": 0,
+            "quotes_total": 0.0,
+            "invoices_count": 0,
+            "invoices_total": 0.0,
+        }
+
+    def _load_dashboard_stats_async(self):
+        """Load dashboard stats in background to keep UI responsive."""
+        def worker():
+            stats = self._load_dashboard_stats()
+            self._pending_dashboard_stats = stats
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _poll_dashboard_stats(self):
+        """Apply dashboard stats from background thread when ready."""
+        if not self.parent.winfo_exists():
+            return
+        if self._pending_dashboard_stats is not None:
+            stats = self._pending_dashboard_stats
+            self._pending_dashboard_stats = None
+            self._apply_dashboard_stats(stats)
+            return
+        self.parent.after(100, self._poll_dashboard_stats)
+
+    def _apply_dashboard_stats(self, stats):
+        self.dashboard_stats = stats
+        if not self._dashboard_value_labels:
+            return
+        self._dashboard_value_labels["clients"].configure(
+            text=f"{stats['clients']}"
+        )
+        self._dashboard_value_labels["collective"].configure(
+            text=f"{stats['collective_count']} | {stats['collective_total']:,.0f} MGA"
+        )
+        self._dashboard_value_labels["quotes"].configure(
+            text=f"{stats['quotes_count']} | {stats['quotes_total']:,.0f} MGA"
+        )
+        self._dashboard_value_labels["invoices"].configure(
+            text=f"{stats['invoices_count']} | {stats['invoices_total']:,.0f} MGA"
+        )
 
     def _to_number(self, value):
         try:
@@ -98,7 +166,9 @@ class HomePage:
         shell = ctk.CTkFrame(self.parent, fg_color="transparent")
         shell.pack(fill="both", expand=True, padx=24, pady=24)
 
-        hero = ctk.CTkFrame(shell, fg_color="#0F172A", corner_radius=18)
+        hero = ctk.CTkFrame(
+            shell, fg_color=PANEL_BG_COLOR, corner_radius=18, border_width=1, border_color="#C9DDE3"
+        )
         hero.pack(fill="x", pady=(0, 18))
         hero.grid_columnconfigure(0, weight=1)
         hero.grid_columnconfigure(1, weight=0)
@@ -107,31 +177,31 @@ class HomePage:
             hero,
             text="Bienvenue sur Lahimena Tours",
             font=ctk.CTkFont(size=32, weight="bold"),
-            text_color="#F8FAFC",
+            text_color=TEXT_COLOR,
         ).grid(row=0, column=0, sticky="w", padx=24, pady=(20, 6))
 
         ctk.CTkLabel(
             hero,
             text="Un espace clair pour vos clients, hotels et devis.",
             font=ctk.CTkFont(size=15),
-            text_color="#CBD5E1",
+            text_color=MUTED_TEXT_COLOR,
         ).grid(row=1, column=0, sticky="w", padx=24, pady=(0, 20))
 
-        clock_box = ctk.CTkFrame(hero, fg_color="#1E293B", corner_radius=14)
+        clock_box = ctk.CTkFrame(hero, fg_color=CARD_BG_COLOR, corner_radius=14)
         clock_box.grid(row=0, column=1, rowspan=2, sticky="e", padx=18, pady=14)
 
         ctk.CTkLabel(
             clock_box,
             text="Heure locale",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#93C5FD",
+            text_color=MUTED_TEXT_COLOR,
         ).pack(padx=14, pady=(10, 4))
 
         self.clock_label = ctk.CTkLabel(
             clock_box,
             text="--/--/----\n--:--:--",
             font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="#F8FAFC",
+            text_color=TEXT_COLOR,
         )
         self.clock_label.pack(padx=14, pady=(0, 10))
 
@@ -139,26 +209,46 @@ class HomePage:
         quick_actions.pack(fill="x", pady=(0, 14))
 
         self._add_quick_action(
-            quick_actions, "Demande client", "client_page", "#059669", "#047857"
+            quick_actions,
+            "Demande client",
+            "client_page",
+            BUTTON_GREEN,
+            BUTTON_GREEN_HOVER,
         )
         self._add_quick_action(
             quick_actions,
             "Cotation hotel multi-villes",
             "hotel_quotation_page",
-            "#0284C7",
-            "#0369A1",
+            BUTTON_BLUE,
+            BUTTON_GREEN_HOVER,
         )
         self._add_quick_action(
-            quick_actions, "Transport + Parametre", "transport_page", "#475569", "#334155"
+            quick_actions,
+            "Transport + Parametre",
+            "transport_page",
+            BUTTON_GREEN,
+            BUTTON_GREEN_HOVER,
         )
         self._add_quick_action(
-            quick_actions, "Frais collectifs", "collective_expense_page", "#B45309", "#92400E"
+            quick_actions,
+            "Frais collectifs",
+            "collective_expense_page",
+            BUTTON_ORANGE,
+            "#D48806",
         )
         self._add_quick_action(
-            quick_actions, "Devis clients", "client_quotes_page", "#4F46E5", "#4338CA"
+            quick_actions,
+            "Devis clients",
+            "client_quotes_page",
+            BUTTON_BLUE,
+            BUTTON_GREEN_HOVER,
         )
         self._add_quick_action(
-            quick_actions, "Factures clients", "current_invoices", "#DC2626", "#B91C1C"
+            quick_actions,
+            "Factures clients",
+            "current_invoices",
+            BUTTON_RED,
+            "#B71C1C",
         )
 
         cards_container = ctk.CTkFrame(shell, fg_color="transparent")
@@ -175,21 +265,27 @@ class HomePage:
             cards_container, "Astuce du moment", self._tips[self._tip_index]
         )
         self.tip_label = tip_card["body_label"]
-        tip_card["frame"].configure(fg_color="#172554")
-        self.tip_label.configure(text_color="#DBEAFE")
+        tip_card["frame"].configure(fg_color=PANEL_BG_COLOR)
+        self.tip_label.configure(text_color=TEXT_COLOR)
 
     def _add_card(self, parent, title, body):
-        normal = "#1F2937"
-        hover = "#334155"
+        normal = CARD_BG_COLOR
+        hover = CARD_HOVER_BG_COLOR
 
-        card = ctk.CTkFrame(parent, fg_color=normal, corner_radius=14)
+        card = ctk.CTkFrame(
+            parent,
+            fg_color=normal,
+            corner_radius=14,
+            border_width=1,
+            border_color="#C9DDE3",
+        )
         card.pack(fill="x", pady=8)
 
         title_label = ctk.CTkLabel(
             card,
             text=title,
             font=ctk.CTkFont(size=17, weight="bold"),
-            text_color="#F8FAFC",
+            text_color=TEXT_COLOR,
         )
         title_label.pack(anchor="w", padx=16, pady=(12, 4))
 
@@ -199,7 +295,7 @@ class HomePage:
             justify="left",
             anchor="w",
             font=ctk.CTkFont(size=14),
-            text_color="#E2E8F0",
+            text_color=MUTED_TEXT_COLOR,
         )
         body_label.pack(anchor="w", padx=16, pady=(0, 12))
 
@@ -217,14 +313,20 @@ class HomePage:
 
     def _add_dashboard(self, parent):
         """Small synthetic dashboard with key counters."""
-        wrapper = ctk.CTkFrame(parent, fg_color="#1F2937", corner_radius=14)
+        wrapper = ctk.CTkFrame(
+            parent,
+            fg_color=PANEL_BG_COLOR,
+            corner_radius=14,
+            border_width=1,
+            border_color="#C9DDE3",
+        )
         wrapper.pack(fill="x", pady=8)
 
         ctk.CTkLabel(
             wrapper,
             text="Dashboard synthetique",
             font=ctk.CTkFont(size=17, weight="bold"),
-            text_color="#F8FAFC",
+            text_color=TEXT_COLOR,
         ).pack(anchor="w", padx=16, pady=(12, 10))
 
         grid = ctk.CTkFrame(wrapper, fg_color="transparent")
@@ -233,43 +335,35 @@ class HomePage:
             grid.grid_columnconfigure(col, weight=1)
 
         cards = [
-            (
-                "Clients",
-                f"{self.dashboard_stats['clients']}",
-                "#0EA5E9",
-            ),
-            (
-                "Frais collectifs",
-                f"{self.dashboard_stats['collective_count']} | {self.dashboard_stats['collective_total']:,.0f} MGA",
-                "#F59E0B",
-            ),
-            (
-                "Devis hotel",
-                f"{self.dashboard_stats['quotes_count']} | {self.dashboard_stats['quotes_total']:,.0f} MGA",
-                "#22C55E",
-            ),
-            (
-                "Factures clients",
-                f"{self.dashboard_stats['invoices_count']} | {self.dashboard_stats['invoices_total']:,.0f} MGA",
-                "#EF4444",
-            ),
+            ("Clients", "clients", BUTTON_BLUE),
+            ("Frais collectifs", "collective", BUTTON_ORANGE),
+            ("Devis hotel", "quotes", BUTTON_GREEN),
+            ("Factures clients", "invoices", BUTTON_RED),
         ]
 
-        for idx, (title, value, color) in enumerate(cards):
-            card = ctk.CTkFrame(grid, fg_color="#111827", corner_radius=12)
+        for idx, (title, key, color) in enumerate(cards):
+            card = ctk.CTkFrame(
+                grid,
+                fg_color=CARD_BG_COLOR,
+                corner_radius=12,
+                border_width=1,
+                border_color="#D3E2E7",
+            )
             card.grid(row=0, column=idx, sticky="nsew", padx=6, pady=4)
             ctk.CTkLabel(
                 card,
                 text=title,
                 font=ctk.CTkFont(size=12, weight="bold"),
-                text_color="#CBD5E1",
+                text_color=MUTED_TEXT_COLOR,
             ).pack(anchor="w", padx=10, pady=(10, 2))
-            ctk.CTkLabel(
+            value_label = ctk.CTkLabel(
                 card,
-                text=value,
+                text="--",
                 font=ctk.CTkFont(size=15, weight="bold"),
                 text_color=color,
-            ).pack(anchor="w", padx=10, pady=(0, 10))
+            )
+            value_label.pack(anchor="w", padx=10, pady=(0, 10))
+            self._dashboard_value_labels[key] = value_label
 
     def _add_quick_action(self, parent, text, route, color, hover):
         btn = ctk.CTkButton(
@@ -280,6 +374,7 @@ class HomePage:
             hover_color=hover,
             corner_radius=12,
             height=42,
+            text_color="white",
         )
         btn.pack(side="left", padx=(0, 10), pady=4)
 

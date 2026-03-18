@@ -350,7 +350,7 @@ class ClientQuotation:
         self.total_label = tk.Label(
             totals_frame,
             text="TOTAL: 0",
-            font=("Arial", 11, "bold"),
+            font=("Poppins", 11, "bold"),
             fg=BUTTON_GREEN,
             bg=MAIN_BG_COLOR,
         )

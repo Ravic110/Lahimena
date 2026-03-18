@@ -3,36 +3,54 @@ Client form GUI component - Version améliorée avec nouveaux champs
 """
 
 import calendar
+import getpass
+import os
 import re
 import tkinter as tk
 from datetime import datetime
 from tkinter import messagebox, ttk
 
+try:
+    import customtkinter as ctk
+except Exception:
+    ctk = None
+
 from config import (
     AGES_ENFANTS,
-    BUTTON_BLUE,
-    BUTTON_FONT,
-    BUTTON_GRAY,
-    BUTTON_GREEN,
-    BUTTON_ORANGE,
-    BUTTON_RED,
     CIRCUITS,
+    CODE_TO_COUNTRY,
+    COUNTRY_PHONE_MAP,
+    DEFAULT_COUNTRY,
     DEFAULT_PHONE_CODE,
-    ENTRY_FONT,
     FORFAITS,
     HOTEL_ARRIVAL_TYPES,
-    INPUT_BG_COLOR,
-    LABEL_FONT,
     MAIN_BG_COLOR,
     MUTED_TEXT_COLOR,
+    BUTTON_BLUE,
+    BUTTON_ORANGE,
+    BUTTON_RED,
+    BUTTON_GREEN,
+    PANEL_BG_COLOR,
+    CARD_BG_COLOR,
+    LABEL_FONT,
+    ENTRY_FONT,
+    INPUT_BG_COLOR,
     PERIODES,
     PHONE_CODES,
-    READONLY_BG_COLOR,
     RESTAURATIONS,
     TEXT_COLOR,
     TITLE_FONT,
     TYPE_CHAMBRES,
     TYPE_HEBERGEMENTS,
+)
+from gui.ui_style import (
+    action_button,
+    configure_combobox_style,
+    create_card,
+    muted_label,
+    row_two_columns,
+    styled_entry,
+    styled_label,
 )
 from models.client_data import ClientData
 from utils.excel_handler import (
@@ -59,13 +77,21 @@ class CalendarDialog(tk.Toplevel):
 
         # Center window
         self.transient(parent)
-        self.grab_set()
+        self.after(0, self._safe_grab)
 
         self.selected_date = None
         self.current_month = datetime.now().month
         self.current_year = datetime.now().year
 
         self._create_widgets()
+
+    def _safe_grab(self):
+        """Grab focus once the window is viewable."""
+        try:
+            self.wait_visibility()
+            self.grab_set()
+        except tk.TclError:
+            pass
 
     def _create_widgets(self):
         """Create calendar widgets"""
@@ -80,7 +106,7 @@ class CalendarDialog(tk.Toplevel):
             command=self._prev_month,
             bg=BUTTON_BLUE,
             fg="white",
-            font=("Arial", 12, "bold"),
+            font=("Poppins", 12, "bold"),
             width=3,
         ).pack(side="left")
 
@@ -88,7 +114,7 @@ class CalendarDialog(tk.Toplevel):
         self.month_year_label = tk.Label(
             header_frame,
             text="",
-            font=("Arial", 14, "bold"),
+            font=("Poppins", 14, "bold"),
             bg=MAIN_BG_COLOR,
             fg=TEXT_COLOR,
         )
@@ -101,7 +127,7 @@ class CalendarDialog(tk.Toplevel):
             command=self._next_month,
             bg=BUTTON_BLUE,
             fg="white",
-            font=("Arial", 12, "bold"),
+            font=("Poppins", 12, "bold"),
             width=3,
         ).pack(side="right")
 
@@ -121,7 +147,7 @@ class CalendarDialog(tk.Toplevel):
             command=self._select_today,
             bg=BUTTON_GREEN,
             fg="white",
-            font=("Arial", 10),
+            font=("Poppins", 10),
             width=12,
         ).pack(side="left", padx=5)
 
@@ -131,7 +157,7 @@ class CalendarDialog(tk.Toplevel):
             command=self.destroy,
             bg=BUTTON_RED,
             fg="white",
-            font=("Arial", 10),
+            font=("Poppins", 10),
             width=12,
         ).pack(side="left", padx=5)
 
@@ -166,7 +192,7 @@ class CalendarDialog(tk.Toplevel):
             tk.Label(
                 self.calendar_frame,
                 text=day,
-                font=("Arial", 10, "bold"),
+                font=("Poppins", 10, "bold"),
                 bg=BUTTON_BLUE,
                 fg="white",
                 width=5,
@@ -202,7 +228,7 @@ class CalendarDialog(tk.Toplevel):
                         text=str(day),
                         bg=bg_color,
                         fg=fg_color,
-                        font=("Arial", 10),
+                        font=("Poppins", 10),
                         width=5,
                         command=lambda d=day: self._select_date(d),
                     )
@@ -270,7 +296,9 @@ class ClientForm:
             if circuit.get("nom")
         }
         self.circuit_options = self._load_circuit_options()
-        self.itinerary_cities = []
+        self.itinerary_rows = []
+        self._itin_widget_rows = []
+        self._itin_canvas = None
 
         self._create_form()
 
@@ -309,6 +337,93 @@ class ClientForm:
             logger.warning(f"Failed to load circuit catalog: {e}")
             return []
 
+    def _apply_placeholder(self, entry, text):
+        if entry is None:
+            return
+        try:
+            entry.configure(placeholder_text=text)
+            entry._placeholder_text = text
+            return
+        except Exception:
+            pass
+
+        entry._placeholder_text = text
+        entry._placeholder_active = False
+        placeholder_color = MUTED_TEXT_COLOR
+        normal_color = TEXT_COLOR
+
+        def _show_placeholder():
+            if entry.get():
+                return
+            entry._placeholder_active = True
+            entry.config(fg=placeholder_color)
+            entry.delete(0, tk.END)
+            entry.insert(0, text)
+
+        def _hide_placeholder():
+            if not getattr(entry, "_placeholder_active", False):
+                return
+            entry._placeholder_active = False
+            entry.delete(0, tk.END)
+            entry.config(fg=normal_color)
+
+        def _on_focus_in(event):
+            _hide_placeholder()
+
+        def _on_focus_out(event):
+            if not entry.get():
+                _show_placeholder()
+
+        entry.bind("<FocusIn>", _on_focus_in, add=True)
+        entry.bind("<FocusOut>", _on_focus_out, add=True)
+        entry._placeholder_show = _show_placeholder
+        entry._placeholder_hide = _hide_placeholder
+        _show_placeholder()
+
+    def _clear_placeholder(self, entry):
+        if hasattr(entry, "_placeholder_hide"):
+            entry._placeholder_hide()
+
+    def _restore_placeholder(self, entry):
+        if hasattr(entry, "_placeholder_show"):
+            entry._placeholder_show()
+
+    def _get_entry_value(self, entry):
+        if entry is None:
+            return ""
+        if getattr(entry, "_placeholder_active", False):
+            return ""
+        value = entry.get()
+        if getattr(entry, "_placeholder_text", None) == value:
+            return ""
+        return value
+
+    def _make_calendar_badge(self, parent, entry_widget, label_text="📅"):
+        """Create a styled square calendar badge button."""
+        badge = tk.Canvas(
+            parent,
+            width=28,
+            height=28,
+            bg=PANEL_BG_COLOR,
+            highlightthickness=0,
+            cursor="hand2",
+        )
+        badge.create_rectangle(
+            2, 2, 26, 26,
+            fill=BUTTON_RED,
+            outline=BUTTON_RED,
+            width=0,
+        )
+        badge.create_text(
+            14, 14,
+            text=label_text,
+            fill="white",
+            font=("Poppins", 9, "bold"),
+        )
+        badge.bind("<Button-1>", lambda e: self._open_calendar(entry_widget))
+        badge.bind("<Enter>", lambda e: badge.configure(cursor="hand2"))
+        return badge
+
     def _create_form(self):
         """Create the client form with scrollable area for many fields"""
         # Clear parent
@@ -320,413 +435,640 @@ class ClientForm:
         container.pack(fill="both", expand=True, padx=0, pady=0)
         self.container = container
 
-        # Title
+        top_bar = tk.Frame(container, bg=MAIN_BG_COLOR)
+        top_bar.pack(fill="x", pady=(6, 4), padx=16)
+
+        def _top_action(parent, label, icon):
+            item = tk.Frame(parent, bg=MAIN_BG_COLOR)
+            item.pack(side="left", padx=6)
+            canvas = tk.Canvas(
+                item,
+                width=18,
+                height=18,
+                bg=MAIN_BG_COLOR,
+                highlightthickness=0,
+            )
+            canvas.create_oval(1, 1, 17, 17, fill=BUTTON_RED, outline=BUTTON_RED)
+            canvas.create_text(
+                9,
+                9,
+                text=icon,
+                fill="white",
+                font=("Poppins", 8, "bold"),
+            )
+            canvas.pack()
+            tk.Label(
+                item,
+                text=label,
+                font=("Poppins", 7),
+                fg=MUTED_TEXT_COLOR,
+                bg=MAIN_BG_COLOR,
+            ).pack()
+
+        actions = tk.Frame(top_bar, bg=MAIN_BG_COLOR)
+        actions.pack(side="right")
+        _top_action(actions, "Bienvenue", "👤")
+        _top_action(actions, "Chercher", "🔍")
+        _top_action(actions, "Resa LHM", "🗓")
+
+        use_ctk = ctk is not None and hasattr(ctk, "CTkFrame")
+        if use_ctk:
+            page_card = ctk.CTkFrame(
+                container,
+                fg_color=CARD_BG_COLOR,
+                corner_radius=22,
+                border_width=1,
+                border_color="#C9DDE3",
+            )
+        else:
+            page_card = tk.Frame(
+                container,
+                bg=CARD_BG_COLOR,
+                highlightbackground="#C9DDE3",
+                highlightthickness=1,
+                bd=0,
+            )
+        page_card.pack(fill="both", expand=True, padx=16, pady=(4, 16))
+        if use_ctk:
+            page_inner = ctk.CTkFrame(page_card, fg_color="transparent")
+        else:
+            page_inner = tk.Frame(page_card, bg=CARD_BG_COLOR)
+        page_inner.pack(fill="both", expand=True, padx=12, pady=10)
+
+        header = tk.Frame(page_inner, bg=CARD_BG_COLOR)
+        header.pack(fill="x", pady=(4, 10), padx=8)
+        header.grid_columnconfigure(0, weight=1)
+
+        title_block = tk.Frame(header, bg=CARD_BG_COLOR)
+        title_block.grid(row=0, column=0)
         title_text = (
-            "MODIFIER CLIENT" if self.client_to_edit else "FORMULAIRE DEMANDE CLIENT"
+            "MODIFICATION DEMANDE CLIENT"
+            if self.client_to_edit
+            else "FORMULAIRE DEMANDES CLIENT"
         )
-        title = tk.Label(
-            container,
-            text=title_text,
-            font=TITLE_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        )
-        title.pack(pady=0, fill="x")
+        tk.Label(
+            title_block,
+            text=title_text.upper(),
+            font=("Poppins", 19, "bold"),
+            fg="#667780",
+            bg=CARD_BG_COLOR,
+        ).pack(anchor="center")
 
-        subtitle = tk.Label(
-            container,
-            text="Les champs marqués * sont obligatoires",
-            font=("Arial", 9),
+        creator = os.getenv("LHM_USER") or getpass.getuser() or "-"
+        current_datetime = datetime.now().strftime("%d/%m/%Y à %H:%M:%S")
+        tk.Label(
+            title_block,
+            text=f"Création du dossier : {current_datetime}  |  Par : {creator}",
+            font=("Poppins", 8),
             fg=MUTED_TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
+            bg=CARD_BG_COLOR,
+        ).pack(anchor="center")
+        tk.Frame(page_inner, bg="#D12E2E", height=2).pack(
+            fill="x", padx=18, pady=(2, 12)
         )
-        subtitle.pack(pady=0, fill="x")
 
-        # Harmonize ttk combobox readability in dark mode.
-        style = ttk.Style()
-        style.configure(
-            "TCombobox",
-            foreground=TEXT_COLOR,
-            fieldbackground=INPUT_BG_COLOR,
-            background=INPUT_BG_COLOR,
-            arrowcolor=TEXT_COLOR,
-        )
-        style.map(
-            "TCombobox",
-            foreground=[("readonly", TEXT_COLOR)],
-            fieldbackground=[("readonly", INPUT_BG_COLOR)],
-            background=[("readonly", INPUT_BG_COLOR)],
-            selectforeground=[("readonly", TEXT_COLOR)],
-            selectbackground=[("readonly", INPUT_BG_COLOR)],
-        )
-        container.option_add("*TCombobox*Listbox.background", INPUT_BG_COLOR)
-        container.option_add("*TCombobox*Listbox.foreground", TEXT_COLOR)
-        container.option_add("*TCombobox*Listbox.selectBackground", BUTTON_BLUE)
-        container.option_add("*TCombobox*Listbox.selectForeground", "white")
+        current_date = datetime.now().strftime("%d/%m/%Y")
+
+        # Hidden date field for persistence
+        self.entry_date_jour = styled_entry(page_inner, readonly=True, width=40)
+        self.entry_date_jour.configure(state="normal")
+        self.entry_date_jour.insert(0, current_date)
+        self.entry_date_jour.configure(state="readonly")
+
+        configure_combobox_style(page_inner)
 
         # No internal scrollbar: rely on MainContent scroll only.
-        self.main_frame = tk.Frame(container, bg=MAIN_BG_COLOR)
+        self.main_frame = tk.Frame(page_inner, bg=CARD_BG_COLOR)
         self.main_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
-        # ===== SECTION: INFOS CLIENTS =====
-        section_label = tk.Label(
-            self.main_frame,
-            text="📋 INFOS CLIENTS",
-            font=("Arial", 12, "bold"),
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
+        content = tk.Frame(self.main_frame, bg=CARD_BG_COLOR)
+        content.pack(fill="both", expand=True, padx=14, pady=6)
+        content.grid_columnconfigure(0, weight=1)
+        content.grid_columnconfigure(1, weight=1)
+        content.grid_rowconfigure(0, weight=1)
+
+        left_col = tk.Frame(content, bg=CARD_BG_COLOR)
+        right_col = tk.Frame(content, bg=CARD_BG_COLOR)
+        left_col.grid(row=0, column=0, sticky="nsew", padx=(6, 10))
+        right_col.grid(row=0, column=1, sticky="nsew", padx=(10, 6))
+
+        def two_column_row(parent, left_label, left_widget, right_label, right_widget):
+            row_two_columns(parent, left_label, left_widget, right_label, right_widget)
+
+        def full_width_row(parent, label, widget_builder):
+            row = tk.Frame(parent, bg=PANEL_BG_COLOR)
+            row.pack(fill="x", pady=(0, 6))
+            if label:
+                tk.Label(
+                    row,
+                    text=label,
+                    font=LABEL_FONT,
+                    fg=TEXT_COLOR,
+                    bg=PANEL_BG_COLOR,
+                ).pack(anchor="w")
+            widget_builder(row)
+
+        def inline_row(parent, label, widget_builder, pady=(0, 6)):
+            """Label and widget on the same horizontal line."""
+            row = tk.Frame(parent, bg=PANEL_BG_COLOR)
+            row.pack(fill="x", pady=pady)
+            tk.Label(
+                row,
+                text=label,
+                font=LABEL_FONT,
+                fg=TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
+            ).pack(side="left", padx=(0, 8))
+            widget_builder(row)
+
+        def three_column_row(parent, columns):
+            row = tk.Frame(parent, bg=PANEL_BG_COLOR)
+            row.pack(fill="x", pady=(0, 6))
+            for index, (label, widget_builder) in enumerate(columns):
+                if index == 0:
+                    padx = (0, 8)
+                elif index == 1:
+                    padx = (8, 8)
+                else:
+                    padx = (8, 0)
+                column_frame = tk.Frame(row, bg=PANEL_BG_COLOR)
+                column_frame.pack(
+                    side="left", fill="x", expand=True, padx=padx
+                )
+                if label:
+                    tk.Label(
+                        column_frame,
+                        text=label,
+                        font=LABEL_FONT,
+                        fg=TEXT_COLOR,
+                        bg=PANEL_BG_COLOR,
+                    ).pack(anchor="w")
+                if widget_builder:
+                    widget_builder(column_frame)
+                elif label:
+                    tk.Frame(column_frame, bg=PANEL_BG_COLOR, height=24).pack(
+                        fill="x"
+                    )
+
+        # ===== CARD: INFOS CLIENTS =====
+        info_card = create_card(
+            left_col,
+            title=None,
+            tabs=[("Clients", True), ("Compléments", False)],
+            show_controls=False,
         )
-        section_label.pack(anchor="w", pady=(15, 10))
 
-        # Date du jour
-        tk.Label(
-            self.main_frame,
-            text="Date du jour",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.entry_date_jour = tk.Entry(
-            self.main_frame,
-            font=ENTRY_FONT,
-            width=40,
-            bg=READONLY_BG_COLOR,
-            readonlybackground=READONLY_BG_COLOR,
-            fg=TEXT_COLOR,
-            disabledforeground=TEXT_COLOR,
-            insertbackground=TEXT_COLOR,
-            state="readonly",
+        def _field_type_client(parent):
+            values = ["Mr", "Mme"]
+            if ctk is not None:
+                self.combo_type_client = ctk.CTkComboBox(
+                    parent,
+                    values=values,
+                    state="readonly",
+                    width=90,
+                    height=28,
+                    fg_color=INPUT_BG_COLOR,
+                    text_color=TEXT_COLOR,
+                    border_color="#9EC7CF",
+                    corner_radius=14,
+                    font=ENTRY_FONT,
+                    dropdown_fg_color=INPUT_BG_COLOR,
+                    dropdown_text_color=TEXT_COLOR,
+                    dropdown_hover_color=BUTTON_GREEN,
+                )
+                self.combo_type_client.set(values[0])
+            else:
+                self.combo_type_client = ttk.Combobox(
+                    parent,
+                    values=values,
+                    state="readonly",
+                    width=7,
+                )
+                self.combo_type_client.current(0)
+            self.combo_type_client.pack(fill="x")
+
+        def _field_nom(parent):
+            self.entry_nom = styled_entry(parent)
+            self._apply_placeholder(self.entry_nom, "Nom")
+            self.entry_nom.pack(fill="x")
+
+        def _field_prenom(parent):
+            self.entry_prenom = styled_entry(parent)
+            self._apply_placeholder(self.entry_prenom, "Prénom")
+            self.entry_prenom.pack(fill="x")
+
+        def _field_email(parent):
+            self.entry_email = styled_entry(parent)
+            self.entry_email.pack(side="left", fill="x", expand=True)
+
+        def _field_mobile(parent):
+            country_names = list(COUNTRY_PHONE_MAP.keys())
+
+            # StringVar holding the dial code (e.g. "+261") – used for save/load
+            self._code_pays_var = tk.StringVar(value=DEFAULT_PHONE_CODE)
+
+            def _on_country_selected(event=None):
+                country = self.combo_pays.get()
+                code = COUNTRY_PHONE_MAP.get(country, DEFAULT_PHONE_CODE)
+                self._code_pays_var.set(code)
+                self.whatsapp_code_var.set(code)
+
+            phone_frame = tk.Frame(parent, bg=PANEL_BG_COLOR)
+            phone_frame.pack(side="left", fill="x", expand=True)
+
+            # ── Pays (country name dropdown) ──────────────────────────────
+            # Always use ttk.Combobox for the dropdown: CTkComboBox loses focus
+            # immediately and the list disappears before the user can pick.
+            pays_col = tk.Frame(phone_frame, bg=PANEL_BG_COLOR)
+            pays_col.pack(side="left", padx=(0, 4))
+            tk.Label(
+                pays_col, text="Pays",
+                font=("Poppins", 9), fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR,
+            ).pack(anchor="w")
+            style = ttk.Style()
+            style.configure(
+                "Phone.TCombobox",
+                font=ENTRY_FONT,
+                foreground=TEXT_COLOR,
+                fieldbackground=INPUT_BG_COLOR,
+                background=INPUT_BG_COLOR,
+                arrowcolor=TEXT_COLOR,
+                padding=4,
+                relief="flat",
+            )
+            style.map(
+                "Phone.TCombobox",
+                foreground=[("readonly", TEXT_COLOR)],
+                fieldbackground=[("readonly", INPUT_BG_COLOR)],
+                selectforeground=[("readonly", TEXT_COLOR)],
+                selectbackground=[("readonly", INPUT_BG_COLOR)],
+            )
+            self.combo_pays = ttk.Combobox(
+                pays_col,
+                values=country_names,
+                width=16,
+                state="readonly",
+                style="Phone.TCombobox",
+            )
+            self.combo_pays.set(DEFAULT_COUNTRY)
+            self.combo_pays.bind("<<ComboboxSelected>>", _on_country_selected)
+            self.combo_pays.pack()
+
+            # ── Code pays (readonly, auto-filled) ────────────────────────
+            code_col = tk.Frame(phone_frame, bg=PANEL_BG_COLOR)
+            code_col.pack(side="left", padx=(0, 4))
+            tk.Label(
+                code_col, text="Code",
+                font=("Poppins", 9), fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR,
+            ).pack(anchor="w")
+            if ctk is not None:
+                self._code_pays_entry = ctk.CTkEntry(
+                    code_col,
+                    width=60,
+                    height=28,
+                    fg_color=INPUT_BG_COLOR,
+                    text_color=TEXT_COLOR,
+                    border_color="#9EC7CF",
+                    corner_radius=14,
+                    font=ENTRY_FONT,
+                    textvariable=self._code_pays_var,
+                    state="readonly",
+                )
+            else:
+                self._code_pays_entry = tk.Entry(
+                    code_col,
+                    width=6,
+                    font=ENTRY_FONT,
+                    bg=INPUT_BG_COLOR,
+                    fg=TEXT_COLOR,
+                    textvariable=self._code_pays_var,
+                    state="readonly",
+                    relief="flat",
+                    highlightthickness=1,
+                    highlightbackground="#9EC7CF",
+                    bd=0,
+                )
+            self._code_pays_entry.pack()
+
+            # Proxy: entry_code_pays.get() → _code_pays_var.get()
+            class _CodeProxy:
+                def __init__(self_, var):
+                    self_._var = var
+                def get(self_):
+                    return self_._var.get()
+                def set(self_, val):
+                    self_._var.set(val)
+                    country = CODE_TO_COUNTRY.get(val, "")
+                    if country:
+                        self.combo_pays.set(country)
+            self.entry_code_pays = _CodeProxy(self._code_pays_var)
+
+            # ── Numéro ───────────────────────────────────────────────────
+            num_col = tk.Frame(phone_frame, bg=PANEL_BG_COLOR)
+            num_col.pack(side="left", fill="x", expand=True)
+            tk.Label(
+                num_col, text="Numéro",
+                font=("Poppins", 9), fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR,
+            ).pack(anchor="w")
+            self.entry_telephone = styled_entry(num_col)
+            self.entry_telephone.pack(fill="x")
+
+            # WhatsApp mirrors (hidden, kept for data compatibility)
+            self.whatsapp_code_var = tk.StringVar(value=DEFAULT_PHONE_CODE)
+            self.whatsapp_number_var = tk.StringVar()
+            self.combo_whatsapp_code = ttk.Combobox(
+                phone_frame, values=PHONE_CODES, width=8,
+                state="readonly", textvariable=self.whatsapp_code_var,
+            )
+            self.entry_whatsapp = styled_entry(phone_frame)
+            self.entry_whatsapp.configure(textvariable=self.whatsapp_number_var)
+            self.entry_telephone.bind(
+                "<KeyRelease>",
+                lambda e: self.whatsapp_number_var.set(self.entry_telephone.get()),
+            )
+
+        title_row = tk.Frame(info_card, bg=PANEL_BG_COLOR)
+        title_row.pack(fill="x", pady=(0, 6))
+        title_col = tk.Frame(title_row, bg=PANEL_BG_COLOR)
+        title_col.pack(side="left", padx=(0, 8))
+        _field_type_client(title_col)
+
+        nom_col = tk.Frame(title_row, bg=PANEL_BG_COLOR)
+        nom_col.pack(side="left", fill="x", expand=True, padx=(8, 8))
+        _field_nom(nom_col)
+
+        prenom_col = tk.Frame(title_row, bg=PANEL_BG_COLOR)
+        prenom_col.pack(side="left", fill="x", expand=True, padx=(8, 6))
+        _field_prenom(prenom_col)
+
+        info_btn_col = tk.Frame(title_row, bg=PANEL_BG_COLOR)
+        info_btn_col.pack(side="left", padx=(0, 0))
+        info_canvas = tk.Canvas(
+            info_btn_col,
+            width=22,
+            height=22,
+            bg=PANEL_BG_COLOR,
+            highlightthickness=0,
+            cursor="hand2",
         )
-        self.entry_date_jour.pack(fill="x", pady=(0, 15))
-        current_date = datetime.now().strftime("%d/%m/%Y")
-        self.entry_date_jour.config(state="normal")
-        self.entry_date_jour.insert(0, current_date)
-        self.entry_date_jour.config(state="readonly")
-
-        # Référence client
-        tk.Label(
-            self.main_frame,
-            text="Référence client *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.entry_ref_client = tk.Entry(
-            self.main_frame, font=ENTRY_FONT, width=40, bg=INPUT_BG_COLOR, fg=TEXT_COLOR
+        info_canvas.create_oval(1, 1, 21, 21, fill=BUTTON_BLUE, outline=BUTTON_BLUE)
+        info_canvas.create_text(
+            11, 11, text="i", fill="white", font=("Poppins", 10, "bold")
         )
-        self.entry_ref_client.pack(fill="x", pady=(0, 15))
-
-        # Numéro de dossier
-        tk.Label(
-            self.main_frame,
-            text="Numéro de dossier",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.entry_numero_dossier = tk.Entry(
-            self.main_frame, font=ENTRY_FONT, width=40, bg=INPUT_BG_COLOR, fg=TEXT_COLOR
+        info_canvas.pack(pady=(4, 0))
+        info_canvas.bind(
+            "<Button-1>",
+            lambda e: __import__("tkinter.messagebox", fromlist=["showinfo"]).showinfo(
+                "Information client",
+                "Renseignez ici les informations personnelles du client.\n"
+                "Les champs marqués * sont obligatoires.",
+            ),
         )
-        self.entry_numero_dossier.pack(fill="x", pady=(0, 15))
 
-        # Type de client
-        tk.Label(
-            self.main_frame,
-            text="Type de client *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.combo_type_client = ttk.Combobox(
-            self.main_frame, values=["Individuel", "Groupe"], state="readonly", width=37
+        # Email + Mobile alignés avec le champ Nom (spacer = largeur de title_col)
+        email_mobile_row = tk.Frame(info_card, bg=PANEL_BG_COLOR)
+        email_mobile_row.pack(fill="x")
+        spacer = tk.Frame(email_mobile_row, bg=PANEL_BG_COLOR, width=106)
+        spacer.pack_propagate(False)
+        spacer.pack(side="left")
+        email_mobile_content = tk.Frame(email_mobile_row, bg=PANEL_BG_COLOR)
+        email_mobile_content.pack(side="left", fill="x", expand=True)
+        inline_row(email_mobile_content, "Adresse e-mail *", _field_email, pady=(0, 3))
+        inline_row(email_mobile_content, "Mobile/Whatsapp *", _field_mobile, pady=(0, 6))
+
+        self.entry_prenom.bind(
+            "<KeyRelease>", lambda e: self._update_rooming_identity()
         )
-        self.combo_type_client.pack(fill="x", pady=(0, 15))
+        self.entry_nom.bind("<KeyRelease>", lambda e: self._update_rooming_identity())
 
-        # Nom et Prénom (séparés)
-        tk.Label(
-            self.main_frame,
-            text="Prénom *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.entry_prenom = tk.Entry(
-            self.main_frame, font=ENTRY_FONT, width=40, bg=INPUT_BG_COLOR, fg=TEXT_COLOR
+        def _field_ref(parent):
+            self.entry_ref_client = styled_entry(parent)
+            self.entry_ref_client.pack(fill="x")
+
+        def _field_dossier(parent):
+            self.entry_numero_dossier = styled_entry(parent)
+            self.entry_numero_dossier.pack(fill="x")
+
+        two_column_row(
+            info_card,
+            "Référence client *",
+            _field_ref,
+            "Numéro de dossier",
+            _field_dossier,
         )
-        self.entry_prenom.pack(fill="x", pady=(0, 15))
 
-        tk.Label(
-            self.main_frame,
-            text="Nom *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.entry_nom = tk.Entry(
-            self.main_frame, font=ENTRY_FONT, width=40, bg=INPUT_BG_COLOR, fg=TEXT_COLOR
-        )
-        self.entry_nom.pack(fill="x", pady=(0, 15))
+        # ===== CARD: SEJOUR =====
+        stay_card = create_card(right_col, title="Séjour")
 
-        # Dates d'arrivée et départ
-        dates_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
-        dates_frame.pack(fill="x", pady=(0, 15))
+        def _sl(parent, text):
+            """Inline label, même police que section Clients."""
+            return tk.Label(
+                parent, text=text, font=LABEL_FONT,
+                fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+            )
 
-        left_frame = tk.Frame(dates_frame, bg=MAIN_BG_COLOR)
-        left_frame.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        def _stay_combo(parent, values):
+            """Combobox stylée identique à la section Clients."""
+            cb = ttk.Combobox(
+                parent, values=values, state="readonly",
+                font=ENTRY_FONT,
+            )
+            return cb
 
-        tk.Label(
-            left_frame,
-            text="Date d'arrivée *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        arrival_frame = tk.Frame(left_frame, bg=MAIN_BG_COLOR)
-        arrival_frame.pack(fill="x")
-        self.entry_date_arrivee = tk.Entry(
-            arrival_frame,
-            font=ENTRY_FONT,
-            width=15,
-            bg=READONLY_BG_COLOR,
-            readonlybackground=READONLY_BG_COLOR,
-            fg=TEXT_COLOR,
-            disabledforeground=TEXT_COLOR,
-            insertbackground=TEXT_COLOR,
-            state="readonly",
-        )
+        # ── Grille 3 colonnes alignées (tk.grid) ─────────────────────────
+        g = tk.Frame(stay_card, bg=PANEL_BG_COLOR)
+        g.pack(fill="x", pady=(0, 8))
+        g.columnconfigure(0, weight=0)   # Durée — largeur naturelle
+        g.columnconfigure(1, weight=1)   # Arrivée/Départ/Saison
+        g.columnconfigure(2, weight=1)   # Hébergements/Restaurations
+
+        # Ligne 0 : Durée | Arrivée | Hébergements
+        r0c0 = tk.Frame(g, bg=PANEL_BG_COLOR)
+        r0c0.grid(row=0, column=0, sticky="w", padx=(0, 18), pady=(0, 5))
+        _sl(r0c0, "Durée").pack(side="left", padx=(0, 6))
+        self.entry_duree_sejour = styled_entry(r0c0, readonly=True, width=4)
+        self.entry_duree_sejour.pack(side="left")
+
+        r0c1 = tk.Frame(g, bg=PANEL_BG_COLOR)
+        r0c1.grid(row=0, column=1, sticky="ew", padx=(0, 18), pady=(0, 5))
+        _sl(r0c1, "Arrivée").pack(side="left", padx=(0, 6))
+        self.entry_date_arrivee = styled_entry(r0c1, readonly=True, width=12)
         self.entry_date_arrivee.pack(side="left")
-        tk.Button(
-            arrival_frame,
-            text="📅",
-            font=("Arial", 12),
-            width=3,
-            bg=BUTTON_GREEN,
-            fg="white",
-            command=lambda: self._open_calendar(self.entry_date_arrivee),
-        ).pack(side="left", padx=(5, 0))
-
-        right_frame = tk.Frame(dates_frame, bg=MAIN_BG_COLOR)
-        right_frame.pack(side="right", fill="x", expand=True)
-
-        tk.Label(
-            right_frame,
-            text="Date de départ *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        departure_frame = tk.Frame(right_frame, bg=MAIN_BG_COLOR)
-        departure_frame.pack(fill="x")
-        self.entry_date_depart = tk.Entry(
-            departure_frame,
-            font=ENTRY_FONT,
-            width=15,
-            bg=READONLY_BG_COLOR,
-            readonlybackground=READONLY_BG_COLOR,
-            fg=TEXT_COLOR,
-            disabledforeground=TEXT_COLOR,
-            insertbackground=TEXT_COLOR,
-            state="readonly",
+        self._make_calendar_badge(r0c1, self.entry_date_arrivee, "15").pack(
+            side="left", padx=(4, 0)
         )
+
+        r0c2 = tk.Frame(g, bg=PANEL_BG_COLOR)
+        r0c2.grid(row=0, column=2, sticky="ew", pady=(0, 5))
+        _sl(r0c2, "Hébergements").pack(side="left", padx=(0, 6))
+        self.combo_TypeHebergement = _stay_combo(r0c2, TYPE_HEBERGEMENTS)
+        self.combo_TypeHebergement.pack(side="left", fill="x", expand=True)
+
+        # Ligne 1 : vide | Départ | Restaurations
+        r1c1 = tk.Frame(g, bg=PANEL_BG_COLOR)
+        r1c1.grid(row=1, column=1, sticky="ew", padx=(0, 18), pady=(0, 5))
+        _sl(r1c1, "Départ").pack(side="left", padx=(0, 6))
+        self.entry_date_depart = styled_entry(r1c1, readonly=True, width=12)
         self.entry_date_depart.pack(side="left")
-        tk.Button(
-            departure_frame,
-            text="📅",
-            font=("Arial", 12),
-            width=3,
-            bg=BUTTON_GREEN,
-            fg="white",
-            command=lambda: self._open_calendar(self.entry_date_depart),
-        ).pack(side="left", padx=(5, 0))
-
-        # Durée du séjour (auto-calculée)
-        tk.Label(
-            self.main_frame,
-            text="Durée du séjour",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.entry_duree_sejour = tk.Entry(
-            self.main_frame,
-            font=ENTRY_FONT,
-            width=40,
-            bg=READONLY_BG_COLOR,
-            readonlybackground=READONLY_BG_COLOR,
-            fg=TEXT_COLOR,
-            disabledforeground=TEXT_COLOR,
-            insertbackground=TEXT_COLOR,
-            state="readonly",
+        self._make_calendar_badge(r1c1, self.entry_date_depart, "15").pack(
+            side="left", padx=(4, 0)
         )
-        self.entry_duree_sejour.pack(fill="x", pady=(0, 15))
 
-        # Children checkbox (placed before composition section)
+        r1c2 = tk.Frame(g, bg=PANEL_BG_COLOR)
+        r1c2.grid(row=1, column=2, sticky="ew", pady=(0, 5))
+        _sl(r1c2, "Restaurations").pack(side="left", padx=(0, 6))
+        self.combo_restauration = _stay_combo(r1c2, RESTAURATIONS)
+        self.combo_restauration.pack(side="left", fill="x", expand=True)
+
+        # Ligne 2 : vide | Saison | vide
+        r2c1 = tk.Frame(g, bg=PANEL_BG_COLOR)
+        r2c1.grid(row=2, column=1, sticky="ew", padx=(0, 18), pady=(0, 5))
+        _sl(r2c1, "Saison").pack(side="left", padx=(0, 6))
+        self.combo_periode = _stay_combo(r2c1, PERIODES)
+        self.combo_periode.pack(side="left", fill="x", expand=True)
+
+        # combo_forfait conservé invisible pour la compatibilité des données
+        self.combo_forfait = ttk.Combobox(stay_card, values=FORFAITS, state="readonly")
+
+        # ── Accompagnement + Location de voiture (côte à côte) ───────────
+        bottom = tk.Frame(stay_card, bg=PANEL_BG_COLOR)
+        bottom.pack(fill="x", pady=(4, 0))
+
+        accompagnement_frame = tk.Frame(bottom, bg=PANEL_BG_COLOR)
+        accompagnement_frame.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        _sl(accompagnement_frame, "Accompagnement").pack(anchor="w")
+        self.var_accompagnement_guide = tk.BooleanVar()
+        self.var_accompagnement_chauffeur = tk.BooleanVar()
+        tk.Checkbutton(
+            accompagnement_frame, text="Avec guide accompagnateur",
+            variable=self.var_accompagnement_guide,
+            fg=TEXT_COLOR, bg=PANEL_BG_COLOR, selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+        ).pack(anchor="w")
+        tk.Checkbutton(
+            accompagnement_frame, text="Avec Chauffeur-guide",
+            variable=self.var_accompagnement_chauffeur,
+            fg=TEXT_COLOR, bg=PANEL_BG_COLOR, selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+        ).pack(anchor="w")
+
+        location_frame = tk.Frame(bottom, bg=PANEL_BG_COLOR)
+        location_frame.pack(side="left", fill="x", expand=True)
+        _sl(location_frame, "Location de voiture").pack(anchor="w")
+        self.var_location_voiture = tk.StringVar(value="")
+        tk.Radiobutton(
+            location_frame, text="Avec carburant",
+            variable=self.var_location_voiture, value="Avec carburant",
+            fg=TEXT_COLOR, bg=PANEL_BG_COLOR, selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+        ).pack(anchor="w")
+        tk.Radiobutton(
+            location_frame, text="Sans carburant",
+            variable=self.var_location_voiture, value="Sans carburant",
+            fg=TEXT_COLOR, bg=PANEL_BG_COLOR, selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+        ).pack(anchor="w")
+
+        # ── Égaliser la hauteur des cartes Clients et Séjour ─────────────
+        def _sync_card_heights():
+            try:
+                info_frame = info_card.master
+                stay_frame = stay_card.master
+                info_frame.update_idletasks()
+                stay_frame.update_idletasks()
+                h = max(info_frame.winfo_reqheight(), stay_frame.winfo_reqheight())
+                for frm in (info_frame, stay_frame):
+                    frm.configure(height=h)
+                    frm.pack_propagate(False)
+            except Exception:
+                pass
+        stay_card.after(300, _sync_card_heights)
+
+        # ===== CARD: ROOMING LIST =====
+        rooming_card = create_card(
+            left_col,
+            title="Rooming list (Répartition par chambre)",
+            show_controls=True,
+        )
+
+        participants_frame = tk.Frame(rooming_card, bg=PANEL_BG_COLOR)
+        participants_frame.pack(fill="x", pady=(0, 8))
+        styled_label(participants_frame, "Participants").pack(side="left", anchor="w")
+
         self.var_enfant = tk.BooleanVar()
         self.check_enfant_widget = tk.Checkbutton(
-            self.main_frame,
-            text="Voyage avec enfant(s)",
+            participants_frame,
+            text="Voyage avec enfant",
             variable=self.var_enfant,
             command=self._toggle_enfant,
             fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
+            bg=PANEL_BG_COLOR,
             selectcolor=BUTTON_GREEN,
+            font=("Poppins", 9),
         )
-        self.check_enfant_widget.pack(anchor="w", pady=(0, 15))
+        self.check_enfant_widget.pack(side="left", padx=(16, 0))
 
-        # Composition par âge
-        composition_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
-        composition_frame.pack(fill="x", pady=(0, 15))
+        composition_frame = tk.Frame(rooming_card, bg=PANEL_BG_COLOR)
+        composition_frame.pack(fill="x", pady=(0, 10))
 
-        col1 = tk.Frame(composition_frame, bg=MAIN_BG_COLOR)
-        col1.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        def _metric_column(parent, label, attr_name, readonly=False):
+            col = tk.Frame(parent, bg=PANEL_BG_COLOR)
+            col.pack(side="left", fill="x", expand=True, padx=(0, 8))
+            tk.Label(
+                col,
+                text=label,
+                font=("Poppins", 9, "bold"),
+                fg=TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
+                justify="center",
+            ).pack(anchor="w")
+            entry = styled_entry(col, readonly=readonly, width=10)
+            entry.pack(fill="x")
+            setattr(self, attr_name, entry)
+            if not readonly:
+                entry.bind("<KeyRelease>", lambda e: self._update_participants_total())
+            return entry
 
-        tk.Label(
-            col1,
-            text="Adultes (+ de 12 ans) *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.entry_adultes = tk.Entry(
-            col1, font=ENTRY_FONT, width=15, bg=INPUT_BG_COLOR, fg=TEXT_COLOR
+        _metric_column(
+            composition_frame,
+            "Total participants",
+            "entry_total_participants",
+            readonly=True,
         )
-        self.entry_adultes.pack(fill="x")
-        self.entry_adultes.bind(
-            "<KeyRelease>", lambda e: self._update_participants_total()
+        _metric_column(
+            composition_frame,
+            "Adultes (+12 ans) *",
+            "entry_adultes",
         )
-
-        col2 = tk.Frame(composition_frame, bg=MAIN_BG_COLOR)
-        col2.pack(side="left", fill="x", expand=True)
-
-        tk.Label(
-            col2,
-            text="Enfants (2-12 ans)",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.entry_enfants_2_12 = tk.Entry(
-            col2, font=ENTRY_FONT, width=15, bg=INPUT_BG_COLOR, fg=TEXT_COLOR
+        _metric_column(
+            composition_frame,
+            "Enfants (2-12 ans)",
+            "entry_enfants_2_12",
         )
-        self.entry_enfants_2_12.pack(fill="x")
-        self.entry_enfants_2_12.bind(
-            "<KeyRelease>", lambda e: self._update_participants_total()
-        )
-
-        col3 = tk.Frame(composition_frame, bg=MAIN_BG_COLOR)
-        col3.pack(side="right", fill="x", expand=True, padx=(10, 0))
-
-        tk.Label(
-            col3,
-            text="Bébés (0-2 ans)",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.entry_bebes_0_2 = tk.Entry(
-            col3, font=ENTRY_FONT, width=15, bg=INPUT_BG_COLOR, fg=TEXT_COLOR
-        )
-        self.entry_bebes_0_2.pack(fill="x")
-        self.entry_bebes_0_2.bind(
-            "<KeyRelease>", lambda e: self._update_participants_total()
+        _metric_column(
+            composition_frame,
+            "Bébés (0-2 ans)",
+            "entry_bebes_0_2",
         )
 
-        # Nombre total de participants (affiché sous la composition)
-        tk.Label(
-            self.main_frame,
-            text="Nombre total de participants *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.entry_nombre_participants = tk.Entry(
-            self.main_frame,
-            font=ENTRY_FONT,
-            width=40,
-            bg=READONLY_BG_COLOR,
-            fg=TEXT_COLOR,
-            readonlybackground=READONLY_BG_COLOR,
-            disabledforeground=TEXT_COLOR,
-            insertbackground=TEXT_COLOR,
-        )
-        self.entry_nombre_participants.pack(fill="x", pady=(0, 15))
-        self.entry_nombre_participants.config(state="readonly")
+        rooming_header = tk.Frame(rooming_card, bg="#D7EBF0")
+        rooming_header.pack(fill="x", pady=(0, 6))
+        for text, width, anchor in (
+            ("", 3, "w"),
+            ("Date", 10, "center"),
+            ("Nom & Prénom", 22, "w"),
+            ("Nb pax", 7, "center"),
+            ("Chambre", 16, "center"),
+            ("Nombre", 8, "center"),
+        ):
+            tk.Label(
+                rooming_header,
+                text=text,
+                width=width,
+                anchor=anchor,
+                font=("Poppins", 9, "bold"),
+                fg=TEXT_COLOR,
+                bg="#D7EBF0",
+            ).pack(side="left", padx=(0, 6))
 
-        # ===== SECTION: CONTACTS =====
-        section_label = tk.Label(
-            self.main_frame,
-            text="📞 CONTACTS",
-            font=("Arial", 12, "bold"),
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        )
-        section_label.pack(anchor="w", pady=(20, 10))
-
-        # Email
-        tk.Label(
-            self.main_frame,
-            text="Adresse email (Obligatoire) *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.entry_email = tk.Entry(
-            self.main_frame, font=ENTRY_FONT, width=40, bg=INPUT_BG_COLOR, fg=TEXT_COLOR
-        )
-        self.entry_email.pack(fill="x", pady=(0, 15))
-
-        # Téléphone principal
-        tk.Label(
-            self.main_frame,
-            text="Numéro de téléphone *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        phone_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
-        phone_frame.pack(fill="x", pady=(0, 15))
-        self.entry_code_pays = ttk.Combobox(
-            phone_frame, values=PHONE_CODES, width=8, state="readonly"
-        )
-        self.entry_code_pays.set(DEFAULT_PHONE_CODE)
-        self.entry_code_pays.pack(side="left")
-        self.entry_telephone = tk.Entry(
-            phone_frame, font=ENTRY_FONT, width=25, bg=INPUT_BG_COLOR, fg=TEXT_COLOR
-        )
-        self.entry_telephone.pack(side="left", padx=(10, 0))
-
-        # WhatsApp
-        tk.Label(
-            self.main_frame,
-            text="Numéro WhatsApp",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        whatsapp_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
-        whatsapp_frame.pack(fill="x", pady=(0, 15))
-        self.entry_code_whatsapp = ttk.Combobox(
-            whatsapp_frame, values=PHONE_CODES, width=8, state="readonly"
-        )
-        self.entry_code_whatsapp.set(DEFAULT_PHONE_CODE)
-        self.entry_code_whatsapp.pack(side="left")
-        self.entry_telephone_whatsapp = tk.Entry(
-            whatsapp_frame, font=ENTRY_FONT, width=25, bg=INPUT_BG_COLOR, fg=TEXT_COLOR
-        )
-        self.entry_telephone_whatsapp.pack(side="left", padx=(10, 0))
-
-        # ===== SECTION: ROOMING LIST =====
-        section_label = tk.Label(
-            self.main_frame,
-            text="🛏️ ROOMING LIST (Répartition par chambre)",
-            font=("Arial", 12, "bold"),
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        )
-        section_label.pack(anchor="w", pady=(20, 10))
-
-        rooming_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
-        rooming_frame.pack(fill="x", pady=(0, 15))
+        rooming_frame = tk.Frame(rooming_card, bg=PANEL_BG_COLOR)
+        rooming_frame.pack(fill="x", pady=(0, 10))
 
         room_types = [
             ("Single (SGL)", "sgl"),
@@ -738,285 +1080,258 @@ class ClientForm:
 
         self.rooming_vars = {}
         self.rooming_entries = {}
+        self.rooming_date_entries = []
+        self.rooming_name_entries = []
+        self.rooming_pax_entries = []
+        self.rooming_type_widgets = {}
 
-        for label_text, key in room_types:
-            col = tk.Frame(rooming_frame, bg=MAIN_BG_COLOR)
-            col.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        for index, (label_text, key) in enumerate(room_types):
+            row_bg = "#EDF6F8" if index % 2 == 0 else PANEL_BG_COLOR
+            row = tk.Frame(rooming_frame, bg=row_bg)
+            row.pack(fill="x", pady=(0, 4))
 
-            # Checkbox pour sélectionner le type de chambre
             var = tk.BooleanVar()
             self.rooming_vars[key] = var
 
-            checkbox = tk.Checkbutton(
-                col,
-                text=label_text,
+            tk.Checkbutton(
+                row,
+                text="",
                 variable=var,
                 fg=TEXT_COLOR,
-                bg=MAIN_BG_COLOR,
+                bg=row_bg,
                 selectcolor=BUTTON_GREEN,
                 font=LABEL_FONT,
-                command=lambda v=var, k=key: self._on_room_toggle(k),
+                width=2,
+                command=lambda k=key: self._on_room_toggle(k),
+            ).pack(side="left", padx=(0, 6))
+
+            date_entry = styled_entry(row, readonly=True, width=10)
+            date_entry.pack(side="left", padx=(0, 6))
+            self.rooming_date_entries.append(date_entry)
+
+            name_entry = styled_entry(row, readonly=True, width=24)
+            name_entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
+            self.rooming_name_entries.append(name_entry)
+
+            pax_entry = styled_entry(row, readonly=True, width=7)
+            pax_entry.pack(side="left", padx=(0, 6))
+            self.rooming_pax_entries.append(pax_entry)
+
+            room_type = ttk.Combobox(
+                row,
+                values=[label_text],
+                state="readonly",
+                width=16,
             )
-            checkbox.pack(anchor="w")
+            room_type.set(label_text)
+            room_type.pack(side="left", padx=(0, 6))
+            self.rooming_type_widgets[key] = room_type
 
-            # Nombre de chambres
-            count_frame = tk.Frame(col, bg=MAIN_BG_COLOR)
-            count_frame.pack(fill="x", pady=(5, 0))
-
-            tk.Label(
-                count_frame,
-                text="Nombre:",
-                font=("Arial", 9),
-                fg=TEXT_COLOR,
-                bg=MAIN_BG_COLOR,
-            ).pack(side="left")
-
-            entry = tk.Entry(
-                count_frame,
-                font=ENTRY_FONT,
-                width=6,
-                bg=INPUT_BG_COLOR,
-                fg=TEXT_COLOR,
-                state="disabled",
-            )
-            entry.pack(side="left", padx=(5, 0))
+            entry = styled_entry(row, width=8)
+            entry.configure(state="disabled")
+            entry.pack(side="left")
             entry.bind("<KeyRelease>", lambda e: self._on_room_count_change())
             self.rooming_entries[key] = entry
 
-        self.rooming_summary_label = tk.Label(
-            self.main_frame,
-            text="Aucune chambre sélectionnée",
-            font=("Arial", 9),
-            fg=MUTED_TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        )
-        self.rooming_summary_label.pack(anchor="w", pady=(2, 12))
+            if index == 0:
+                self.entry_rooming_date = date_entry
+                self.entry_rooming_nom = name_entry
+                self.entry_nombre_participants = pax_entry
 
-        # ===== SECTION: AUTRES INFOS =====
-        section_label = tk.Label(
-            self.main_frame,
-            text="ℹ️ AUTRES INFORMATIONS",
-            font=("Arial", 12, "bold"),
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
+        self.rooming_summary_label = muted_label(
+            rooming_card, "Aucune chambre sélectionnée"
         )
-        section_label.pack(anchor="w", pady=(20, 10))
-
-        # Période
-        tk.Label(
-            self.main_frame,
-            text="Période de voyage *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.combo_periode = ttk.Combobox(
-            self.main_frame, values=PERIODES, state="readonly", width=37
-        )
-        self.combo_periode.pack(fill="x", pady=(0, 15))
-
-        # Restauration
-        tk.Label(
-            self.main_frame,
-            text="Restauration *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.combo_restauration = ttk.Combobox(
-            self.main_frame, values=RESTAURATIONS, state="readonly", width=37
-        )
-        self.combo_restauration.pack(fill="x", pady=(0, 15))
-
-        # Accommodation
-        tk.Label(
-            self.main_frame,
-            text="Type d'hébergement *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.combo_TypeHebergement = ttk.Combobox(
-            self.main_frame, values=TYPE_HEBERGEMENTS, state="readonly", width=37
-        )
-        self.combo_TypeHebergement.pack(fill="x", pady=(0, 15))
+        self.rooming_summary_label.pack(anchor="w", pady=(2, 0))
 
         # Room type (hidden from UI; still auto-managed from rooming list)
         self.combo_TypeChambre = ttk.Combobox(
-            self.main_frame, values=TYPE_CHAMBRES, state="readonly", width=37
+            stay_card, values=TYPE_CHAMBRES, state="readonly", width=37
         )
 
-        # Package type
-        tk.Label(
-            self.main_frame,
-            text="Type de forfait *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.combo_forfait = ttk.Combobox(
-            self.main_frame, values=FORFAITS, state="readonly", width=37
-        )
-        self.combo_forfait.pack(fill="x", pady=(0, 15))
-
-        # Circuit type
-        tk.Label(
-            self.main_frame,
-            text="Type de circuit *",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
+        # ===== CARD: ITINERAIRES =====
+        # Widgets cachés pour compatibilité données
         self.combo_circuit = ttk.Combobox(
-            self.main_frame, values=self.circuit_options, state="readonly", width=37
+            right_col, values=self.circuit_options, state="readonly", width=37
         )
-        self.combo_circuit.pack(fill="x", pady=(0, 20))
-        self.combo_circuit.bind("<<ComboboxSelected>>", self._on_circuit_selected)
+        self.combo_circuit.bind(
+            "<<ComboboxSelected>>", lambda e: self._on_circuit_selected(apply_route=True)
+        )
+        self.combo_circuit.bind(
+            "<FocusOut>", lambda e: self._on_circuit_selected(apply_route=False)
+        )
+        self.circuit_info_label = muted_label(right_col, "")
+        self.combo_ville_depart = ttk.Combobox(right_col, values=self.city_options, state="normal", width=20)
+        self.combo_ville_arrivee = ttk.Combobox(right_col, values=self.city_options, state="normal", width=20)
+        self.entry_itineraire_date = styled_entry(right_col, readonly=True, width=12)
+        self.entry_itineraire_distance = styled_entry(right_col, width=10)
+        self.entry_itineraire_hebergement = styled_entry(right_col, width=18)
 
-        self.circuit_info_label = tk.Label(
-            self.main_frame,
-            text="",
-            font=("Arial", 9),
-            fg=MUTED_TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-            justify="left",
-            anchor="w",
-        )
-        self.circuit_info_label.pack(fill="x", pady=(0, 12))
-
-        # ===== SECTION: ITINÉRAIRES =====
-        section_itineraire = tk.Label(
-            self.main_frame,
-            text="🧭 ITINÉRAIRES",
-            font=("Arial", 12, "bold"),
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        )
-        section_itineraire.pack(anchor="w", pady=(10, 10))
-
-        # Ville de départ
-        tk.Label(
-            self.main_frame,
-            text="Ville de départ",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
-        self.combo_ville_depart = ttk.Combobox(
-            self.main_frame, values=self.city_options, state="normal", width=37
-        )
-        self.combo_ville_depart.pack(fill="x", pady=(0, 15))
-        self.combo_ville_depart.bind(
-            "<<ComboboxSelected>>", lambda e: self._refresh_itinerary_display()
-        )
-        self.combo_ville_depart.bind(
-            "<KeyRelease>", lambda e: self._refresh_itinerary_display()
-        )
-        self.combo_ville_depart.bind(
-            "<FocusOut>", lambda e: self._refresh_itinerary_display()
+        itineraire_card = create_card(
+            right_col,
+            title=None,
+            tabs=[("Itinéraires", True), ("Voiture", False), ("Guide national", False)],
+            show_controls=True,
+            on_add=self._add_itinerary_row,
+            on_remove=self._remove_selected_itinerary_rows,
         )
 
-        # Ville d'arrivée
-        tk.Label(
-            self.main_frame,
-            text="Villes d'itinéraire (passage + arrivée)",
-            font=LABEL_FONT,
-            fg=TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w")
+        # ── En-têtes de colonnes ─────────────────────────────────────────
+        _ITIN = [
+            ("Date",              105),
+            ("Ville de départ",   145),
+            ("Ville d'arrivée",   145),
+            ("Distance (en Km)",   90),
+            ("Hébergement",         0),  # fill
+        ]
+        hdr_bg = "#D0E8ED"
+        hdr = tk.Frame(itineraire_card, bg=hdr_bg)
+        hdr.pack(fill="x", pady=(0, 1))
+        for col_name, col_w in _ITIN:
+            cell = tk.Frame(hdr, bg=hdr_bg)
+            if col_w:
+                cell.configure(width=col_w)
+                cell.pack_propagate(False)
+                cell.pack(side="left")
+            else:
+                cell.pack(side="left", fill="x", expand=True)
+            tk.Label(
+                cell, text=col_name,
+                font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=hdr_bg,
+                padx=4, pady=3,
+            ).pack(anchor="w")
 
-        tk.Label(
-            self.main_frame,
-            text="Ajoutez les villes dans l'ordre du parcours.",
-            font=("Arial", 9),
-            fg=MUTED_TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        ).pack(anchor="w", pady=(0, 6))
+        # ── Zone scrollable ──────────────────────────────────────────────
+        scroll_outer = tk.Frame(itineraire_card, bg=PANEL_BG_COLOR)
+        scroll_outer.pack(fill="both", expand=True, pady=(0, 6))
 
-        itinerary_select_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
-        itinerary_select_frame.pack(fill="x", pady=(0, 8))
-        self.combo_ville_itineraire = ttk.Combobox(
-            itinerary_select_frame, values=self.city_options, state="normal", width=29
+        self._itin_canvas = tk.Canvas(
+            scroll_outer, bg=PANEL_BG_COLOR, highlightthickness=0, height=220
         )
-        self.combo_ville_itineraire.pack(side="left", fill="x", expand=True)
-        self.combo_ville_itineraire.bind(
-            "<Return>", lambda e: self._add_itinerary_city()
-        )
-        tk.Button(
-            itinerary_select_frame,
-            text="Ajouter",
-            command=self._add_itinerary_city,
-            bg=BUTTON_GREEN,
-            fg="white",
-            font=("Arial", 9, "bold"),
-            width=10,
-        ).pack(side="left", padx=(8, 0))
+        itin_vsb = ttk.Scrollbar(scroll_outer, orient="vertical", command=self._itin_canvas.yview)
+        self._itin_canvas.configure(yscrollcommand=itin_vsb.set)
+        itin_vsb.pack(side="right", fill="y")
+        self._itin_canvas.pack(side="left", fill="both", expand=True)
 
-        self.listbox_villes_itineraire = tk.Listbox(
-            self.main_frame,
-            height=4,
-            selectmode=tk.EXTENDED,
-            bg=INPUT_BG_COLOR,
-            fg=TEXT_COLOR,
+        self._itin_inner = tk.Frame(self._itin_canvas, bg=PANEL_BG_COLOR)
+        self._itin_win = self._itin_canvas.create_window(
+            (0, 0), window=self._itin_inner, anchor="nw"
         )
-        self.listbox_villes_itineraire.pack(fill="x", pady=(0, 6))
-        self.itinerary_count_label = tk.Label(
-            self.main_frame,
-            text="0 ville sélectionnée",
-            font=("Arial", 9),
-            fg=MUTED_TEXT_COLOR,
-            bg=MAIN_BG_COLOR,
-        )
+
+        def _itin_inner_cfg(e):
+            self._itin_canvas.configure(scrollregion=self._itin_canvas.bbox("all"))
+
+        def _itin_canvas_cfg(e):
+            self._itin_canvas.itemconfig(self._itin_win, width=e.width)
+
+        self._itin_inner.bind("<Configure>", _itin_inner_cfg)
+        self._itin_canvas.bind("<Configure>", _itin_canvas_cfg)
+
+        def _on_mousewheel(e):
+            self._itin_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+
+        self._itin_canvas.bind("<MouseWheel>", _on_mousewheel)
+        self._itin_inner.bind("<MouseWheel>", _on_mousewheel)
+
+        self.itinerary_count_label = muted_label(itineraire_card, "0 itinéraire sélectionné")
         self.itinerary_count_label.pack(anchor="w", pady=(0, 6))
-        tk.Button(
-            self.main_frame,
-            text="Retirer sélection",
-            command=self._remove_selected_itinerary_cities,
-            bg=BUTTON_ORANGE,
-            fg="white",
-            font=("Arial", 9),
-            width=18,
-        ).pack(anchor="e", pady=(0, 15))
 
         # Type d'hôtel à la ville d'arrivée (hidden from UI)
         self.combo_type_hotel_arrivee = ttk.Combobox(
-            self.main_frame, values=HOTEL_ARRIVAL_TYPES, state="readonly", width=37
+            itineraire_card, values=HOTEL_ARRIVAL_TYPES, state="readonly", width=37
         )
         # Not packed on purpose: field removed from visible form.
 
+        def _build_comment_block(parent, title):
+            wrapper = tk.Frame(parent, bg=CARD_BG_COLOR)
+            wrapper.pack(fill="x", pady=(6, 10))
+            tk.Label(
+                wrapper,
+                text=title,
+                font=("Poppins", 10, "bold"),
+                fg=TEXT_COLOR,
+                bg=CARD_BG_COLOR,
+            ).pack(anchor="w", pady=(0, 4))
+            hint = tk.Frame(wrapper, bg=CARD_BG_COLOR)
+            hint.pack(fill="x", pady=(0, 4))
+            icon = tk.Canvas(
+                hint,
+                width=16,
+                height=16,
+                bg=CARD_BG_COLOR,
+                highlightthickness=0,
+            )
+            icon.create_rectangle(1, 1, 15, 15, fill=BUTTON_GREEN, outline=BUTTON_GREEN)
+            icon.create_text(
+                8,
+                8,
+                text="+",
+                fill="white",
+                font=("Poppins", 9, "bold"),
+            )
+            icon.pack(side="left")
+            tk.Label(
+                hint,
+                text="Pour ajouter un nouveau commentaire, cliquez le bouton commentaire",
+                font=("Poppins", 8),
+                fg=MUTED_TEXT_COLOR,
+                bg=CARD_BG_COLOR,
+            ).pack(side="left", padx=(6, 0))
+            text = tk.Text(
+                wrapper,
+                height=6,
+                font=ENTRY_FONT,
+                bg="#FFF6E0",
+                fg=TEXT_COLOR,
+                wrap="word",
+                relief="flat",
+                highlightthickness=1,
+                highlightbackground="#E6C87A",
+                highlightcolor="#E6C87A",
+                bd=0,
+                padx=10,
+                pady=8,
+            )
+            text.pack(fill="x")
+            return text
+
+        self.comment_client_text = _build_comment_block(
+            left_col, "Commentaires client"
+        )
+        self.comment_internal_text = _build_comment_block(
+            right_col, "Commentaires internes"
+        )
+
         # Buttons
-        btn_frame = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
-        btn_frame.pack()
+        btn_frame = tk.Frame(self.main_frame, bg=CARD_BG_COLOR)
+        btn_frame.pack(fill="x", pady=(6, 14))
+        actions = tk.Frame(btn_frame, bg=CARD_BG_COLOR)
+        actions.pack(side="right", padx=16)
+
+        def refresh_form():
+            self._reset_form()
+            if self.client_to_edit:
+                self._populate_fields()
 
         if self.client_to_edit:
-            tk.Button(
-                btn_frame,
-                text="MODIFIER",
-                command=self._validate,
-                bg=BUTTON_ORANGE,
-                fg="white",
-                font=BUTTON_FONT,
-                width=12,
-            ).pack(side="left", padx=5)
-            tk.Button(
-                btn_frame,
-                text="ANNULER",
-                command=self._cancel,
-                bg=BUTTON_GRAY,
-                fg="white",
-                font=BUTTON_FONT,
-                width=12,
-            ).pack(side="left", padx=5)
+            action_button(
+                actions, "Actualiser", variant="info", command=refresh_form
+            ).pack(side="left", padx=4)
+            action_button(actions, "Modifier", command=self._validate).pack(
+                side="left", padx=4
+            )
+            action_button(
+                actions, "Abandonner", variant="danger", command=self._cancel
+            ).pack(side="left", padx=4)
         else:
-            tk.Button(
-                btn_frame,
-                text="VALIDER",
-                command=self._validate,
-                bg=BUTTON_GREEN,
-                fg="white",
-                font=BUTTON_FONT,
-                width=12,
-            ).pack(side="left", padx=5)
+            action_button(
+                actions, "Actualiser", variant="info", command=refresh_form
+            ).pack(side="left", padx=4)
+            action_button(actions, "Valider", command=self._validate).pack(
+                side="left", padx=4
+            )
+            action_button(
+                actions, "Abandonner", variant="danger", command=self._cancel
+            ).pack(side="left", padx=4)
 
         # Populate fields if editing
         if self.client_to_edit:
@@ -1026,7 +1341,7 @@ class ClientForm:
             self._update_rooming_summary()
             self._update_itinerary_count()
 
-        self.entry_ref_client.focus_set()
+        self.combo_type_client.focus_set()
         self.parent.bind("<Control-s>", lambda e: self._validate())
         self.parent.bind("<Control-S>", lambda e: self._validate())
         if self.client_to_edit:
@@ -1055,18 +1370,25 @@ class ClientForm:
         self.entry_numero_dossier.insert(
             0, self.client_to_edit.get("numero_dossier", "")
         )
+        self._clear_placeholder(self.entry_prenom)
+        self._clear_placeholder(self.entry_nom)
         self.entry_prenom.insert(0, self.client_to_edit.get("prenom", ""))
         self.entry_nom.insert(0, self.client_to_edit.get("nom", ""))
-        self.entry_date_arrivee.config(state="normal")
+        self.entry_date_arrivee.configure(state="normal")
         self.entry_date_arrivee.insert(0, self.client_to_edit.get("date_arrivee", ""))
-        self.entry_date_arrivee.config(state="readonly")
-        self.entry_date_depart.config(state="normal")
+        self.entry_date_arrivee.configure(state="readonly")
+        self.entry_date_depart.configure(state="normal")
         self.entry_date_depart.insert(0, self.client_to_edit.get("date_depart", ""))
-        self.entry_date_depart.config(state="readonly")
+        self.entry_date_depart.configure(state="readonly")
+        self._sync_rooming_date()
+        self._update_rooming_identity()
 
-        self.entry_nombre_participants.insert(
-            0, self.client_to_edit.get("nombre_participants", "")
-        )
+        if hasattr(self, "entry_total_participants"):
+            self.entry_total_participants.configure(state="normal")
+            self.entry_total_participants.insert(
+                0, self.client_to_edit.get("nombre_participants", "")
+            )
+            self.entry_total_participants.configure(state="readonly")
         self.entry_adultes.insert(0, self.client_to_edit.get("nombre_adultes", ""))
         self.entry_enfants_2_12.insert(
             0, self.client_to_edit.get("nombre_enfants_2_12", "")
@@ -1074,7 +1396,7 @@ class ClientForm:
         self.entry_bebes_0_2.insert(0, self.client_to_edit.get("nombre_bebes_0_2", ""))
 
         self.entry_email.insert(0, self.client_to_edit.get("email", ""))
-        self.entry_code_pays.set(code_pays)
+        self.entry_code_pays.set(code_pays or DEFAULT_PHONE_CODE)
         self.entry_telephone.insert(0, numero)
 
         # WhatsApp
@@ -1090,8 +1412,21 @@ class ClientForm:
         else:
             numero_whatsapp = telephone_whatsapp
 
-        self.entry_code_whatsapp.set(code_whatsapp)
-        self.entry_telephone_whatsapp.insert(0, numero_whatsapp)
+        if hasattr(self, "whatsapp_code_var"):
+            self.whatsapp_code_var.set(code_whatsapp or code_pays or DEFAULT_PHONE_CODE)
+        if hasattr(self, "whatsapp_number_var"):
+            self.whatsapp_number_var.set(numero_whatsapp or numero)
+
+        # Accompagnement / Location voiture
+        guide_value = str(self.client_to_edit.get("accompagnement_guide", "")).strip().lower()
+        chauffeur_value = str(
+            self.client_to_edit.get("accompagnement_chauffeur", "")
+        ).strip().lower()
+        self.var_accompagnement_guide.set(guide_value in {"oui", "true", "1", "yes"})
+        self.var_accompagnement_chauffeur.set(
+            chauffeur_value in {"oui", "true", "1", "yes"}
+        )
+        self.var_location_voiture.set(self.client_to_edit.get("location_voiture", ""))
 
         # Rooming list - populate with checkboxes and counts
         room_keys = ["sgl", "dbl", "twn", "tpl", "fml"]
@@ -1100,15 +1435,16 @@ class ClientForm:
             if count:
                 # Enable checkbox
                 self.rooming_vars[key].set(True)
-                self.rooming_entries[key].config(state="normal")
+                self.rooming_entries[key].configure(state="normal")
                 self.rooming_entries[key].insert(0, count)
             else:
                 # Keep disabled
                 self.rooming_vars[key].set(False)
-                self.rooming_entries[key].config(state="disabled")
+                self.rooming_entries[key].configure(state="disabled")
         self._update_rooming_summary()
         # Combo boxes
-        self.combo_type_client.set(self.client_to_edit.get("type_client", ""))
+        type_client = self.client_to_edit.get("type_client", "").strip()
+        self.combo_type_client.set(type_client if type_client in ("Mr", "Mme") else "Mr")
         self.combo_periode.set(self.client_to_edit.get("periode", ""))
         self.combo_restauration.set(self.client_to_edit.get("restauration", ""))
         self.combo_TypeHebergement.set(self.client_to_edit.get("hebergement", ""))
@@ -1120,7 +1456,11 @@ class ClientForm:
         self.combo_type_hotel_arrivee.set(
             self.client_to_edit.get("type_hotel_arrivee", "")
         )
-        self._set_itinerary_cities(self.client_to_edit.get("ville_arrivee", ""))
+        self._set_itinerary_rows(
+            self.client_to_edit.get("itineraire_detail")
+            or self.client_to_edit.get("ville_arrivee", ""),
+            depart_value=self.client_to_edit.get("ville_depart", ""),
+        )
         self._update_type_chambre_from_rooming(clear_if_empty=False)
 
         # Handle children
@@ -1140,12 +1480,14 @@ class ClientForm:
         self.parent.wait_window(cal_dialog)
 
         if cal_dialog.selected_date:
-            entry_widget.config(state="normal")
+            entry_widget.configure(state="normal")
             entry_widget.delete(0, tk.END)
             entry_widget.insert(0, cal_dialog.selected_date.strftime("%d/%m/%Y"))
-            entry_widget.config(state="readonly")
+            entry_widget.configure(state="readonly")
             # Auto-calculate duration if both dates are set
-            self._calculate_duration()
+            if entry_widget in (self.entry_date_arrivee, self.entry_date_depart):
+                self._calculate_duration()
+                self._sync_rooming_date()
 
     def _calculate_duration(self):
         """Calculate stay duration based on arrival and departure dates"""
@@ -1158,27 +1500,53 @@ class ClientForm:
                 departure = datetime.strptime(date_dep, "%d/%m/%Y")
                 duration = (departure - arrival).days
 
-                self.entry_duree_sejour.config(state="normal")
+                self.entry_duree_sejour.configure(state="normal")
                 self.entry_duree_sejour.delete(0, tk.END)
                 self.entry_duree_sejour.insert(0, f"{duration} jours")
-                self.entry_duree_sejour.config(state="readonly")
+                self.entry_duree_sejour.configure(state="readonly")
         except:
             pass
+
+    def _sync_rooming_date(self):
+        """Mirror arrival date to rooming list date field."""
+        if not hasattr(self, "rooming_date_entries"):
+            return
+        date_arr = self.entry_date_arrivee.get()
+        for entry in self.rooming_date_entries:
+            entry.configure(state="normal")
+            entry.delete(0, tk.END)
+            if date_arr:
+                entry.insert(0, date_arr)
+            entry.configure(state="readonly")
+
+    def _update_rooming_identity(self):
+        """Sync rooming list name field with client name."""
+        if not hasattr(self, "rooming_name_entries"):
+            return
+        prenom = self._get_entry_value(self.entry_prenom).strip()
+        nom = self._get_entry_value(self.entry_nom).strip()
+        full_name = f"{prenom} {nom}".strip()
+        for entry in self.rooming_name_entries:
+            entry.configure(state="normal")
+            entry.delete(0, tk.END)
+            if full_name:
+                entry.insert(0, full_name)
+            entry.configure(state="readonly")
 
     def _toggle_enfant(self):
         """Show/hide child age field"""
         if self.var_enfant.get():
-            self.entry_enfants_2_12.config(state="normal")
-            self.entry_bebes_0_2.config(state="normal")
+            self.entry_enfants_2_12.configure(state="normal")
+            self.entry_bebes_0_2.configure(state="normal")
         else:
-            self.entry_enfants_2_12.config(state="normal")
+            self.entry_enfants_2_12.configure(state="normal")
             self.entry_enfants_2_12.delete(0, tk.END)
             self.entry_enfants_2_12.insert(0, "0")
-            self.entry_enfants_2_12.config(state="disabled")
-            self.entry_bebes_0_2.config(state="normal")
+            self.entry_enfants_2_12.configure(state="disabled")
+            self.entry_bebes_0_2.configure(state="normal")
             self.entry_bebes_0_2.delete(0, tk.END)
             self.entry_bebes_0_2.insert(0, "0")
-            self.entry_bebes_0_2.config(state="disabled")
+            self.entry_bebes_0_2.configure(state="disabled")
 
         self._update_participants_total()
 
@@ -1196,21 +1564,28 @@ class ClientForm:
         bebes = _to_int(self.entry_bebes_0_2.get())
 
         total = adults + enfants + bebes
-        self.entry_nombre_participants.config(state="normal")
-        self.entry_nombre_participants.delete(0, tk.END)
-        self.entry_nombre_participants.insert(0, str(total))
-        self.entry_nombre_participants.config(state="readonly")
+        if hasattr(self, "rooming_pax_entries"):
+            for entry in self.rooming_pax_entries:
+                entry.configure(state="normal")
+                entry.delete(0, tk.END)
+                entry.insert(0, str(total))
+                entry.configure(state="readonly")
+        if hasattr(self, "entry_total_participants"):
+            self.entry_total_participants.configure(state="normal")
+            self.entry_total_participants.delete(0, tk.END)
+            self.entry_total_participants.insert(0, str(total))
+            self.entry_total_participants.configure(state="readonly")
 
     def _on_room_toggle(self, room_key):
         """Enable/disable room entry field when checkbox is toggled"""
         if self.rooming_vars[room_key].get():
             # Enable the entry field
-            self.rooming_entries[room_key].config(state="normal")
+            self.rooming_entries[room_key].configure(state="normal")
         else:
             # Disable and clear the entry field
-            self.rooming_entries[room_key].config(state="normal")
+            self.rooming_entries[room_key].configure(state="normal")
             self.rooming_entries[room_key].delete(0, tk.END)
-            self.rooming_entries[room_key].config(state="disabled")
+            self.rooming_entries[room_key].configure(state="disabled")
         self._update_type_chambre_from_rooming()
         self._update_rooming_summary()
 
@@ -1285,73 +1660,187 @@ class ClientForm:
         elif clear_if_empty:
             self.combo_TypeChambre.set("")
 
-    def _add_itinerary_city(self):
-        """Add a city to itinerary list, avoiding duplicates."""
-        city = self.combo_ville_itineraire.get().strip()
-        if not city:
-            return
+    def _add_itinerary_widget_row(self, data=None):
+        """Create one editable row in the itinerary canvas area."""
+        data = data or {}
+        COL_W = [105, 145, 145, 90, 0]
+        row_bg = PANEL_BG_COLOR
+        sep_color = "#D0E8ED"
 
-        if city in self.itinerary_cities:
-            return
+        row = tk.Frame(self._itin_inner, bg=sep_color)
+        row.pack(fill="x", pady=(0, 1))
 
-        self.itinerary_cities.append(city)
-        self._refresh_itinerary_display()
-        self.combo_ville_itineraire.set("")
-
-    def _remove_selected_itinerary_cities(self):
-        """Remove selected itinerary cities from list."""
-        selected_indices = list(self.listbox_villes_itineraire.curselection())
-        if not selected_indices:
-            return
-        for idx in reversed(selected_indices):
-            if 0 <= idx < len(self.itinerary_cities):
-                del self.itinerary_cities[idx]
-        self._refresh_itinerary_display()
-
-    def _get_itinerary_cities(self):
-        """Return itinerary destination cities in order."""
-        return list(self.itinerary_cities)
-
-    def _refresh_itinerary_display(self):
-        """Render itinerary as route segments from departure city."""
-        self.listbox_villes_itineraire.delete(0, tk.END)
-
-        depart = self.combo_ville_depart.get().strip()
-        previous = depart
-        for city in self.itinerary_cities:
-            if previous:
-                segment = f"{previous} - {city}"
+        def _cell(w):
+            f = tk.Frame(row, bg=row_bg)
+            if w:
+                f.configure(width=w)
+                f.pack_propagate(False)
+                f.pack(side="left", padx=(0, 1))
             else:
-                segment = city
-            self.listbox_villes_itineraire.insert(tk.END, segment)
-            previous = city
+                f.pack(side="left", fill="x", expand=True)
+            return f
 
+        # Date
+        date_var = tk.StringVar(value=data.get("date", ""))
+        date_cell = _cell(COL_W[0])
+        date_inner = tk.Frame(date_cell, bg=row_bg)
+        date_inner.pack(fill="both", expand=True, padx=2, pady=2)
+        date_e = tk.Entry(
+            date_inner, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
+            textvariable=date_var, state="readonly",
+            readonlybackground=INPUT_BG_COLOR, relief="flat", bd=0,
+        )
+        date_e.pack(side="left", fill="x", expand=True, ipady=3)
+        self._make_calendar_badge(date_inner, date_e, "15").pack(side="left", padx=(2, 0))
+
+        # Ville de départ
+        depart_var = tk.StringVar(value=data.get("depart", ""))
+        dep_cell = _cell(COL_W[1])
+        dep_cb = ttk.Combobox(dep_cell, values=self.city_options, textvariable=depart_var, state="normal", font=ENTRY_FONT)
+        dep_cb.pack(fill="both", expand=True, padx=2, pady=2, ipady=2)
+
+        # Ville d'arrivée
+        arrivee_var = tk.StringVar(value=data.get("arrivee", ""))
+        arr_cell = _cell(COL_W[2])
+        arr_cb = ttk.Combobox(arr_cell, values=self.city_options, textvariable=arrivee_var, state="normal", font=ENTRY_FONT)
+        arr_cb.pack(fill="both", expand=True, padx=2, pady=2, ipady=2)
+
+        # Distance
+        dist_var = tk.StringVar(value=data.get("distance", ""))
+        dist_cell = _cell(COL_W[3])
+        dist_e = tk.Entry(
+            dist_cell, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
+            textvariable=dist_var, relief="flat", bd=0,
+        )
+        dist_e.pack(fill="both", expand=True, padx=2, pady=2, ipady=3)
+
+        # Hébergement (fill)
+        heb_var = tk.StringVar(value=data.get("hebergement", ""))
+        heb_cell = _cell(COL_W[4])
+        heb_e = tk.Entry(
+            heb_cell, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
+            textvariable=heb_var, relief="flat", bd=0,
+        )
+        heb_e.pack(fill="both", expand=True, padx=2, pady=2, ipady=3)
+
+        # Bind mousewheel to child widgets
+        for w in (date_e, dep_cb, arr_cb, dist_e, heb_e, row, date_cell, dep_cell, arr_cell, dist_cell, heb_cell):
+            w.bind("<MouseWheel>", lambda e: self._itin_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+
+        self._itin_widget_rows.append({
+            "frame": row,
+            "date_var": date_var,
+            "depart_var": depart_var,
+            "arrivee_var": arrivee_var,
+            "distance_var": dist_var,
+            "heb_var": heb_var,
+        })
+
+        self._itin_inner.update_idletasks()
+        self._itin_canvas.configure(scrollregion=self._itin_canvas.bbox("all"))
         self._update_itinerary_count()
 
-    def _set_itinerary_cities(self, cities_value):
-        """Set itinerary list from a string or list."""
-        self.itinerary_cities = []
-        if not cities_value:
-            self._refresh_itinerary_display()
+    def _add_itinerary_row(self):
+        """Add an empty editable row to the itinerary table."""
+        self._add_itinerary_widget_row()
+
+    def _remove_selected_itinerary_rows(self):
+        """Remove the last itinerary row."""
+        if not self._itin_widget_rows:
+            return
+        last = self._itin_widget_rows.pop()
+        last["frame"].destroy()
+        self._itin_inner.update_idletasks()
+        self._itin_canvas.configure(scrollregion=self._itin_canvas.bbox("all"))
+        self._update_itinerary_count()
+
+    def _get_itinerary_rows(self):
+        """Return itinerary rows read from the editable widgets."""
+        rows = []
+        for r in self._itin_widget_rows:
+            rows.append({
+                "date": r["date_var"].get().strip(),
+                "depart": r["depart_var"].get().strip(),
+                "arrivee": r["arrivee_var"].get().strip(),
+                "distance": r["distance_var"].get().strip(),
+                "hebergement": r["heb_var"].get().strip(),
+            })
+        return rows
+
+    def _serialize_itinerary_rows(self, rows):
+        """Serialize itinerary rows into a compact string."""
+        lines = []
+        for row in rows:
+            lines.append(
+                " | ".join(
+                    [
+                        row.get("date", ""),
+                        row.get("depart", ""),
+                        row.get("arrivee", ""),
+                        row.get("distance", ""),
+                        row.get("hebergement", ""),
+                    ]
+                )
+            )
+        return "\n".join(lines)
+
+    def _refresh_itinerary_table(self):
+        """Rebuild editable widget rows from self.itinerary_rows."""
+        if self._itin_canvas is None:
+            return
+        for r in self._itin_widget_rows:
+            r["frame"].destroy()
+        self._itin_widget_rows = []
+        for row_data in self.itinerary_rows:
+            self._add_itinerary_widget_row(row_data)
+        self._update_itinerary_count()
+
+    def _set_itinerary_rows(self, rows_value, depart_value=""):
+        """Set itinerary rows from a string or list."""
+        self.itinerary_rows = []
+        if not rows_value:
+            self._refresh_itinerary_table()
             return
 
-        if isinstance(cities_value, list):
-            cities = [str(city).strip() for city in cities_value if str(city).strip()]
+        if isinstance(rows_value, list):
+            rows = rows_value
         else:
-            cities = [
-                c.strip() for c in re.split(r"[;,>\n]+", str(cities_value)) if c.strip()
-            ]
+            rows = []
+            raw = str(rows_value)
+            if "|" in raw:
+                for line in raw.splitlines():
+                    parts = [p.strip() for p in line.split("|")]
+                    while len(parts) < 5:
+                        parts.append("")
+                    if any(parts):
+                        rows.append(
+                            {
+                                "date": parts[0],
+                                "depart": parts[1],
+                                "arrivee": parts[2],
+                                "distance": parts[3],
+                                "hebergement": parts[4],
+                            }
+                        )
+            else:
+                cities = [
+                    c.strip() for c in re.split(r"[;,>\n]+", raw) if c.strip()
+                ]
+                previous = depart_value.strip()
+                for city in cities:
+                    rows.append(
+                        {
+                            "date": "",
+                            "depart": previous,
+                            "arrivee": city,
+                            "distance": "",
+                            "hebergement": "",
+                        }
+                    )
+                    previous = city
 
-        seen = set()
-        for city in cities:
-            if " - " in city:
-                city = city.split(" - ", 1)[1].strip()
-                if not city:
-                    continue
-            if city not in seen:
-                self.itinerary_cities.append(city)
-                seen.add(city)
-        self._refresh_itinerary_display()
+        self.itinerary_rows.extend(rows)
+        self._refresh_itinerary_table()
 
     def _parse_circuit_itinerary(self, itinerary_value):
         """Parse itinerary text into ordered city names."""
@@ -1386,27 +1875,56 @@ class ClientForm:
         if not cities:
             return
 
-        self.combo_ville_depart.set(cities[0])
-        self._set_itinerary_cities(cities[1:])
+        self.itinerary_rows = [
+            {"date": "", "depart": cities[i - 1], "arrivee": cities[i], "distance": "", "hebergement": ""}
+            for i in range(1, len(cities))
+        ]
+        self._refresh_itinerary_table()
 
     def _update_itinerary_count(self):
         """Update itinerary counter label."""
-        count = len(self.itinerary_cities)
-        suffix = "ville sélectionnée" if count == 1 else "villes sélectionnées"
+        count = len(self._itin_widget_rows)
+        suffix = "itinéraire sélectionné" if count == 1 else "itinéraires sélectionnés"
         self.itinerary_count_label.config(text=f"{count} {suffix}")
 
     def _validate(self):
         """Validate and save client data"""
         selected_circuit = self.circuit_map.get(self.combo_circuit.get().strip(), {})
         existing_circuit = self.client_to_edit or {}
+        itinerary_rows = self._get_itinerary_rows()
+        ville_depart = (
+            itinerary_rows[0].get("depart", "").strip()
+            if itinerary_rows
+            else self.combo_ville_depart.get().strip()
+        )
+        ville_arrivee = ", ".join(
+            [row.get("arrivee", "").strip() for row in itinerary_rows if row.get("arrivee")]
+        )
+        itineraire_detail = self._serialize_itinerary_rows(itinerary_rows)
+        type_client = self.combo_type_client.get().strip()
+        mobile_phone = self.entry_code_pays.get() + self.entry_telephone.get()
+        whatsapp_number = (
+            self.whatsapp_number_var.get().strip()
+            if hasattr(self, "whatsapp_number_var")
+            else ""
+        )
+        whatsapp_code = (
+            self.whatsapp_code_var.get().strip()
+            if hasattr(self, "whatsapp_code_var")
+            else ""
+        )
+        whatsapp_phone = (
+            f"{whatsapp_code}{whatsapp_number}" if whatsapp_number else mobile_phone
+        )
+
         form_data = {
             "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M"),
             "date_jour": self.entry_date_jour.get(),
             "ref_client": self.entry_ref_client.get().strip(),
             "numero_dossier": self.entry_numero_dossier.get().strip(),
-            "type_client": self.combo_type_client.get(),
-            "prenom": self.entry_prenom.get().strip(),
-            "nom": self.entry_nom.get().strip(),
+            "type_client": type_client,
+            "prenom": self._get_entry_value(self.entry_prenom).strip(),
+            "nom": self._get_entry_value(self.entry_nom).strip(),
             "date_arrivee": self.entry_date_arrivee.get(),
             "date_depart": self.entry_date_depart.get(),
             "duree_sejour": self.entry_duree_sejour.get(),
@@ -1414,14 +1932,20 @@ class ClientForm:
             "nombre_adultes": self.entry_adultes.get().strip(),
             "nombre_enfants_2_12": self.entry_enfants_2_12.get().strip(),
             "nombre_bebes_0_2": self.entry_bebes_0_2.get().strip(),
-            "telephone": self.entry_code_pays.get() + self.entry_telephone.get(),
-            "telephone_whatsapp": self.entry_code_whatsapp.get()
-            + self.entry_telephone_whatsapp.get(),
+            "telephone": mobile_phone,
+            "telephone_whatsapp": whatsapp_phone,
             "email": self.entry_email.get().strip(),
             "periode": self.combo_periode.get(),
             "restauration": self.combo_restauration.get(),
             "hebergement": self.combo_TypeHebergement.get(),
             "chambre": self.combo_TypeChambre.get(),
+            "accompagnement_guide": "Oui"
+            if self.var_accompagnement_guide.get()
+            else "Non",
+            "accompagnement_chauffeur": "Oui"
+            if self.var_accompagnement_chauffeur.get()
+            else "Non",
+            "location_voiture": self.var_location_voiture.get(),
             "enfant": "Oui" if self.var_enfant.get() else "Non",
             "age_enfant": "",
             "forfait": self.combo_forfait.get(),
@@ -1445,8 +1969,9 @@ class ClientForm:
             or existing_circuit.get("prestations_incluses_circuit", ""),
             "transports_associes_circuit": selected_circuit.get("transports_associes")
             or existing_circuit.get("transports_associes_circuit", ""),
-            "ville_depart": self.combo_ville_depart.get().strip(),
-            "ville_arrivee": ", ".join(self._get_itinerary_cities()),
+            "ville_depart": ville_depart,
+            "ville_arrivee": ville_arrivee,
+            "itineraire_detail": itineraire_detail,
             "type_hotel_arrivee": self.combo_type_hotel_arrivee.get(),
             "sgl_count": self.rooming_entries["sgl"].get().strip(),
             "dbl_count": self.rooming_entries["dbl"].get().strip(),
@@ -1523,6 +2048,8 @@ class ClientForm:
         """Cancel editing and return to list"""
         if self.on_save_callback:
             self.on_save_callback()
+        elif not self.client_to_edit:
+            self._reset_form()
 
     def _reset_form(self):
         """Reset all form fields"""
@@ -1530,34 +2057,60 @@ class ClientForm:
         self.entry_numero_dossier.delete(0, tk.END)
         self.entry_prenom.delete(0, tk.END)
         self.entry_nom.delete(0, tk.END)
-        self.entry_date_arrivee.config(state="normal")
+        self._restore_placeholder(self.entry_prenom)
+        self._restore_placeholder(self.entry_nom)
+        self.entry_date_arrivee.configure(state="normal")
         self.entry_date_arrivee.delete(0, tk.END)
-        self.entry_date_arrivee.config(state="readonly")
-        self.entry_date_depart.config(state="normal")
+        self.entry_date_arrivee.configure(state="readonly")
+        self.entry_date_depart.configure(state="normal")
         self.entry_date_depart.delete(0, tk.END)
-        self.entry_date_depart.config(state="readonly")
-        self.entry_duree_sejour.config(state="normal")
+        self.entry_date_depart.configure(state="readonly")
+        self.entry_duree_sejour.configure(state="normal")
         self.entry_duree_sejour.delete(0, tk.END)
-        self.entry_duree_sejour.config(state="readonly")
-        self.entry_nombre_participants.config(state="normal")
-        self.entry_nombre_participants.delete(0, tk.END)
-        self.entry_nombre_participants.config(state="readonly")
+        self.entry_duree_sejour.configure(state="readonly")
+        if hasattr(self, "rooming_pax_entries"):
+            for entry in self.rooming_pax_entries:
+                entry.configure(state="normal")
+                entry.delete(0, tk.END)
+                entry.configure(state="readonly")
+        if hasattr(self, "entry_total_participants"):
+            self.entry_total_participants.configure(state="normal")
+            self.entry_total_participants.delete(0, tk.END)
+            self.entry_total_participants.configure(state="readonly")
+        if hasattr(self, "rooming_date_entries"):
+            for entry in self.rooming_date_entries:
+                entry.configure(state="normal")
+                entry.delete(0, tk.END)
+                entry.configure(state="readonly")
+        if hasattr(self, "rooming_name_entries"):
+            for entry in self.rooming_name_entries:
+                entry.configure(state="normal")
+                entry.delete(0, tk.END)
+                entry.configure(state="readonly")
         self.entry_adultes.delete(0, tk.END)
         self.entry_enfants_2_12.delete(0, tk.END)
         self.entry_bebes_0_2.delete(0, tk.END)
         self.entry_telephone.delete(0, tk.END)
         self.entry_email.delete(0, tk.END)
-        self.entry_telephone_whatsapp.delete(0, tk.END)
+        self.entry_code_pays.set(DEFAULT_PHONE_CODE)
+        if hasattr(self, "whatsapp_code_var"):
+            self.whatsapp_code_var.set(DEFAULT_PHONE_CODE)
+        if hasattr(self, "whatsapp_number_var"):
+            self.whatsapp_number_var.set("")
+        if hasattr(self, "comment_client_text"):
+            self.comment_client_text.delete("1.0", tk.END)
+        if hasattr(self, "comment_internal_text"):
+            self.comment_internal_text.delete("1.0", tk.END)
 
         # Reset rooming list - uncheck all and disable fields
         for key in self.rooming_entries.keys():
             self.rooming_vars[key].set(False)
-            self.rooming_entries[key].config(state="normal")
+            self.rooming_entries[key].configure(state="normal")
             self.rooming_entries[key].delete(0, tk.END)
-            self.rooming_entries[key].config(state="disabled")
+            self.rooming_entries[key].configure(state="disabled")
         self._update_rooming_summary()
 
-        self.combo_type_client.set("")
+        self.combo_type_client.set("Mr")
         self.combo_periode.set("")
         self.combo_restauration.set("")
         self.combo_TypeHebergement.set("")
@@ -1566,9 +2119,17 @@ class ClientForm:
         self.combo_circuit.set("")
         self.circuit_info_label.config(text="")
         self.combo_ville_depart.set("")
-        self.combo_ville_itineraire.set("")
-        self.itinerary_cities = []
-        self._refresh_itinerary_display()
+        self.combo_ville_arrivee.set("")
+        self.entry_itineraire_date.configure(state="normal")
+        self.entry_itineraire_date.delete(0, tk.END)
+        self.entry_itineraire_date.configure(state="readonly")
+        self.entry_itineraire_distance.delete(0, tk.END)
+        self.entry_itineraire_hebergement.delete(0, tk.END)
+        self.itinerary_rows = []
+        self._refresh_itinerary_table()
         self.combo_type_hotel_arrivee.set("")
+        self.var_accompagnement_guide.set(False)
+        self.var_accompagnement_chauffeur.set(False)
+        self.var_location_voiture.set("")
         self.var_enfant.set(False)
         self._toggle_enfant()

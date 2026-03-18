@@ -154,7 +154,7 @@ class VisiteExcursionDBList:
         self.status_label = tk.Label(
             self.parent,
             text="",
-            font=("Arial", 10),
+            font=("Poppins", 10),
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
         )

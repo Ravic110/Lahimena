@@ -224,7 +224,7 @@ class CircuitDBPage:
         self.status_label = tk.Label(
             self.parent,
             text="",
-            font=("Arial", 10),
+            font=("Poppins", 10),
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
         )
@@ -980,7 +980,7 @@ class CircuitDBPage:
                     command=self._add_included_service,
                     bg=BUTTON_GREEN,
                     fg="white",
-                    font=("Arial", 9, "bold"),
+                    font=("Poppins", 9, "bold"),
                     padx=8,
                     pady=2,
                 ).grid(row=0, column=1, padx=(8, 0))
@@ -1000,7 +1000,7 @@ class CircuitDBPage:
                     command=self._remove_selected_included_service,
                     bg=BUTTON_ORANGE,
                     fg="white",
-                    font=("Arial", 9),
+                    font=("Poppins", 9),
                     padx=8,
                     pady=2,
                 ).grid(row=2, column=1, sticky="e")
@@ -1048,7 +1048,7 @@ class CircuitDBPage:
             tk.Label(
                 workflow_frame,
                 text="Sélectionnez les villes dans l'ordre, puis assignez un hôtel à chaque ville.",
-                font=("Arial", 9),
+                font=("Poppins", 9),
                 fg=TEXT_COLOR,
                 bg=MAIN_BG_COLOR,
             ).grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 8))
@@ -1151,7 +1151,7 @@ class CircuitDBPage:
             tk.Label(
                 transport_frame,
                 text="Choisissez un transport pour chaque segment du circuit.",
-                font=("Arial", 9),
+                font=("Poppins", 9),
                 fg=TEXT_COLOR,
                 bg=MAIN_BG_COLOR,
             ).grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 8))

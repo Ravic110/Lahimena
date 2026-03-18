@@ -1,6 +1,6 @@
 {
-  "CURRENT_THEME": "dark",
-  "APPEARANCE_MODE": "dark",
+  "CURRENT_THEME": "light",
+  "APPEARANCE_MODE": "light",
   "CLIENT_EXCEL_PATH": "data.xlsx",
   "HOTEL_EXCEL_PATH": "data-hotel.xlsx"
 }

@@ -316,7 +316,7 @@ class HotelQuotationSummary:
         tk.Label(
             grand_total_frame,
             text="TOTAL GÉNÉRAL",
-            font=("Arial", 12, "bold"),
+            font=("Poppins", 12, "bold"),
             fg=ACCENT_TEXT_COLOR,
             bg=CARD_BG_COLOR,
         ).pack(side="left", padx=15, pady=5)
@@ -324,7 +324,7 @@ class HotelQuotationSummary:
         tk.Label(
             grand_total_frame,
             text=f"{grand_total:,.2f} {currency}",
-            font=("Arial", 12, "bold"),
+            font=("Poppins", 12, "bold"),
             fg=ACCENT_TEXT_COLOR,
             bg=CARD_BG_COLOR,
         ).pack(side="right", padx=15, pady=5)
@@ -340,7 +340,7 @@ class HotelQuotationSummary:
         client_frame = tk.LabelFrame(
             parent,
             text=f"{client_data['client_name']} (ID: {client_id})",
-            font=("Arial", 11, "bold"),
+            font=("Poppins", 11, "bold"),
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
             padx=10,
@@ -411,7 +411,7 @@ class HotelQuotationSummary:
         tk.Label(
             subtotal_frame,
             text=f"Sous-total {client_data['client_name']}:",
-            font=("Arial", 10, "bold"),
+            font=("Poppins", 10, "bold"),
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
         ).pack(side="left")
@@ -419,7 +419,7 @@ class HotelQuotationSummary:
         tk.Label(
             subtotal_frame,
             text=f"{client_data['total']:,.2f} {client_data['currency']}",
-            font=("Arial", 10, "bold"),
+            font=("Poppins", 10, "bold"),
             fg=BUTTON_GREEN,
             bg=MAIN_BG_COLOR,
         ).pack(side="right")
@@ -474,7 +474,7 @@ class HotelQuotationSummary:
         tk.Label(
             grand_total_frame,
             text="TOTAL GÉNÉRAL",
-            font=("Arial", 12, "bold"),
+            font=("Poppins", 12, "bold"),
             fg=ACCENT_TEXT_COLOR,
             bg=CARD_BG_COLOR,
         ).pack(side="left", padx=15, pady=5)
@@ -482,7 +482,7 @@ class HotelQuotationSummary:
         tk.Label(
             grand_total_frame,
             text=f"{grand_total:,.2f} {currency}",
-            font=("Arial", 12, "bold"),
+            font=("Poppins", 12, "bold"),
             fg=ACCENT_TEXT_COLOR,
             bg=CARD_BG_COLOR,
         ).pack(side="right", padx=15, pady=5)
@@ -498,7 +498,7 @@ class HotelQuotationSummary:
         city_frame = tk.LabelFrame(
             parent,
             text=f"Ville: {city}",
-            font=("Arial", 11, "bold"),
+            font=("Poppins", 11, "bold"),
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
             padx=10,
@@ -558,7 +558,7 @@ class HotelQuotationSummary:
         tk.Label(
             subtotal_frame,
             text=f"Sous-total {city}:",
-            font=("Arial", 10, "bold"),
+            font=("Poppins", 10, "bold"),
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
         ).pack(side="left")
@@ -566,7 +566,7 @@ class HotelQuotationSummary:
         tk.Label(
             subtotal_frame,
             text=f"{city_data['total']:,.2f} {city_data['currency']}",
-            font=("Arial", 10, "bold"),
+            font=("Poppins", 10, "bold"),
             fg=BUTTON_GREEN,
             bg=MAIN_BG_COLOR,
         ).pack(side="right")
@@ -621,7 +621,7 @@ class HotelQuotationSummary:
         tk.Label(
             grand_total_frame,
             text="TOTAL GÉNÉRAL",
-            font=("Arial", 12, "bold"),
+            font=("Poppins", 12, "bold"),
             fg=ACCENT_TEXT_COLOR,
             bg=CARD_BG_COLOR,
         ).pack(side="left", padx=15, pady=5)
@@ -629,7 +629,7 @@ class HotelQuotationSummary:
         tk.Label(
             grand_total_frame,
             text=f"{grand_total:,.2f} {currency}",
-            font=("Arial", 12, "bold"),
+            font=("Poppins", 12, "bold"),
             fg=ACCENT_TEXT_COLOR,
             bg=CARD_BG_COLOR,
         ).pack(side="right", padx=15, pady=5)
@@ -643,7 +643,7 @@ class HotelQuotationSummary:
         hotel_frame = tk.LabelFrame(
             parent,
             text=f"Hôtel: {hotel}",
-            font=("Arial", 11, "bold"),
+            font=("Poppins", 11, "bold"),
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
             padx=10,
@@ -714,7 +714,7 @@ class HotelQuotationSummary:
         tk.Label(
             subtotal_frame,
             text=f"Sous-total {hotel}:",
-            font=("Arial", 10, "bold"),
+            font=("Poppins", 10, "bold"),
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
         ).pack(side="left")
@@ -722,7 +722,7 @@ class HotelQuotationSummary:
         tk.Label(
             subtotal_frame,
             text=f"{hotel_data['total']:,.2f} {hotel_data['currency']}",
-            font=("Arial", 10, "bold"),
+            font=("Poppins", 10, "bold"),
             fg=BUTTON_GREEN,
             bg=MAIN_BG_COLOR,
         ).pack(side="right")

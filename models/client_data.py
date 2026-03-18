@@ -33,6 +33,9 @@ class ClientData:
         self.restauration = ""
         self.hebergement = ""
         self.chambre = ""
+        self.accompagnement_guide = ""
+        self.accompagnement_chauffeur = ""
+        self.location_voiture = ""
         self.enfant = ""
         self.age_enfant = ""
         self.forfait = ""
@@ -49,6 +52,7 @@ class ClientData:
         self.transports_associes_circuit = ""
         self.ville_depart = ""
         self.ville_arrivee = ""
+        self.itineraire_detail = ""
         self.type_hotel_arrivee = ""
         # Rooming list
         self.sgl_count = ""  # Single
@@ -85,6 +89,9 @@ class ClientData:
             "Restauration": self.restauration,
             "Hébergement": self.hebergement,
             "Chambre": self.chambre,
+            "Accompagnement_Guide": self.accompagnement_guide,
+            "Accompagnement_Chauffeur": self.accompagnement_chauffeur,
+            "Location_Voiture": self.location_voiture,
             "Enfant": self.enfant,
             "Âge_Enfant": self.age_enfant,
             "Forfait": self.forfait,
@@ -101,6 +108,7 @@ class ClientData:
             "Transports_Associes_Circuit": self.transports_associes_circuit,
             "Ville_Depart": self.ville_depart,
             "Ville_Arrivee": self.ville_arrivee,
+            "Itineraire_Detail": self.itineraire_detail,
             "Type_Hotel_Arrivee": self.type_hotel_arrivee,
             "SGL_Count": self.sgl_count,
             "DBL_Count": self.dbl_count,
@@ -143,6 +151,9 @@ class ClientData:
         client.restauration = form_data.get("restauration", "")
         client.hebergement = form_data.get("hebergement", "")
         client.chambre = form_data.get("chambre", "")
+        client.accompagnement_guide = form_data.get("accompagnement_guide", "")
+        client.accompagnement_chauffeur = form_data.get("accompagnement_chauffeur", "")
+        client.location_voiture = form_data.get("location_voiture", "")
         client.enfant = form_data.get("enfant", "")
         client.age_enfant = form_data.get("age_enfant", "")
         client.forfait = form_data.get("forfait", "")
@@ -167,6 +178,7 @@ class ClientData:
         )
         client.ville_depart = form_data.get("ville_depart", "")
         client.ville_arrivee = form_data.get("ville_arrivee", "")
+        client.itineraire_detail = form_data.get("itineraire_detail", "")
         client.type_hotel_arrivee = form_data.get("type_hotel_arrivee", "")
         client.sgl_count = form_data.get("sgl_count", "").strip()
         client.dbl_count = form_data.get("dbl_count", "").strip()
@@ -187,7 +199,7 @@ class ClientData:
         if not self.ref_client:
             errors.append("Référence client obligatoire")
         if not self.type_client:
-            errors.append("Type de client obligatoire")
+            errors.append("Titre obligatoire")
         if not self.prenom:
             errors.append("Prénom obligatoire")
         if not self.nom:

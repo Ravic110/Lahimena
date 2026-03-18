@@ -892,7 +892,7 @@ class HotelQuotation:
         self.rates_label = tk.Label(
             rates_frame,
             text="Taux de change :\nChargement...",
-            font=("Arial", 10, "bold"),
+            font=("Poppins", 10, "bold"),
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
             justify="left",
@@ -906,7 +906,7 @@ class HotelQuotation:
             command=self._update_exchange_rates,
             bg=MAIN_BG_COLOR,
             fg=TEXT_COLOR,
-            font=("Arial", 10),
+            font=("Poppins", 10),
             padx=5,
             pady=2,
         )

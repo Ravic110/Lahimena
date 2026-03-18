@@ -223,7 +223,7 @@ class ClientList:
 
         # Status label
         self.status_label = tk.Label(
-            self.parent, text="", font=("Arial", 10), fg=TEXT_COLOR, bg=MAIN_BG_COLOR
+            self.parent, text="", font=("Poppins", 10), fg=TEXT_COLOR, bg=MAIN_BG_COLOR
         )
         self.status_label.pack(anchor="w", padx=20, pady=(0, 10))
 

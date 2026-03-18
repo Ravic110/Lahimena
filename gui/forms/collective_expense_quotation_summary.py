@@ -355,7 +355,7 @@ class CollectiveExpenseQuotationSummary:
         tk.Label(
             card,
             text=f"Nombre de lignes: {total_rows}",
-            font=("Arial", 11, "bold"),
+            font=("Poppins", 11, "bold"),
             fg=TEXT_COLOR,
             bg=CARD_BG_COLOR,
         ).pack(side="left", padx=12, pady=8)
@@ -363,7 +363,7 @@ class CollectiveExpenseQuotationSummary:
         tk.Label(
             card,
             text=f"Total montants: {total_amount:,.2f}",
-            font=("Arial", 11, "bold"),
+            font=("Poppins", 11, "bold"),
             fg=ACCENT_TEXT_COLOR,
             bg=CARD_BG_COLOR,
         ).pack(side="right", padx=12, pady=8)

@@ -267,7 +267,7 @@ class TransportQuotationSummary:
         tk.Label(
             card,
             text=f"Nombre de lignes: {total_rows}",
-            font=("Arial", 11, "bold"),
+            font=("Poppins", 11, "bold"),
             fg=TEXT_COLOR,
             bg=CARD_BG_COLOR,
         ).pack(side="left", padx=12, pady=8)
@@ -275,7 +275,7 @@ class TransportQuotationSummary:
         tk.Label(
             card,
             text=f"Total budget carburant: {total_budget:,.2f}",
-            font=("Arial", 11, "bold"),
+            font=("Poppins", 11, "bold"),
             fg=ACCENT_TEXT_COLOR,
             bg=CARD_BG_COLOR,
         ).pack(side="right", padx=12, pady=8)

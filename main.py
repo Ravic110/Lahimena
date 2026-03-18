@@ -12,8 +12,14 @@ from config import (
     APP_GEOMETRY,
     APP_TITLE,
     APPEARANCE_MODE,
-    CURRENT_THEME,
+    BUTTON_GREEN,
+    BUTTON_GREEN_HOVER,
+    BUTTON_RED,
     DEFAULT_COLOR_THEME,
+    INPUT_BG_COLOR,
+    MAIN_BG_COLOR,
+    MUTED_TEXT_COLOR,
+    TEXT_COLOR,
 )
 from gui.main_content import MainContent
 from gui.sidebar import Sidebar
@@ -34,14 +40,15 @@ def main():
         app = ctk.CTk()
         app.title(APP_TITLE)
         app.geometry(APP_GEOMETRY)
+        app.configure(fg_color=MAIN_BG_COLOR)
         logger.debug(f"Main window created: {APP_GEOMETRY}")
 
-        def _apply_ui_theme(theme_name):
-            cursor_color = "#FFFFFF" if theme_name == "dark" else "#111111"
+        def _apply_ui_theme():
+            cursor_color = TEXT_COLOR
             app.option_add("*Entry.insertBackground", cursor_color)
             app.option_add("*Text.insertBackground", cursor_color)
-            app.option_add("*Entry.selectBackground", "#2563EB")
-            app.option_add("*Text.selectBackground", "#2563EB")
+            app.option_add("*Entry.selectBackground", BUTTON_GREEN)
+            app.option_add("*Text.selectBackground", BUTTON_GREEN)
 
             # Harmonize ttk widgets (Combobox, Treeview, headings, scrollbar).
             style = ttk.Style(app)
@@ -50,22 +57,13 @@ def main():
             except Exception:
                 pass
 
-            if theme_name == "dark":
-                bg_main = "#0B1226"
-                bg_input = "#0B1220"
-                fg_main = "#FFFFFF"
-                fg_muted = "#9AA8B8"
-                accent = "#059669"
-                accent_hover = "#047857"
-                border = "#1F2A40"
-            else:
-                bg_main = "#F5F5F5"
-                bg_input = "#FFFFFF"
-                fg_main = "#111827"
-                fg_muted = "#6B7280"
-                accent = "#16A34A"
-                accent_hover = "#15803D"
-                border = "#D1D5DB"
+            bg_main = MAIN_BG_COLOR
+            bg_input = INPUT_BG_COLOR
+            fg_main = TEXT_COLOR
+            fg_muted = MUTED_TEXT_COLOR
+            accent = BUTTON_GREEN
+            accent_hover = BUTTON_RED
+            border = "#C9DDE3"
 
             style.configure(
                 ".",
@@ -110,7 +108,7 @@ def main():
                 foreground=fg_main,
                 bordercolor=border,
                 relief="flat",
-                font=("Arial", 10, "bold"),
+                font=("Poppins", 10, "bold"),
             )
             style.map(
                 "Treeview.Heading",
@@ -134,7 +132,7 @@ def main():
             )
 
         # Keep insertion cursor visible for both dark and light themes.
-        _apply_ui_theme(CURRENT_THEME)
+        _apply_ui_theme()
 
         # Configure main grid layout
         app.grid_columnconfigure(0, weight=0)  # Sidebar
@@ -145,12 +143,8 @@ def main():
         main_content = MainContent(app)
         logger.debug("Main content initialized")
 
-        def _on_theme_change():
-            _apply_ui_theme(CURRENT_THEME)
-            main_content.refresh()
-
         # Initialize sidebar with callback to main content
-        _sidebar = Sidebar(app, main_content.update_content, _on_theme_change)
+        _sidebar = Sidebar(app, main_content.update_content)
         logger.debug("Sidebar initialized")
 
         logger.info("Application started successfully")

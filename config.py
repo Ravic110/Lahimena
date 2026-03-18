@@ -71,7 +71,7 @@ load_config()
 
 # Application settings
 APP_TITLE = "Lahimena Tours Devis Generation"
-APP_GEOMETRY = "1200x500"
+APP_GEOMETRY = "1250x720"
 COMPANY_NAME = _cfg.get("COMPANY_NAME", "Lahimena Tours")
 COMPANY_TAGLINE = _cfg.get("COMPANY_TAGLINE", "Madagascar - Tours & Travel")
 COMPANY_PHONE = _cfg.get("COMPANY_PHONE", "+261-34-00-000-00")
@@ -85,10 +85,10 @@ if "APP_TITLE" in _cfg:
 if "APP_GEOMETRY" in _cfg:
     APP_GEOMETRY = _cfg["APP_GEOMETRY"]
 
-# Theme settings
-APPEARANCE_MODE = _cfg.get("APPEARANCE_MODE", "dark")
+# Theme settings (fixed light theme for the new UI design)
+APPEARANCE_MODE = "light"
 DEFAULT_COLOR_THEME = _cfg.get("DEFAULT_COLOR_THEME", "blue")
-CURRENT_THEME = _cfg.get("CURRENT_THEME", "dark")
+CURRENT_THEME = "light"
 
 THEMES = {
     "dark": {
@@ -111,21 +111,21 @@ THEMES = {
     },
     "light": {
         "SIDEBAR_BG_COLOR": "#FFFFFF",
-        "MAIN_BG_COLOR": "#F5F5F5",
-        "PANEL_BG_COLOR": "#FFFFFF",
-        "CARD_BG_COLOR": "#FFFFFF",
-        "CARD_HOVER_BG_COLOR": "#E5E7EB",
+        "MAIN_BG_COLOR": "#EAF4F7",
+        "PANEL_BG_COLOR": "#DCEFF3",
+        "CARD_BG_COLOR": "#F5FBFD",
+        "CARD_HOVER_BG_COLOR": "#EFF7FA",
         "INPUT_BG_COLOR": "#FFFFFF",
-        "READONLY_BG_COLOR": "#E8F5E9",
-        "TEXT_COLOR": "#111827",
-        "MUTED_TEXT_COLOR": "#6B7280",
-        "ACCENT_TEXT_COLOR": "#2563EB",
-        "BUTTON_GREEN": "#16A34A",
-        "BUTTON_GREEN_HOVER": "#15803D",
-        "BUTTON_BLUE": "#2563EB",
-        "BUTTON_RED": "#DC2626",
-        "BUTTON_ORANGE": "#F59E0B",
-        "BUTTON_GRAY": "#64748B",
+        "READONLY_BG_COLOR": "#E3F0F4",
+        "TEXT_COLOR": "#2D4E57",
+        "MUTED_TEXT_COLOR": "#6C8A92",
+        "ACCENT_TEXT_COLOR": "#C62828",
+        "BUTTON_GREEN": "#0E7C86",
+        "BUTTON_GREEN_HOVER": "#0B6A72",
+        "BUTTON_BLUE": "#0F7D8A",
+        "BUTTON_RED": "#C62828",
+        "BUTTON_ORANGE": "#F4A623",
+        "BUTTON_GRAY": "#8AA1A8",
     },
 }
 
@@ -219,10 +219,10 @@ def apply_theme(theme_name):
 
 
 # Fonts
-TITLE_FONT = ("Arial", 16, "bold")
-LABEL_FONT = ("Arial", 10, "bold")
-ENTRY_FONT = ("Arial", 11)
-BUTTON_FONT = ("Arial", 11, "bold")
+TITLE_FONT = ("Poppins", 16, "bold")
+LABEL_FONT = ("Poppins", 10, "bold")
+ENTRY_FONT = ("Poppins", 11)
+BUTTON_FONT = ("Poppins", 11, "bold")
 
 # File paths (using absolute paths)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -289,3 +289,48 @@ HOTEL_ARRIVAL_TYPES = ["1*", "2*", "3*", "4*", "5*", "Luxe", "Eco"]
 # Phone codes
 PHONE_CODES = ["+261", "+33", "+32", "+34"]
 DEFAULT_PHONE_CODE = "+261"
+
+# Country → dial code mapping (used in mobile field)
+COUNTRY_PHONE_MAP = {
+    "Madagascar": "+261",
+    "France": "+33",
+    "Réunion": "+262",
+    "Belgique": "+32",
+    "Suisse": "+41",
+    "Luxembourg": "+352",
+    "Italie": "+39",
+    "Espagne": "+34",
+    "Allemagne": "+49",
+    "Autriche": "+43",
+    "Pays-Bas": "+31",
+    "Portugal": "+351",
+    "Royaume-Uni": "+44",
+    "Irlande": "+353",
+    "Canada": "+1",
+    "États-Unis": "+1",
+    "Australie": "+61",
+    "Nouvelle-Zélande": "+64",
+    "Afrique du Sud": "+27",
+    "Maurice": "+230",
+    "Comores": "+269",
+    "Seychelles": "+248",
+    "Maroc": "+212",
+    "Algérie": "+213",
+    "Tunisie": "+216",
+    "Sénégal": "+221",
+    "Côte d'Ivoire": "+225",
+    "Cameroun": "+237",
+    "Kenya": "+254",
+    "Tanzanie": "+255",
+    "Mozambique": "+258",
+    "Japon": "+81",
+    "Chine": "+86",
+    "Inde": "+91",
+    "Brésil": "+55",
+}
+DEFAULT_COUNTRY = "Madagascar"
+# Reverse lookup: code → country name (first match)
+CODE_TO_COUNTRY = {}
+for _c, _code in COUNTRY_PHONE_MAP.items():
+    if _code not in CODE_TO_COUNTRY:
+        CODE_TO_COUNTRY[_code] = _c

@@ -13,13 +13,13 @@ except ImportError:
 
 from config import (
     BUTTON_BLUE,
+    BUTTON_FONT,
     BUTTON_GREEN,
     BUTTON_GREEN_HOVER,
-    CURRENT_THEME,
+    BUTTON_RED,
     LOGO_PATH,
     SIDEBAR_BG_COLOR,
     TEXT_COLOR,
-    apply_theme,
 )
 
 
@@ -40,6 +40,8 @@ class Sidebar:
         self.main_content_callback = main_content_callback
         self.on_theme_change = on_theme_change
         self.menu_states = {}
+        self.active_button = None
+        self.primary_buttons = []
 
         # Create scrollable sidebar
         self.sidebar_scroll = None
@@ -72,33 +74,10 @@ class Sidebar:
             logo_label = ctk.CTkLabel(
                 self.sidebar_scroll,
                 text="🏨 Lahimena Tours",
-                font=("Arial", 16, "bold"),
+                font=("Poppins", 16, "bold"),
+                text_color=TEXT_COLOR,
             )
         logo_label.pack(pady=30)
-
-        theme_frame = ctk.CTkFrame(self.sidebar_scroll, fg_color="transparent")
-        theme_frame.pack(fill="x", padx=20, pady=(0, 10))
-
-        theme_label = ctk.CTkLabel(
-            theme_frame,
-            text="Thème sombre",
-            text_color=TEXT_COLOR,
-            font=("Arial", 12, "bold"),
-        )
-        theme_label.pack(side="left")
-
-        self.theme_switch = ctk.CTkSwitch(
-            theme_frame,
-            text="",
-            command=self._toggle_theme,
-            fg_color=BUTTON_BLUE,
-            progress_color=BUTTON_GREEN,
-        )
-        if CURRENT_THEME == "dark":
-            self.theme_switch.select()
-        else:
-            self.theme_switch.deselect()
-        self.theme_switch.pack(side="right")
 
         # Menu buttons
         self._create_menu_buttons()
@@ -106,62 +85,85 @@ class Sidebar:
     def _create_menu_buttons(self):
         """Create all menu buttons"""
         # Home
-        self._create_button("🏠 Accueil", self._show_home)
+        home_btn = self._create_button("Accueil", self._show_home)
+        self._set_active(home_btn)
 
         # Client Information (direct access)
-        _btn1 = self._create_button("🏨 Information client", self._show_client_page)
+        _btn1 = self._create_button("Infos Clients & Voyages", self._show_client_page)
 
         # Quotation module hub
-        _btn2 = self._create_button("🧾 Cotation", self._show_cotation_hub_page)
+        _btn2 = self._create_button("Cotation", self._show_cotation_hub_page)
 
         # Invoices / Quotes hub
-        _btn4 = self._create_button(
-            "📑 Factures / Devis", self._show_billing_quotes_hub_page
-        )
+        _btn4 = self._create_button("Facture/Devis", self._show_billing_quotes_hub_page)
 
         # Unified Databases section (dedicated hub page)
         _btn_db = self._create_button(
-            "🏨 Bases de données (BDD)", self._show_database_hub_page
+            "Bases de données (BDD)", self._show_database_hub_page
         )
 
         # Financial Statements (single entry point, no sidebar submenu)
-        _btn10 = self._create_button("📊 Etat Financier", self._show_financial_home)
+        _btn10 = self._create_button("Etat financier", self._show_financial_home)
 
         # Marketing placeholder
-        _btn11 = self._create_button("📣 marketing", self._show_marketing_page)
+        _btn11 = self._create_button("Marketing", self._show_marketing_page)
 
     def _create_button(self, text, command=None):
         """Create a sidebar button"""
         btn = ctk.CTkButton(
             self.sidebar_scroll,
             text=text,
-            fg_color=BUTTON_GREEN,
+            fg_color=BUTTON_BLUE,
             hover_color=BUTTON_GREEN_HOVER,
-            height=45,
-            corner_radius=10,
-            command=command,
+            text_color="white",
+            font=BUTTON_FONT,
+            height=36,
+            corner_radius=16,
         )
+        def _on_click():
+            self._set_active(btn)
+            if command:
+                command()
+
+        btn.configure(command=_on_click)
         btn.pack(pady=8, padx=20, fill="x")
+        self.primary_buttons.append(btn)
         return btn
+
+    def _set_active(self, btn):
+        if self.active_button is btn:
+            return
+        if self.active_button is not None:
+            try:
+                self.active_button.configure(fg_color=BUTTON_BLUE)
+            except Exception:
+                pass
+        try:
+            btn.configure(fg_color=BUTTON_RED)
+        except Exception:
+            pass
+        self.active_button = btn
 
     def _create_submenu(self, parent_btn, items):
         """Create submenu for a button"""
         submenu_frame = ctk.CTkFrame(self.sidebar_scroll, fg_color="transparent")
 
         for text, command in items:
+            label = text.lower()
+            if "❌" in text or "supprimer" in label:
+                button_color = BUTTON_RED
+            elif "📝" in text or "modifier" in label:
+                button_color = BUTTON_BLUE
+            else:
+                button_color = BUTTON_GREEN
             ctk.CTkButton(
                 submenu_frame,
                 text=text,
                 height=35,
-                fg_color=(
-                    "#10B981"
-                    if "➕" in text
-                    else (
-                        "#007A93"
-                        if "📝" in text
-                        else "#D31F25" if "❌" in text else "#10B981"
-                    )
-                ),
+                fg_color=button_color,
+                hover_color=BUTTON_GREEN_HOVER,
+                text_color="white",
+                font=BUTTON_FONT,
                 command=command,
             ).pack(pady=2, padx=10, fill="x")
 
@@ -186,14 +188,6 @@ class Sidebar:
         if "▶" not in btn.cget("text"):
             btn.configure(text=btn.cget("text") + " ▶")
         btn.configure(command=toggle)
-
-    def _toggle_theme(self):
-        theme_name = "dark" if self.theme_switch.get() == 1 else "light"
-        apply_theme(theme_name)
-        ctk.set_appearance_mode(theme_name)
-        self._build_sidebar()
-        if self.on_theme_change:
-            self.on_theme_change()
 
     # Placeholder methods for menu actions
     def _show_home(self):
