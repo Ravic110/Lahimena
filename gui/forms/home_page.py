@@ -22,12 +22,6 @@ from config import (
     PANEL_BG_COLOR,
     TEXT_COLOR,
 )
-from utils.excel_handler import (
-    load_all_clients,
-    load_all_collective_expense_quotations,
-    load_all_hotel_quotations,
-    load_all_invoices,
-)
 
 
 class HomePage:
@@ -122,6 +116,12 @@ class HomePage:
 
     def _load_dashboard_stats(self):
         """Load small dashboard counters and totals for home page."""
+        from utils.excel_handler import (
+            load_all_clients,
+            load_all_collective_expense_quotations,
+            load_all_hotel_quotations,
+            load_all_invoices,
+        )
         stats = {
             "clients": 0,
             "collective_count": 0,

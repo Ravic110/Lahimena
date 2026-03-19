@@ -218,8 +218,7 @@ class ClientData:
             errors.append("Email obligatoire")
         if not self.periode:
             errors.append("Période obligatoire")
-        if not self.forfait:
-            errors.append("Forfait obligatoire")
+        # forfait est optionnel (champ hérité)
         if not self.circuit:
             errors.append("Circuit obligatoire")
 

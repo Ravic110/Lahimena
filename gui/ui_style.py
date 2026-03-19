@@ -58,7 +58,7 @@ def configure_combobox_style(root):
     root.option_add("*TCombobox*Listbox.selectForeground", "white")
 
 
-def create_card(parent, title=None, tabs=None, show_controls=False, on_add=None, on_remove=None):
+def create_card(parent, title=None, tabs=None, show_controls=False, on_add=None, on_remove=None, expand=False):
     """Create a rounded card container with optional title and tabs."""
     if CTK_AVAILABLE:
         card = ctk.CTkFrame(
@@ -76,7 +76,7 @@ def create_card(parent, title=None, tabs=None, show_controls=False, on_add=None,
             highlightthickness=1,
             bd=0,
         )
-    card.pack(fill="x", pady=8)
+    card.pack(fill="both" if expand else "x", expand=expand, pady=8)
 
     if CTK_AVAILABLE:
         inner = ctk.CTkFrame(card, fg_color="transparent")
@@ -177,7 +177,7 @@ def styled_entry(parent, readonly=False, width=None):
             fg_color=bg,
             text_color=TEXT_COLOR,
             border_color="#9EC7CF",
-            corner_radius=14,
+            corner_radius=8,
             font=ENTRY_FONT,
         )
         if readonly:

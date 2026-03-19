@@ -861,71 +861,133 @@ class ClientForm:
         stay_card = create_card(right_col, title="Séjour")
 
         def _sl(parent, text):
-            """Inline label, même police que section Clients."""
-            return tk.Label(
-                parent, text=text, font=LABEL_FONT,
-                fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
-            )
+            return tk.Label(parent, text=text, font=LABEL_FONT,
+                            fg=TEXT_COLOR, bg=PANEL_BG_COLOR)
 
-        def _stay_combo(parent, values):
-            """Combobox stylée identique à la section Clients."""
-            cb = ttk.Combobox(
-                parent, values=values, state="readonly",
-                font=ENTRY_FONT,
-            )
+        _INPUT_W = 130   # largeur commune Arrivée / Départ / Saison
+        _COMBO_W = 220   # largeur Hébergements / Restaurations
+
+        def _stay_combo(parent, values, fixed_width=None):
+            """Combobox arrondie, même style que les autres inputs."""
+            if ctk:
+                kw = dict(
+                    values=values, state="readonly",
+                    font=ENTRY_FONT, corner_radius=8,
+                    fg_color=INPUT_BG_COLOR, text_color=TEXT_COLOR,
+                    button_color="#C9DDE3", button_hover_color=BUTTON_BLUE,
+                    border_color="#C9DDE3", border_width=1,
+                    dropdown_fg_color=INPUT_BG_COLOR,
+                    dropdown_text_color=TEXT_COLOR,
+                    dropdown_hover_color="#E8F4F8",
+                    height=34,
+                )
+                if fixed_width:
+                    kw["width"] = fixed_width
+                cb = ctk.CTkComboBox(parent, **kw
+                )
+            else:
+                cb = ttk.Combobox(parent, values=values, state="readonly", font=ENTRY_FONT)
             return cb
+
+        _CHIP_H = 34
+
+        def _date_chip(parent, entry_attr):
+            """Champ date cliquable : zone arrondie affichant la date + icône calendrier."""
+            date_var = tk.StringVar()
+            hidden = tk.Entry(
+                parent, textvariable=date_var, width=0,
+                relief="flat", bd=0, highlightthickness=0,
+                state="readonly", readonlybackground=PANEL_BG_COLOR,
+            )
+            setattr(self, entry_attr, hidden)
+
+            chip = tk.Canvas(parent, width=_INPUT_W, height=_CHIP_H, bg=PANEL_BG_COLOR,
+                             highlightthickness=0, cursor="hand2")
+            chip.pack(side="right")
+
+            def _draw(*_):
+                chip.delete("all")
+                w = chip.winfo_width()
+                if w < 10:
+                    return
+                r = 8
+                x1, y1, x2, y2 = 0, 1, w - 1, _CHIP_H - 2
+                pts = [x1+r,y1, x2-r,y1, x2,y1, x2,y1+r,
+                       x2,y2-r, x2,y2, x2-r,y2, x1+r,y2,
+                       x1,y2, x1,y2-r, x1,y1+r, x1,y1]
+                chip.create_polygon(pts, smooth=True,
+                                    fill=INPUT_BG_COLOR, outline="#C9DDE3", width=1)
+                val = date_var.get()
+                chip.create_text(
+                    12, _CHIP_H // 2,
+                    text=val or "Choisir une date", anchor="w",
+                    font=ENTRY_FONT,
+                    fill=TEXT_COLOR if val else MUTED_TEXT_COLOR,
+                )
+                # Icône calendrier (rouge, à droite)
+                ix1, iy1, ix2, iy2 = w - 30, 5, w - 4, _CHIP_H - 5
+                chip.create_rectangle(ix1, iy1, ix2, iy2,
+                                      fill=BUTTON_RED, outline="", width=0)
+                chip.create_text((ix1 + ix2) // 2, _CHIP_H // 2,
+                                 text="📅", fill="white", font=("Poppins", 9, "bold"))
+
+            date_var.trace_add("write", _draw)
+            chip.bind("<Configure>", _draw)
+            chip.bind("<Button-1>",
+                      lambda e: self._open_calendar(getattr(self, entry_attr)))
+            chip.after(100, _draw)
+            return chip
 
         # ── Grille 3 colonnes alignées (tk.grid) ─────────────────────────
         g = tk.Frame(stay_card, bg=PANEL_BG_COLOR)
         g.pack(fill="x", pady=(0, 8))
-        g.columnconfigure(0, weight=0)   # Durée — largeur naturelle
-        g.columnconfigure(1, weight=1)   # Arrivée/Départ/Saison
-        g.columnconfigure(2, weight=1)   # Hébergements/Restaurations
+        g.columnconfigure(0, weight=0)
+        g.columnconfigure(1, weight=1)
+        g.columnconfigure(2, weight=1)
 
         # Ligne 0 : Durée | Arrivée | Hébergements
         r0c0 = tk.Frame(g, bg=PANEL_BG_COLOR)
         r0c0.grid(row=0, column=0, sticky="w", padx=(0, 18), pady=(0, 5))
         _sl(r0c0, "Durée").pack(side="left", padx=(0, 6))
         self.entry_duree_sejour = styled_entry(r0c0, readonly=True, width=4)
+        if ctk and hasattr(self.entry_duree_sejour, "configure"):
+            self.entry_duree_sejour.configure(width=60)
         self.entry_duree_sejour.pack(side="left")
 
         r0c1 = tk.Frame(g, bg=PANEL_BG_COLOR)
         r0c1.grid(row=0, column=1, sticky="ew", padx=(0, 18), pady=(0, 5))
-        _sl(r0c1, "Arrivée").pack(side="left", padx=(0, 6))
-        self.entry_date_arrivee = styled_entry(r0c1, readonly=True, width=12)
-        self.entry_date_arrivee.pack(side="left")
-        self._make_calendar_badge(r0c1, self.entry_date_arrivee, "15").pack(
-            side="left", padx=(4, 0)
-        )
+        tk.Label(r0c1, text="Arrivée", font=LABEL_FONT, fg=TEXT_COLOR,
+                 bg=PANEL_BG_COLOR, width=8, anchor="w").pack(side="left", padx=(0, 6))
+        _date_chip(r0c1, "entry_date_arrivee")
 
         r0c2 = tk.Frame(g, bg=PANEL_BG_COLOR)
         r0c2.grid(row=0, column=2, sticky="ew", pady=(0, 5))
-        _sl(r0c2, "Hébergements").pack(side="left", padx=(0, 6))
-        self.combo_TypeHebergement = _stay_combo(r0c2, TYPE_HEBERGEMENTS)
-        self.combo_TypeHebergement.pack(side="left", fill="x", expand=True)
+        tk.Label(r0c2, text="Hébergements", font=LABEL_FONT, fg=TEXT_COLOR,
+                 bg=PANEL_BG_COLOR, width=14, anchor="w").pack(side="left", padx=(0, 6))
+        self.combo_TypeHebergement = _stay_combo(r0c2, TYPE_HEBERGEMENTS, fixed_width=_COMBO_W)
+        self.combo_TypeHebergement.pack(side="left")
 
         # Ligne 1 : vide | Départ | Restaurations
         r1c1 = tk.Frame(g, bg=PANEL_BG_COLOR)
         r1c1.grid(row=1, column=1, sticky="ew", padx=(0, 18), pady=(0, 5))
-        _sl(r1c1, "Départ").pack(side="left", padx=(0, 6))
-        self.entry_date_depart = styled_entry(r1c1, readonly=True, width=12)
-        self.entry_date_depart.pack(side="left")
-        self._make_calendar_badge(r1c1, self.entry_date_depart, "15").pack(
-            side="left", padx=(4, 0)
-        )
+        tk.Label(r1c1, text="Départ", font=LABEL_FONT, fg=TEXT_COLOR,
+                 bg=PANEL_BG_COLOR, width=8, anchor="w").pack(side="left", padx=(0, 6))
+        _date_chip(r1c1, "entry_date_depart")
 
         r1c2 = tk.Frame(g, bg=PANEL_BG_COLOR)
         r1c2.grid(row=1, column=2, sticky="ew", pady=(0, 5))
-        _sl(r1c2, "Restaurations").pack(side="left", padx=(0, 6))
-        self.combo_restauration = _stay_combo(r1c2, RESTAURATIONS)
-        self.combo_restauration.pack(side="left", fill="x", expand=True)
+        tk.Label(r1c2, text="Restaurations", font=LABEL_FONT, fg=TEXT_COLOR,
+                 bg=PANEL_BG_COLOR, width=14, anchor="w").pack(side="left", padx=(0, 6))
+        self.combo_restauration = _stay_combo(r1c2, RESTAURATIONS, fixed_width=_COMBO_W)
+        self.combo_restauration.pack(side="left")
 
         # Ligne 2 : vide | Saison | vide
         r2c1 = tk.Frame(g, bg=PANEL_BG_COLOR)
         r2c1.grid(row=2, column=1, sticky="ew", padx=(0, 18), pady=(0, 5))
-        _sl(r2c1, "Saison").pack(side="left", padx=(0, 6))
-        self.combo_periode = _stay_combo(r2c1, PERIODES)
-        self.combo_periode.pack(side="left", fill="x", expand=True)
+        tk.Label(r2c1, text="Saison", font=LABEL_FONT, fg=TEXT_COLOR,
+                 bg=PANEL_BG_COLOR, width=8, anchor="w").pack(side="left", padx=(12, 6))
+        self.combo_periode = _stay_combo(r2c1, PERIODES, fixed_width=_INPUT_W)
+        self.combo_periode.pack(side="right")
 
         # combo_forfait conservé invisible pour la compatibilité des données
         self.combo_forfait = ttk.Combobox(stay_card, values=FORFAITS, state="readonly")
@@ -983,13 +1045,16 @@ class ClientForm:
         # ===== CARD: ROOMING LIST =====
         rooming_card = create_card(
             left_col,
-            title="Rooming list (Répartition par chambre)",
+            title="Rooming list",
             show_controls=True,
+            on_add=self._add_rooming_row,
+            on_remove=self._remove_rooming_row,
+            expand=True,
         )
 
+        # -- Participants section --
         participants_frame = tk.Frame(rooming_card, bg=PANEL_BG_COLOR)
-        participants_frame.pack(fill="x", pady=(0, 8))
-        styled_label(participants_frame, "Participants").pack(side="left", anchor="w")
+        participants_frame.pack(fill="x", pady=(0, 6))
 
         self.var_enfant = tk.BooleanVar()
         self.check_enfant_widget = tk.Checkbutton(
@@ -1002,82 +1067,99 @@ class ClientForm:
             selectcolor=BUTTON_GREEN,
             font=("Poppins", 9),
         )
-        self.check_enfant_widget.pack(side="left", padx=(16, 0))
+        self.check_enfant_widget.pack(anchor="w", pady=(0, 4))
 
-        composition_frame = tk.Frame(rooming_card, bg=PANEL_BG_COLOR)
-        composition_frame.pack(fill="x", pady=(0, 10))
+        spinboxes_frame = tk.Frame(participants_frame, bg=PANEL_BG_COLOR)
+        spinboxes_frame.pack(fill="x")
 
-        def _metric_column(parent, label, attr_name, readonly=False):
+        def _spinbox_col(parent, label, attr_name):
             col = tk.Frame(parent, bg=PANEL_BG_COLOR)
             col.pack(side="left", fill="x", expand=True, padx=(0, 8))
             tk.Label(
                 col,
                 text=label,
-                font=("Poppins", 9, "bold"),
-                fg=TEXT_COLOR,
+                font=("Poppins", 9),
+                fg=MUTED_TEXT_COLOR,
                 bg=PANEL_BG_COLOR,
-                justify="center",
             ).pack(anchor="w")
-            entry = styled_entry(col, readonly=readonly, width=10)
-            entry.pack(fill="x")
-            setattr(self, attr_name, entry)
-            if not readonly:
-                entry.bind("<KeyRelease>", lambda e: self._update_participants_total())
-            return entry
+            sb = tk.Spinbox(
+                col,
+                from_=0, to=999, width=5,
+                font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
+                relief="flat", bd=0,
+                highlightthickness=1, highlightbackground="#C9DDE3",
+                highlightcolor=BUTTON_BLUE,
+                buttonbackground=INPUT_BG_COLOR,
+                insertbackground=TEXT_COLOR,
+            )
+            sb.pack(fill="x")
+            sb.bind("<KeyRelease>", lambda e: self._update_participants_total())
+            sb.bind("<<Increment>>", lambda e: self._update_participants_total())
+            sb.bind("<<Decrement>>", lambda e: self._update_participants_total())
+            setattr(self, attr_name, sb)
+            return sb
 
-        _metric_column(
-            composition_frame,
-            "Total participants",
-            "entry_total_participants",
-            readonly=True,
-        )
-        _metric_column(
-            composition_frame,
-            "Adultes (+12 ans) *",
-            "entry_adultes",
-        )
-        _metric_column(
-            composition_frame,
-            "Enfants (2-12 ans)",
-            "entry_enfants_2_12",
-        )
-        _metric_column(
-            composition_frame,
-            "Bébés (0-2 ans)",
-            "entry_bebes_0_2",
-        )
+        _spinbox_col(spinboxes_frame, "Adultes (+12 ans)", "entry_adultes")
+        _spinbox_col(spinboxes_frame, "Enfants (2 à 12 ans)", "entry_enfants_2_12")
+        _spinbox_col(spinboxes_frame, "Bébés (< 2 ans)", "entry_bebes_0_2")
 
-        rooming_header = tk.Frame(rooming_card, bg="#D7EBF0")
-        rooming_header.pack(fill="x", pady=(0, 6))
-        for text, width, anchor in (
-            ("", 3, "w"),
-            ("Date", 10, "center"),
-            ("Nom & Prénom", 22, "w"),
-            ("Nb pax", 7, "center"),
-            ("Chambre", 16, "center"),
-            ("Nombre", 8, "center"),
-        ):
-            tk.Label(
-                rooming_header,
-                text=text,
-                width=width,
-                anchor=anchor,
-                font=("Poppins", 9, "bold"),
-                fg=TEXT_COLOR,
-                bg="#D7EBF0",
-            ).pack(side="left", padx=(0, 6))
+        # Hidden compat entry (not packed)
+        self.entry_total_participants = tk.Entry(participants_frame)
 
-        rooming_frame = tk.Frame(rooming_card, bg=PANEL_BG_COLOR)
-        rooming_frame.pack(fill="x", pady=(0, 10))
-
-        room_types = [
-            ("Single (SGL)", "sgl"),
-            ("Double (DBL)", "dbl"),
-            ("Twin (TWN)", "twn"),
-            ("Triple (TPL)", "tpl"),
-            ("Familiale (FML)", "fml"),
+        # -- Column headers --
+        _ROOM_HDR = [
+            ("Date",        95),
+            ("Nom & Prénom", 0),   # fill
+            ("Nb pax",      50),
+            ("Chambre",    110),
+            ("Nombre",      55),
         ]
+        hdr_bg = "#D0E8ED"
+        room_hdr = tk.Frame(rooming_card, bg=hdr_bg)
+        room_hdr.pack(fill="x", pady=(6, 1))
+        for col_name, col_w in _ROOM_HDR:
+            hdr_cell = tk.Frame(room_hdr, bg=hdr_bg)
+            if col_w:
+                hdr_cell.configure(width=col_w, height=28)
+                hdr_cell.pack_propagate(False)
+                hdr_cell.pack(side="left")
+            else:
+                hdr_cell.pack(side="left", fill="x", expand=True)
+            tk.Label(
+                hdr_cell, text=col_name,
+                font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=hdr_bg,
+                padx=4, pady=3,
+            ).pack(anchor="w")
 
+        # -- Scrollable canvas area --
+        room_scroll_outer = tk.Frame(rooming_card, bg=PANEL_BG_COLOR)
+        room_scroll_outer.pack(fill="both", expand=True, pady=(0, 4))
+
+        self._room_canvas = tk.Canvas(
+            room_scroll_outer, bg=PANEL_BG_COLOR, highlightthickness=0, height=120
+        )
+        room_vsb = ttk.Scrollbar(room_scroll_outer, orient="vertical", command=self._room_canvas.yview)
+        self._room_canvas.configure(yscrollcommand=room_vsb.set)
+        room_vsb.pack(side="right", fill="y")
+        self._room_canvas.pack(side="left", fill="both", expand=True)
+
+        self._room_inner = tk.Frame(self._room_canvas, bg=PANEL_BG_COLOR)
+        self._room_win = self._room_canvas.create_window(
+            (0, 0), window=self._room_inner, anchor="nw"
+        )
+
+        def _room_inner_cfg(e):
+            self._room_canvas.configure(scrollregion=self._room_canvas.bbox("all"))
+
+        def _room_canvas_cfg(e):
+            self._room_canvas.itemconfig(self._room_win, width=e.width)
+
+        self._room_inner.bind("<Configure>", _room_inner_cfg)
+        self._room_canvas.bind("<Configure>", _room_canvas_cfg)
+
+        self._rooming_widget_rows = []
+
+        # Legacy compat attributes (not displayed)
         self.rooming_vars = {}
         self.rooming_entries = {}
         self.rooming_date_entries = []
@@ -1085,62 +1167,13 @@ class ClientForm:
         self.rooming_pax_entries = []
         self.rooming_type_widgets = {}
 
-        for index, (label_text, key) in enumerate(room_types):
-            row_bg = "#EDF6F8" if index % 2 == 0 else PANEL_BG_COLOR
-            row = tk.Frame(rooming_frame, bg=row_bg)
-            row.pack(fill="x", pady=(0, 4))
+        # Hidden compat entries (not packed)
+        self.entry_rooming_date = tk.Entry(rooming_card)
+        self.entry_rooming_nom = tk.Entry(rooming_card)
+        self.entry_nombre_participants = tk.Entry(rooming_card)
 
-            var = tk.BooleanVar()
-            self.rooming_vars[key] = var
-
-            tk.Checkbutton(
-                row,
-                text="",
-                variable=var,
-                fg=TEXT_COLOR,
-                bg=row_bg,
-                selectcolor=BUTTON_GREEN,
-                font=LABEL_FONT,
-                width=2,
-                command=lambda k=key: self._on_room_toggle(k),
-            ).pack(side="left", padx=(0, 6))
-
-            date_entry = styled_entry(row, readonly=True, width=10)
-            date_entry.pack(side="left", padx=(0, 6))
-            self.rooming_date_entries.append(date_entry)
-
-            name_entry = styled_entry(row, readonly=True, width=24)
-            name_entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
-            self.rooming_name_entries.append(name_entry)
-
-            pax_entry = styled_entry(row, readonly=True, width=7)
-            pax_entry.pack(side="left", padx=(0, 6))
-            self.rooming_pax_entries.append(pax_entry)
-
-            room_type = ttk.Combobox(
-                row,
-                values=[label_text],
-                state="readonly",
-                width=16,
-            )
-            room_type.set(label_text)
-            room_type.pack(side="left", padx=(0, 6))
-            self.rooming_type_widgets[key] = room_type
-
-            entry = styled_entry(row, width=8)
-            entry.configure(state="disabled")
-            entry.pack(side="left")
-            entry.bind("<KeyRelease>", lambda e: self._on_room_count_change())
-            self.rooming_entries[key] = entry
-
-            if index == 0:
-                self.entry_rooming_date = date_entry
-                self.entry_rooming_nom = name_entry
-                self.entry_nombre_participants = pax_entry
-
-        self.rooming_summary_label = muted_label(
-            rooming_card, "Aucune chambre sélectionnée"
-        )
+        # -- Summary label --
+        self.rooming_summary_label = muted_label(rooming_card, "Aucune ligne")
         self.rooming_summary_label.pack(anchor="w", pady=(2, 0))
 
         # Room type (hidden from UI; still auto-managed from rooming list)
@@ -1149,17 +1182,7 @@ class ClientForm:
         )
 
         # ===== CARD: ITINERAIRES =====
-        # Widgets cachés pour compatibilité données
-        self.combo_circuit = ttk.Combobox(
-            right_col, values=self.circuit_options, state="readonly", width=37
-        )
-        self.combo_circuit.bind(
-            "<<ComboboxSelected>>", lambda e: self._on_circuit_selected(apply_route=True)
-        )
-        self.combo_circuit.bind(
-            "<FocusOut>", lambda e: self._on_circuit_selected(apply_route=False)
-        )
-        self.circuit_info_label = muted_label(right_col, "")
+        # Widgets cachés pour compatibilité données (non affichés)
         self.combo_ville_depart = ttk.Combobox(right_col, values=self.city_options, state="normal", width=20)
         self.combo_ville_arrivee = ttk.Combobox(right_col, values=self.city_options, state="normal", width=20)
         self.entry_itineraire_date = styled_entry(right_col, readonly=True, width=12)
@@ -1173,7 +1196,37 @@ class ClientForm:
             show_controls=True,
             on_add=self._add_itinerary_row,
             on_remove=self._remove_selected_itinerary_rows,
+            expand=True,
         )
+
+        # ── Sélection du circuit ──────────────────────────────────────────
+        circuit_row = tk.Frame(itineraire_card, bg=PANEL_BG_COLOR)
+        circuit_row.pack(fill="x", pady=(0, 6))
+
+        tk.Label(
+            circuit_row, text="Circuit :",
+            font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+        ).pack(side="left", padx=(0, 6))
+
+        self.combo_circuit = ttk.Combobox(
+            circuit_row, values=self.circuit_options, state="readonly", width=28,
+        )
+        self.combo_circuit.pack(side="left", padx=(0, 8))
+        self.combo_circuit.bind(
+            "<<ComboboxSelected>>", lambda e: self._on_circuit_selected(apply_route=True)
+        )
+
+        apply_btn = tk.Button(
+            circuit_row, text="Appliquer",
+            font=("Poppins", 8, "bold"), fg="white", bg=BUTTON_BLUE,
+            relief="flat", bd=0, padx=8, pady=2, cursor="hand2",
+            command=lambda: self._on_circuit_selected(apply_route=True),
+        )
+        apply_btn.pack(side="left", padx=(0, 12))
+
+        self.circuit_info_label = muted_label(circuit_row, "")
+        self.circuit_info_label.config(width=1, anchor="w")
+        self.circuit_info_label.pack(side="left", fill="x", expand=True)
 
         # ── En-têtes de colonnes ─────────────────────────────────────────
         _ITIN = [
@@ -1189,7 +1242,7 @@ class ClientForm:
         for col_name, col_w in _ITIN:
             cell = tk.Frame(hdr, bg=hdr_bg)
             if col_w:
-                cell.configure(width=col_w)
+                cell.configure(width=col_w, height=28)
                 cell.pack_propagate(False)
                 cell.pack(side="left")
             else:
@@ -1428,19 +1481,25 @@ class ClientForm:
         )
         self.var_location_voiture.set(self.client_to_edit.get("location_voiture", ""))
 
-        # Rooming list - populate with checkboxes and counts
-        room_keys = ["sgl", "dbl", "twn", "tpl", "fml"]
-        for key in room_keys:
-            count = self.client_to_edit.get(f"{key}_count", "")
-            if count:
-                # Enable checkbox
-                self.rooming_vars[key].set(True)
-                self.rooming_entries[key].configure(state="normal")
-                self.rooming_entries[key].insert(0, count)
-            else:
-                # Keep disabled
-                self.rooming_vars[key].set(False)
-                self.rooming_entries[key].configure(state="disabled")
+        # Clear and rebuild rooming rows from saved data
+        for rw in getattr(self, "_rooming_widget_rows", []):
+            rw["frame"].destroy()
+        if hasattr(self, "_rooming_widget_rows"):
+            self._rooming_widget_rows.clear()
+        room_labels = {
+            "sgl": "SGL (Single)", "dbl": "DBL (Double)",
+            "twn": "TWN (Twin)", "tpl": "TPL (Triple)", "fml": "FML (Familiale)",
+        }
+        for key, label in room_labels.items():
+            count_str = str(self.client_to_edit.get(f"{key}_count", "") or "").strip()
+            if count_str and count_str != "0":
+                self._add_rooming_widget_row({
+                    "date": self.client_to_edit.get("date_arrivee", ""),
+                    "nom": f"{self.client_to_edit.get('nom', '')} {self.client_to_edit.get('prenom', '')}".strip(),
+                    "nb_pax": self.client_to_edit.get("adultes", ""),
+                    "chambre": label,
+                    "nombre": count_str,
+                })
         self._update_rooming_summary()
         # Combo boxes
         type_client = self.client_to_edit.get("type_client", "").strip()
@@ -1509,29 +1568,21 @@ class ClientForm:
 
     def _sync_rooming_date(self):
         """Mirror arrival date to rooming list date field."""
-        if not hasattr(self, "rooming_date_entries"):
+        if not hasattr(self, "_rooming_widget_rows"):
             return
         date_arr = self.entry_date_arrivee.get()
-        for entry in self.rooming_date_entries:
-            entry.configure(state="normal")
-            entry.delete(0, tk.END)
-            if date_arr:
-                entry.insert(0, date_arr)
-            entry.configure(state="readonly")
+        for rw in self._rooming_widget_rows:
+            rw["date_var"].set(date_arr)
 
     def _update_rooming_identity(self):
         """Sync rooming list name field with client name."""
-        if not hasattr(self, "rooming_name_entries"):
+        if not hasattr(self, "_rooming_widget_rows"):
             return
         prenom = self._get_entry_value(self.entry_prenom).strip()
         nom = self._get_entry_value(self.entry_nom).strip()
-        full_name = f"{prenom} {nom}".strip()
-        for entry in self.rooming_name_entries:
-            entry.configure(state="normal")
-            entry.delete(0, tk.END)
-            if full_name:
-                entry.insert(0, full_name)
-            entry.configure(state="readonly")
+        full_name = f"{nom} {prenom}".strip()
+        for rw in self._rooming_widget_rows:
+            rw["nom_var"].set(full_name)
 
     def _toggle_enfant(self):
         """Show/hide child age field"""
@@ -1562,101 +1613,114 @@ class ClientForm:
         adults = _to_int(self.entry_adultes.get())
         enfants = _to_int(self.entry_enfants_2_12.get())
         bebes = _to_int(self.entry_bebes_0_2.get())
-
         total = adults + enfants + bebes
-        if hasattr(self, "rooming_pax_entries"):
-            for entry in self.rooming_pax_entries:
-                entry.configure(state="normal")
-                entry.delete(0, tk.END)
-                entry.insert(0, str(total))
-                entry.configure(state="readonly")
         if hasattr(self, "entry_total_participants"):
-            self.entry_total_participants.configure(state="normal")
-            self.entry_total_participants.delete(0, tk.END)
-            self.entry_total_participants.insert(0, str(total))
-            self.entry_total_participants.configure(state="readonly")
+            try:
+                self.entry_total_participants.configure(state="normal")
+                self.entry_total_participants.delete(0, tk.END)
+                self.entry_total_participants.insert(0, str(total))
+            except Exception:
+                pass
 
     def _on_room_toggle(self, room_key):
         """Enable/disable room entry field when checkbox is toggled"""
-        if self.rooming_vars[room_key].get():
-            # Enable the entry field
-            self.rooming_entries[room_key].configure(state="normal")
-        else:
-            # Disable and clear the entry field
-            self.rooming_entries[room_key].configure(state="normal")
-            self.rooming_entries[room_key].delete(0, tk.END)
-            self.rooming_entries[room_key].configure(state="disabled")
-        self._update_type_chambre_from_rooming()
-        self._update_rooming_summary()
+        pass
 
     def _on_room_count_change(self):
         """Refresh rooming derived UI when quantities change."""
-        self._update_type_chambre_from_rooming()
+        pass
+
+    def _add_rooming_widget_row(self, data=None):
+        """Create one editable row in the rooming list canvas area."""
+        data = data or {}
+        COL_W = [95, 0, 50, 110, 55]
+        BORDER = "#C9DDE3"
+        row = tk.Frame(self._room_inner, bg=BORDER)
+        row.pack(fill="x", pady=(0, 1))
+
+        def _cell(w):
+            f = tk.Frame(row, bg=BORDER)
+            if w:
+                f.configure(width=w, height=32)
+                f.pack_propagate(False)
+                f.pack(side="left", padx=(0, 1))
+            else:
+                f.pack(side="left", fill="x", expand=True)
+            return f
+
+        def _entry(parent, textvariable, readonly=False):
+            e = tk.Entry(parent, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
+                         textvariable=textvariable, relief="flat", bd=0,
+                         insertbackground=TEXT_COLOR)
+            if readonly:
+                e.configure(state="readonly", readonlybackground=INPUT_BG_COLOR)
+            return e
+
+        date_var = tk.StringVar(value=data.get("date", ""))
+        _entry(_cell(COL_W[0]), date_var, readonly=True).pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+
+        nom_var = tk.StringVar(value=data.get("nom", ""))
+        _entry(_cell(COL_W[1]), nom_var).pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+
+        pax_var = tk.StringVar(value=data.get("nb_pax", ""))
+        _entry(_cell(COL_W[2]), pax_var).pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+
+        ROOM_OPTS = ["SGL (Single)", "DBL (Double)", "TWN (Twin)", "TPL (Triple)", "FML (Familiale)"]
+        chambre_var = tk.StringVar(value=data.get("chambre", ""))
+        ttk.Combobox(_cell(COL_W[3]), values=ROOM_OPTS, textvariable=chambre_var,
+                     state="readonly", font=ENTRY_FONT).pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+
+        nombre_var = tk.StringVar(value=data.get("nombre", ""))
+        _entry(_cell(COL_W[4]), nombre_var).pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+
+        self._rooming_widget_rows.append({
+            "frame": row, "date_var": date_var, "nom_var": nom_var,
+            "pax_var": pax_var, "chambre_var": chambre_var, "nombre_var": nombre_var,
+        })
+        self._room_inner.update_idletasks()
+        self._room_canvas.configure(scrollregion=self._room_canvas.bbox("all"))
         self._update_rooming_summary()
+
+    def _add_rooming_row(self):
+        date_arr = self.entry_date_arrivee.get() if hasattr(self, "entry_date_arrivee") else ""
+        prenom = self._get_entry_value(self.entry_prenom).strip() if hasattr(self, "entry_prenom") else ""
+        nom = self._get_entry_value(self.entry_nom).strip() if hasattr(self, "entry_nom") else ""
+        self._add_rooming_widget_row({"date": date_arr, "nom": f"{nom} {prenom}".strip()})
+
+    def _remove_rooming_row(self):
+        if self._rooming_widget_rows:
+            self._rooming_widget_rows.pop()["frame"].destroy()
+            self._room_canvas.configure(scrollregion=self._room_canvas.bbox("all"))
+            self._update_rooming_summary()
 
     def _update_rooming_summary(self):
         """Display a compact summary for selected rooming."""
-        checked_types = sum(1 for var in self.rooming_vars.values() if var.get())
-        total_rooms = 0
-        for key, entry in self.rooming_entries.items():
-            if self.rooming_vars.get(key) and self.rooming_vars[key].get():
-                try:
-                    total_rooms += int(str(entry.get()).strip() or "0")
-                except Exception:
-                    pass
-
-        if checked_types == 0:
-            summary = "Aucune chambre sélectionnée"
-        else:
-            summary = (
-                f"{checked_types} type(s) sélectionné(s) - {total_rooms} chambre(s)"
-            )
-        self.rooming_summary_label.config(text=summary)
+        n = len(self._rooming_widget_rows) if hasattr(self, "_rooming_widget_rows") else 0
+        self.rooming_summary_label.config(
+            text="Aucune ligne" if n == 0 else f"{n} ligne(s)"
+        )
 
     def _update_type_chambre_from_rooming(self, clear_if_empty=True):
         """Auto-fill room type based on rooming list quantities."""
-        room_type_by_key = {
-            "sgl": "Single",
-            "dbl": "Double/twin",
-            "twn": "Double/twin",
-            "tpl": "Triple",
-            "fml": "Familliale",
+        room_key_map = {
+            "SGL": "Single", "DBL": "Double/twin", "TWN": "Double/twin",
+            "TPL": "Triple", "FML": "Familliale",
         }
-        priority = ["Single", "Double/twin", "Triple", "Familliale"]
-
-        def _to_int(value):
-            try:
-                return int(str(value).strip())
-            except Exception:
-                return 0
-
-        totals = {room_type: 0 for room_type in priority}
-        has_checked_room = False
-
-        for key, room_type in room_type_by_key.items():
-            if key in self.rooming_vars and self.rooming_vars[key].get():
-                has_checked_room = True
-            if key in self.rooming_entries:
-                qty = _to_int(self.rooming_entries[key].get())
-                if qty > 0:
-                    totals[room_type] += qty
-
-        selected_type = ""
-        positive_totals = {k: v for k, v in totals.items() if v > 0}
-        if positive_totals:
-            # Prefer the room type with highest quantity, then stable priority
-            selected_type = sorted(
-                positive_totals.items(),
-                key=lambda item: (-item[1], priority.index(item[0])),
-            )[0][0]
-        elif has_checked_room:
-            for key in ["sgl", "dbl", "twn", "tpl", "fml"]:
-                if self.rooming_vars[key].get():
-                    selected_type = room_type_by_key[key]
+        counts = {}
+        for rw in getattr(self, "_rooming_widget_rows", []):
+            chambre = rw["chambre_var"].get()
+            for k, v in room_key_map.items():
+                if k in chambre.upper():
+                    try:
+                        n = int(rw["nombre_var"].get().strip() or "0")
+                    except Exception:
+                        n = 0
+                    counts[v] = counts.get(v, 0) + n
                     break
-
-        if selected_type:
-            self.combo_TypeChambre.set(selected_type)
+        if counts:
+            priority = ["Single", "Double/twin", "Triple", "Familliale"]
+            best = sorted(counts.items(), key=lambda x: (-x[1], priority.index(x[0]) if x[0] in priority else 99))[0][0]
+            self.combo_TypeChambre.set(best)
         elif clear_if_empty:
             self.combo_TypeChambre.set("")
 
@@ -1664,64 +1728,61 @@ class ClientForm:
         """Create one editable row in the itinerary canvas area."""
         data = data or {}
         COL_W = [105, 145, 145, 90, 0]
-        row_bg = PANEL_BG_COLOR
-        sep_color = "#D0E8ED"
+        BORDER = "#C9DDE3"
 
-        row = tk.Frame(self._itin_inner, bg=sep_color)
+        row = tk.Frame(self._itin_inner, bg=BORDER)
         row.pack(fill="x", pady=(0, 1))
 
         def _cell(w):
-            f = tk.Frame(row, bg=row_bg)
+            f = tk.Frame(row, bg=BORDER)
             if w:
-                f.configure(width=w)
+                f.configure(width=w, height=32)
                 f.pack_propagate(False)
                 f.pack(side="left", padx=(0, 1))
             else:
                 f.pack(side="left", fill="x", expand=True)
             return f
 
+        def _entry(parent, textvariable, readonly=False):
+            e = tk.Entry(parent, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
+                         textvariable=textvariable, relief="flat", bd=0,
+                         insertbackground=TEXT_COLOR)
+            if readonly:
+                e.configure(state="readonly", readonlybackground=INPUT_BG_COLOR)
+            return e
+
         # Date
         date_var = tk.StringVar(value=data.get("date", ""))
         date_cell = _cell(COL_W[0])
-        date_inner = tk.Frame(date_cell, bg=row_bg)
-        date_inner.pack(fill="both", expand=True, padx=2, pady=2)
-        date_e = tk.Entry(
-            date_inner, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
-            textvariable=date_var, state="readonly",
-            readonlybackground=INPUT_BG_COLOR, relief="flat", bd=0,
-        )
-        date_e.pack(side="left", fill="x", expand=True, ipady=3)
-        self._make_calendar_badge(date_inner, date_e, "15").pack(side="left", padx=(2, 0))
+        date_e = _entry(date_cell, date_var, readonly=True)
+        date_e.pack(side="left", fill="both", expand=True, padx=(1, 0), pady=1, ipady=3)
+        self._make_calendar_badge(date_cell, date_e, "15").pack(side="left", padx=(2, 1), pady=1)
 
         # Ville de départ
         depart_var = tk.StringVar(value=data.get("depart", ""))
         dep_cell = _cell(COL_W[1])
-        dep_cb = ttk.Combobox(dep_cell, values=self.city_options, textvariable=depart_var, state="normal", font=ENTRY_FONT)
-        dep_cb.pack(fill="both", expand=True, padx=2, pady=2, ipady=2)
+        dep_cb = ttk.Combobox(dep_cell, values=self.city_options, textvariable=depart_var,
+                              state="normal", font=ENTRY_FONT)
+        dep_cb.pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
 
         # Ville d'arrivée
         arrivee_var = tk.StringVar(value=data.get("arrivee", ""))
         arr_cell = _cell(COL_W[2])
-        arr_cb = ttk.Combobox(arr_cell, values=self.city_options, textvariable=arrivee_var, state="normal", font=ENTRY_FONT)
-        arr_cb.pack(fill="both", expand=True, padx=2, pady=2, ipady=2)
+        arr_cb = ttk.Combobox(arr_cell, values=self.city_options, textvariable=arrivee_var,
+                              state="normal", font=ENTRY_FONT)
+        arr_cb.pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
 
         # Distance
         dist_var = tk.StringVar(value=data.get("distance", ""))
         dist_cell = _cell(COL_W[3])
-        dist_e = tk.Entry(
-            dist_cell, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
-            textvariable=dist_var, relief="flat", bd=0,
-        )
-        dist_e.pack(fill="both", expand=True, padx=2, pady=2, ipady=3)
+        dist_e = _entry(dist_cell, dist_var)
+        dist_e.pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
 
         # Hébergement (fill)
         heb_var = tk.StringVar(value=data.get("hebergement", ""))
         heb_cell = _cell(COL_W[4])
-        heb_e = tk.Entry(
-            heb_cell, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
-            textvariable=heb_var, relief="flat", bd=0,
-        )
-        heb_e.pack(fill="both", expand=True, padx=2, pady=2, ipady=3)
+        heb_e = _entry(heb_cell, heb_var)
+        heb_e.pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
 
         # Bind mousewheel to child widgets
         for w in (date_e, dep_cb, arr_cb, dist_e, heb_e, row, date_cell, dep_cell, arr_cell, dist_cell, heb_cell):
@@ -1866,7 +1927,7 @@ class ClientForm:
             info_lines.append(f"Véhicule: {circuit['type_voiture']}")
         if circuit.get("activite"):
             info_lines.append(f"Activité: {circuit['activite']}")
-        self.circuit_info_label.config(text="\n".join(info_lines))
+        self.circuit_info_label.config(text="  ·  ".join(info_lines))
 
         if not apply_route:
             return
@@ -1917,6 +1978,19 @@ class ClientForm:
             f"{whatsapp_code}{whatsapp_number}" if whatsapp_number else mobile_phone
         )
 
+        # Collect rooming rows data
+        _room_key_map = {"SGL": "sgl", "DBL": "dbl", "TWN": "twn", "TPL": "tpl", "FML": "fml"}
+        _room_counts = {"sgl": 0, "dbl": 0, "twn": 0, "tpl": 0, "fml": 0}
+        for rw in getattr(self, "_rooming_widget_rows", []):
+            chambre = rw["chambre_var"].get()
+            for k, v in _room_key_map.items():
+                if k in chambre.upper():
+                    try:
+                        _room_counts[v] += int(rw["nombre_var"].get().strip() or "0")
+                    except Exception:
+                        pass
+                    break
+
         form_data = {
             "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M"),
             "date_jour": self.entry_date_jour.get(),
@@ -1928,7 +2002,7 @@ class ClientForm:
             "date_arrivee": self.entry_date_arrivee.get(),
             "date_depart": self.entry_date_depart.get(),
             "duree_sejour": self.entry_duree_sejour.get(),
-            "nombre_participants": self.entry_nombre_participants.get().strip(),
+            "nombre_participants": self.entry_total_participants.get().strip(),
             "nombre_adultes": self.entry_adultes.get().strip(),
             "nombre_enfants_2_12": self.entry_enfants_2_12.get().strip(),
             "nombre_bebes_0_2": self.entry_bebes_0_2.get().strip(),
@@ -1973,11 +2047,11 @@ class ClientForm:
             "ville_arrivee": ville_arrivee,
             "itineraire_detail": itineraire_detail,
             "type_hotel_arrivee": self.combo_type_hotel_arrivee.get(),
-            "sgl_count": self.rooming_entries["sgl"].get().strip(),
-            "dbl_count": self.rooming_entries["dbl"].get().strip(),
-            "twn_count": self.rooming_entries["twn"].get().strip(),
-            "tpl_count": self.rooming_entries["tpl"].get().strip(),
-            "fml_count": self.rooming_entries["fml"].get().strip(),
+            "sgl_count": str(_room_counts["sgl"]) if _room_counts["sgl"] else "",
+            "dbl_count": str(_room_counts["dbl"]) if _room_counts["dbl"] else "",
+            "twn_count": str(_room_counts["twn"]) if _room_counts["twn"] else "",
+            "tpl_count": str(_room_counts["tpl"]) if _room_counts["tpl"] else "",
+            "fml_count": str(_room_counts["fml"]) if _room_counts["fml"] else "",
         }
 
         # Create client data object
@@ -2068,28 +2142,6 @@ class ClientForm:
         self.entry_duree_sejour.configure(state="normal")
         self.entry_duree_sejour.delete(0, tk.END)
         self.entry_duree_sejour.configure(state="readonly")
-        if hasattr(self, "rooming_pax_entries"):
-            for entry in self.rooming_pax_entries:
-                entry.configure(state="normal")
-                entry.delete(0, tk.END)
-                entry.configure(state="readonly")
-        if hasattr(self, "entry_total_participants"):
-            self.entry_total_participants.configure(state="normal")
-            self.entry_total_participants.delete(0, tk.END)
-            self.entry_total_participants.configure(state="readonly")
-        if hasattr(self, "rooming_date_entries"):
-            for entry in self.rooming_date_entries:
-                entry.configure(state="normal")
-                entry.delete(0, tk.END)
-                entry.configure(state="readonly")
-        if hasattr(self, "rooming_name_entries"):
-            for entry in self.rooming_name_entries:
-                entry.configure(state="normal")
-                entry.delete(0, tk.END)
-                entry.configure(state="readonly")
-        self.entry_adultes.delete(0, tk.END)
-        self.entry_enfants_2_12.delete(0, tk.END)
-        self.entry_bebes_0_2.delete(0, tk.END)
         self.entry_telephone.delete(0, tk.END)
         self.entry_email.delete(0, tk.END)
         self.entry_code_pays.set(DEFAULT_PHONE_CODE)
@@ -2102,13 +2154,24 @@ class ClientForm:
         if hasattr(self, "comment_internal_text"):
             self.comment_internal_text.delete("1.0", tk.END)
 
-        # Reset rooming list - uncheck all and disable fields
-        for key in self.rooming_entries.keys():
-            self.rooming_vars[key].set(False)
-            self.rooming_entries[key].configure(state="normal")
-            self.rooming_entries[key].delete(0, tk.END)
-            self.rooming_entries[key].configure(state="disabled")
+        # Reset rooming rows
+        for rw in getattr(self, "_rooming_widget_rows", []):
+            rw["frame"].destroy()
+        if hasattr(self, "_rooming_widget_rows"):
+            self._rooming_widget_rows.clear()
         self._update_rooming_summary()
+        # Reset participant spinboxes
+        for attr in ("entry_adultes", "entry_enfants_2_12", "entry_bebes_0_2"):
+            if hasattr(self, attr):
+                w = getattr(self, attr)
+                try:
+                    w.configure(state="normal")
+                    w.delete(0, tk.END)
+                    w.insert(0, "0")
+                except Exception:
+                    pass
+        self.var_enfant.set(False)
+        self._toggle_enfant()
 
         self.combo_type_client.set("Mr")
         self.combo_periode.set("")
@@ -2131,5 +2194,3 @@ class ClientForm:
         self.var_accompagnement_guide.set(False)
         self.var_accompagnement_chauffeur.set(False)
         self.var_location_voiture.set("")
-        self.var_enfant.set(False)
-        self._toggle_enfant()
