@@ -162,6 +162,7 @@ Thumbs.db
 # Backup files
 *.bak
 *.backup
+backups/
 devis
 devis/
 
