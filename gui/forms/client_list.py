@@ -21,7 +21,11 @@ from config import (
     TITLE_FONT,
 )
 from models.client_data import ClientData
-from utils.excel_handler import delete_client_from_excel, load_all_clients
+from utils.excel_handler import (
+    delete_client_from_excel,
+    load_all_clients,
+    update_client_statut,
+)
 
 
 class ClientList:
@@ -62,9 +66,9 @@ class ClientList:
         )
         title.pack(pady=(20, 10))
 
-        # Search frame
+        # ── Barre de recherche + filtre statut ──────────────────────────
         search_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
-        search_frame.pack(fill="x", padx=20, pady=(0, 10))
+        search_frame.pack(fill="x", padx=20, pady=(0, 6))
 
         tk.Label(
             search_frame,
@@ -75,16 +79,51 @@ class ClientList:
         ).pack(side="left")
 
         self.search_var = tk.StringVar()
-        self.search_var.trace("w", self._on_search_change)
+        self.search_var.trace("w", self._on_filter_change)
         search_entry = tk.Entry(
             search_frame,
             textvariable=self.search_var,
             font=ENTRY_FONT,
-            width=30,
+            width=28,
             bg=INPUT_BG_COLOR,
             fg=TEXT_COLOR,
         )
-        search_entry.pack(side="left", padx=(10, 0))
+        search_entry.pack(side="left", padx=(8, 20))
+
+        # Filtre par statut
+        tk.Label(
+            search_frame,
+            text="Statut:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).pack(side="left")
+
+        self._STATUT_COLORS = {
+            "Tous":       None,
+            "En cours":   "#00BCD4",
+            "Accepté":    "#4CAF50",
+            "En circuit": "#FF9800",
+            "Annulé":     "#F44336",
+        }
+        self._STATUT_ROW_BG = {
+            "En cours":   "#E0F7FA",
+            "Accepté":    "#E8F5E9",
+            "En circuit": "#FFF3E0",
+            "Annulé":     "#FFEBEE",
+        }
+
+        self.statut_filter_var = tk.StringVar(value="Tous")
+        self.statut_filter_var.trace("w", self._on_filter_change)
+        statut_combo = ttk.Combobox(
+            search_frame,
+            textvariable=self.statut_filter_var,
+            values=list(self._STATUT_COLORS.keys()),
+            state="readonly",
+            width=14,
+            font=ENTRY_FONT,
+        )
+        statut_combo.pack(side="left", padx=(8, 0))
 
         # Buttons frame
         btn_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
@@ -108,6 +147,17 @@ class ClientList:
             font=BUTTON_FONT,
         ).pack(side="left", padx=5)
 
+        self.btn_voir = tk.Button(
+            btn_frame,
+            text="👁 Voir Résa",
+            command=self._edit_selected,
+            bg=BUTTON_BLUE,
+            fg="white",
+            font=BUTTON_FONT,
+            state="disabled",
+        )
+        self.btn_voir.pack(side="left", padx=5)
+
         self.btn_edit = tk.Button(
             btn_frame,
             text="✏️ Modifier",
@@ -119,11 +169,33 @@ class ClientList:
         )
         self.btn_edit.pack(side="left", padx=5)
 
+        self.btn_annuler = tk.Button(
+            btn_frame,
+            text="🚫 Annuler",
+            command=self._annuler_selected,
+            bg=BUTTON_RED,
+            fg="white",
+            font=BUTTON_FONT,
+            state="disabled",
+        )
+        self.btn_annuler.pack(side="left", padx=5)
+
+        self.btn_reintegrer = tk.Button(
+            btn_frame,
+            text="↩ Réintégrer",
+            command=self._reintegrer_selected,
+            bg=BUTTON_GREEN,
+            fg="white",
+            font=BUTTON_FONT,
+            state="disabled",
+        )
+        self.btn_reintegrer.pack(side="left", padx=5)
+
         self.btn_delete = tk.Button(
             btn_frame,
             text="🗑️ Supprimer",
             command=self._delete_selected,
-            bg=BUTTON_RED,
+            bg="#555555",
             fg="white",
             font=BUTTON_FONT,
             state="disabled",
@@ -150,6 +222,7 @@ class ClientList:
 
         # Treeview
         columns = (
+            "statut",
             "row",
             "timestamp",
             "ref_client",
@@ -157,12 +230,10 @@ class ClientList:
             "telephone",
             "email",
             "periode",
-            "forfait",
             "circuit",
-            "id_circuit",
-            "duree_circuit",
-            "condition_physique_circuit",
-            "type_voiture_circuit",
+            "date_arrivee",
+            "date_depart",
+            "duree_sejour",
         )
         self.tree = ttk.Treeview(
             tree_frame,
@@ -178,32 +249,37 @@ class ClientList:
 
         # Configure columns
         column_headers = {
-            "row": "N°",
-            "timestamp": "Date",
-            "ref_client": "Réf. Client",
-            "nom": "Nom",
-            "telephone": "Téléphone",
-            "email": "Email",
-            "periode": "Période",
-            "forfait": "Forfait",
-            "circuit": "Circuit",
-            "id_circuit": "ID Circuit",
-            "duree_circuit": "Durée",
-            "condition_physique_circuit": "Condition",
-            "type_voiture_circuit": "Voiture",
+            "statut":       "Statut",
+            "row":          "N°",
+            "timestamp":    "Date création",
+            "ref_client":   "Réf. Client",
+            "nom":          "Nom",
+            "telephone":    "Téléphone",
+            "email":        "Email",
+            "periode":      "Période",
+            "circuit":      "Circuit",
+            "date_arrivee": "Arrivée",
+            "date_depart":  "Départ",
+            "duree_sejour": "Durée",
         }
 
         for col in columns:
             self.tree.heading(col, text=column_headers[col])
             self.tree.column(col, width=100, minwidth=80)
 
-        # Key columns sizing for readability
-        self.tree.column("ref_client", width=120, minwidth=100)
-        self.tree.column("nom", width=160, minwidth=120)
-        self.tree.column("email", width=180, minwidth=140)
-        self.tree.column("circuit", width=180, minwidth=140)
-        self.tree.column("condition_physique_circuit", width=140, minwidth=120)
-        self.tree.column("type_voiture_circuit", width=140, minwidth=120)
+        self.tree.column("statut",      width=110, minwidth=90)
+        self.tree.column("row",         width=40,  minwidth=30)
+        self.tree.column("ref_client",  width=120, minwidth=100)
+        self.tree.column("nom",         width=160, minwidth=120)
+        self.tree.column("email",       width=180, minwidth=140)
+        self.tree.column("circuit",     width=180, minwidth=140)
+        self.tree.column("date_arrivee",width=100, minwidth=80)
+        self.tree.column("date_depart", width=100, minwidth=80)
+        self.tree.column("duree_sejour",width=70,  minwidth=50)
+
+        # Color tags per statut
+        for s, bg in self._STATUT_ROW_BG.items():
+            self.tree.tag_configure(s, background=bg)
 
         # Pack treeview and scrollbars
         self.tree.pack(side="left", fill="both", expand=True)
@@ -218,7 +294,7 @@ class ClientList:
         self.context_menu.add_command(label="Voir détails", command=self._view_details)
 
         self.tree.bind("<Button-3>", self._show_context_menu)
-        self.tree.bind("<Double-1>", lambda e: self._edit_selected())
+        self.tree.bind("<Double-1>", lambda e: self._voir_or_edit())
         self.tree.bind("<<TreeviewSelect>>", self._on_selection_change)
 
         # Status label
@@ -234,13 +310,18 @@ class ClientList:
         """Handle selection change in treeview"""
         selection = self.tree.selection()
         if selection:
-            # Enable buttons when a client is selected
-            self.btn_edit.config(state="normal")
+            client = self._get_selected_client()
+            is_annule = client and (client.get("statut") or "En cours") == "Annulé"
+            self.btn_voir.config(state="normal")
+            # Dossier annulé : lecture seule, pas modifiable
+            self.btn_edit.config(state="disabled" if is_annule else "normal")
+            self.btn_annuler.config(state="disabled" if is_annule else "normal")
+            self.btn_reintegrer.config(state="normal" if is_annule else "disabled")
             self.btn_delete.config(state="normal")
         else:
-            # Disable buttons when no client is selected
-            self.btn_edit.config(state="disabled")
-            self.btn_delete.config(state="disabled")
+            for btn in (self.btn_voir, self.btn_edit, self.btn_annuler,
+                        self.btn_reintegrer, self.btn_delete):
+                btn.config(state="disabled")
 
     def _load_clients(self):
         """Load and display all clients"""
@@ -259,7 +340,9 @@ class ClientList:
 
         # Add filtered clients
         for client in self.filtered_clients:
+            statut = client.get("statut") or "En cours"
             values = (
+                statut,
                 client["row_number"],
                 client["timestamp"],
                 client["ref_client"],
@@ -267,15 +350,13 @@ class ClientList:
                 client["telephone"],
                 client["email"],
                 client["periode"],
-                client["forfait"],
                 client["circuit"],
-                client.get("id_circuit", ""),
-                client.get("duree_circuit", ""),
-                client.get("condition_physique_circuit", ""),
-                client.get("type_voiture_circuit", ""),
+                client.get("date_arrivee", ""),
+                client.get("date_depart", ""),
+                client.get("duree_sejour", ""),
             )
             self.tree.insert(
-                "", "end", values=values, tags=(str(client["row_number"]),)
+                "", "end", values=values, tags=(statut,)
             )
 
         # Update status label
@@ -288,30 +369,26 @@ class ClientList:
         else:
             self.status_label.config(text=f"Total: {total_clients} client(s)")
 
-    def _on_search_change(self, *args):
-        """Handle search input change"""
+    def _on_filter_change(self, *args):
+        """Filter list by search text and/or statut."""
         search_text = self.search_var.get().lower()
-        if not search_text:
-            self.filtered_clients = self.clients.copy()
-        else:
-            self.filtered_clients = [
-                client
-                for client in self.clients
-                if (
-                    search_text in client["nom"].lower()
+        statut_filter = self.statut_filter_var.get()
+
+        self.filtered_clients = [
+            client for client in self.clients
+            if (
+                (statut_filter == "Tous" or (client.get("statut") or "En cours") == statut_filter)
+                and (
+                    not search_text
+                    or search_text in client["nom"].lower()
                     or search_text in client["ref_client"].lower()
                     or search_text in client["email"].lower()
                     or search_text in client["telephone"].lower()
                     or search_text in str(client.get("circuit", "")).lower()
-                    or search_text in str(client.get("id_circuit", "")).lower()
-                    or search_text in str(client.get("duree_circuit", "")).lower()
-                    or search_text
-                    in str(client.get("condition_physique_circuit", "")).lower()
-                    or search_text
-                    in str(client.get("type_voiture_circuit", "")).lower()
-                    or search_text in str(client.get("activite_circuit", "")).lower()
+                    or search_text in str(client.get("numero_dossier", "")).lower()
                 )
-            ]
+            )
+        ]
         self._update_treeview()
 
     def _show_context_menu(self, event):
@@ -329,13 +406,23 @@ class ClientList:
 
         item = selection[0]
         values = self.tree.item(item, "values")
-        row_number = int(values[0])
+        row_number = int(values[1])  # col 0 = statut, col 1 = row_number
 
         # Find client by row number
         for client in self.clients:
             if client["row_number"] == row_number:
                 return client
         return None
+
+    def _voir_or_edit(self):
+        """Double-clic : ouvrir en lecture seule si annulé, en édition sinon."""
+        client = self._get_selected_client()
+        if not client:
+            return
+        if (client.get("statut") or "En cours") == "Annulé":
+            self._view_details()
+        else:
+            self._edit_selected()
 
     def _edit_selected(self):
         """Edit the selected client"""
@@ -369,6 +456,42 @@ class ClientList:
                 messagebox.showerror(
                     "Erreur", "Erreur lors de la suppression du client"
                 )
+
+    def _annuler_selected(self):
+        """Annuler la réservation sélectionnée — passe le statut à 'Annulé'."""
+        client = self._get_selected_client()
+        if not client:
+            return
+        if not messagebox.askyesno(
+            "Confirmation d'annulation",
+            f"Voulez-vous annuler la réservation de {client['nom']} ?\n"
+            "Le dossier sera fermé et ne pourra plus être modifié\n"
+            "sauf réintégration.",
+            icon="warning",
+        ):
+            return
+        if update_client_statut(client["row_number"], "Annulé"):
+            messagebox.showinfo("Annulé", f"Dossier {client['nom']} annulé.")
+            self._load_clients()
+        else:
+            messagebox.showerror("Erreur", "Impossible d'annuler le dossier.")
+
+    def _reintegrer_selected(self):
+        """Réintégrer un dossier annulé — passe le statut à 'En cours'."""
+        client = self._get_selected_client()
+        if not client:
+            return
+        if not messagebox.askyesno(
+            "Confirmation de réintégration",
+            f"Voulez-vous réintégrer la réservation de {client['nom']} ?\n"
+            "Le statut repassera à 'En cours'.",
+        ):
+            return
+        if update_client_statut(client["row_number"], "En cours"):
+            messagebox.showinfo("Réintégré", f"Dossier {client['nom']} réintégré.")
+            self._load_clients()
+        else:
+            messagebox.showerror("Erreur", "Impossible de réintégrer le dossier.")
 
     def _view_details(self):
         """View detailed information of selected client"""

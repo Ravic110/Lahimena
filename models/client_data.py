@@ -16,6 +16,7 @@ class ClientData:
         self.timestamp = ""
         self.ref_client = ""
         self.numero_dossier = ""
+        self.statut = "En cours"
         self.type_client = ""  # Individuel ou Groupe
         self.prenom = ""
         self.nom = ""
@@ -38,6 +39,11 @@ class ClientData:
         self.location_voiture = ""
         self.enfant = ""
         self.age_enfant = ""
+        self.heure_arrivee = ""
+        self.heure_depart = ""
+        self.compagnie = ""
+        self.aeroport = ""
+        self.ext_ref = ""
         self.forfait = ""
         self.circuit = ""
         self.type_circuit = ""
@@ -89,11 +95,17 @@ class ClientData:
             "Restauration": self.restauration,
             "Hébergement": self.hebergement,
             "Chambre": self.chambre,
+            "Statut": self.statut,
             "Accompagnement_Guide": self.accompagnement_guide,
             "Accompagnement_Chauffeur": self.accompagnement_chauffeur,
             "Location_Voiture": self.location_voiture,
             "Enfant": self.enfant,
             "Âge_Enfant": self.age_enfant,
+            "Heure_Arrivee": self.heure_arrivee,
+            "Heure_Depart": self.heure_depart,
+            "Compagnie": self.compagnie,
+            "Aeroport": self.aeroport,
+            "Ext_Ref": self.ext_ref,
             "Forfait": self.forfait,
             "Circuit": self.circuit,
             "Type_Circuit": self.type_circuit,
@@ -110,6 +122,12 @@ class ClientData:
             "Ville_Arrivee": self.ville_arrivee,
             "Itineraire_Detail": self.itineraire_detail,
             "Type_Hotel_Arrivee": self.type_hotel_arrivee,
+            "Statut": self.statut,
+            "Heure_Arrivee": self.heure_arrivee,
+            "Heure_Depart": self.heure_depart,
+            "Compagnie": self.compagnie,
+            "Aeroport": self.aeroport,
+            "Ext_Ref": self.ext_ref,
             "SGL_Count": self.sgl_count,
             "DBL_Count": self.dbl_count,
             "TWN_Count": self.twn_count,
@@ -151,11 +169,17 @@ class ClientData:
         client.restauration = form_data.get("restauration", "")
         client.hebergement = form_data.get("hebergement", "")
         client.chambre = form_data.get("chambre", "")
+        client.statut = form_data.get("statut", client.statut)
         client.accompagnement_guide = form_data.get("accompagnement_guide", "")
         client.accompagnement_chauffeur = form_data.get("accompagnement_chauffeur", "")
         client.location_voiture = form_data.get("location_voiture", "")
         client.enfant = form_data.get("enfant", "")
         client.age_enfant = form_data.get("age_enfant", "")
+        client.heure_arrivee = form_data.get("heure_arrivee", "").strip()
+        client.heure_depart = form_data.get("heure_depart", "").strip()
+        client.compagnie = form_data.get("compagnie", "").strip()
+        client.aeroport = form_data.get("aeroport", "").strip()
+        client.ext_ref = form_data.get("ext_ref", "").strip()
         client.forfait = form_data.get("forfait", "")
         client.circuit = form_data.get("circuit", "")
         client.type_circuit = form_data.get("type_circuit", "")
@@ -196,11 +220,10 @@ class ClientData:
         """
         errors = []
 
-        if not self.ref_client:
-            errors.append("Référence client obligatoire")
+        # ref_client est auto-généré si vide — pas d'erreur ici
         if not self.type_client:
             errors.append("Titre obligatoire")
-        if not self.prenom:
+        if self.type_client != "CIE" and not self.prenom:
             errors.append("Prénom obligatoire")
         if not self.nom:
             errors.append("Nom obligatoire")

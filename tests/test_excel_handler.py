@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from models.client_data import ClientData
+from utils.cache import invalidate_client_cache
 from utils.excel_handler import (
     _invalidate_km_mada_cache,
     _load_km_mada_rows,
@@ -15,6 +17,8 @@ from utils.excel_handler import (
     create_backup,
     load_all_clients,
     load_all_hotels,
+    save_client_to_excel,
+    update_client_statut,
 )
 
 
@@ -102,6 +106,86 @@ class TestExcelLoading:
             # This would require mocking openpyxl
             hotels = load_all_hotels()
             assert isinstance(hotels, list)
+
+    def test_load_all_clients_keeps_status_and_flight_fields(self, tmp_path, monkeypatch):
+        """Status and new flight fields should round-trip through Excel."""
+        excel_path = tmp_path / "clients.xlsx"
+        monkeypatch.setattr("utils.excel_handler.CLIENT_EXCEL_PATH", str(excel_path))
+        invalidate_client_cache()
+
+        client = ClientData.from_form_data(
+            {
+                "ref_client": "LHM-R2603001",
+                "numero_dossier": "LHM-D2603001",
+                "type_client": "Mr",
+                "prenom": "Alice",
+                "nom": "Johnson",
+                "date_arrivee": "01/01/2026",
+                "date_depart": "05/01/2026",
+                "duree_sejour": "4 jours",
+                "nombre_participants": "2",
+                "nombre_adultes": "2",
+                "telephone": "+261340000000",
+                "email": "alice@example.com",
+                "periode": "Haute saison",
+                "circuit": "Sud",
+                "statut": "Accepté",
+                "heure_arrivee": "09:45",
+                "heure_depart": "18:20",
+                "compagnie": "Air Austral",
+                "aeroport": "Ivato",
+                "ext_ref": "EXT-42",
+            }
+        )
+
+        row_number = save_client_to_excel(client.to_dict())
+        invalidate_client_cache()
+        clients = load_all_clients()
+
+        assert row_number > 0
+        assert len(clients) == 1
+        assert clients[0]["statut"] == "Accepté"
+        assert clients[0]["heure_arrivee"] == "09:45"
+        assert clients[0]["heure_depart"] == "18:20"
+        assert clients[0]["compagnie"] == "Air Austral"
+        assert clients[0]["aeroport"] == "Ivato"
+        assert clients[0]["ext_ref"] == "EXT-42"
+
+    def test_update_client_statut_updates_visible_status(self, tmp_path, monkeypatch):
+        """Changing a status should persist even after merging extended info rows."""
+        excel_path = tmp_path / "clients.xlsx"
+        monkeypatch.setattr("utils.excel_handler.CLIENT_EXCEL_PATH", str(excel_path))
+        invalidate_client_cache()
+
+        client = ClientData.from_form_data(
+            {
+                "ref_client": "LHM-R2603002",
+                "numero_dossier": "LHM-D2603002",
+                "type_client": "Mr",
+                "prenom": "Bob",
+                "nom": "Martin",
+                "date_arrivee": "03/01/2026",
+                "date_depart": "06/01/2026",
+                "duree_sejour": "3 jours",
+                "nombre_participants": "1",
+                "nombre_adultes": "1",
+                "telephone": "+261340000001",
+                "email": "bob@example.com",
+                "periode": "Haute saison",
+                "circuit": "Nord",
+                "statut": "En cours",
+            }
+        )
+
+        row_number = save_client_to_excel(client.to_dict())
+        assert row_number > 0
+
+        assert update_client_statut(row_number, "Annulé") is True
+        invalidate_client_cache()
+        clients = load_all_clients()
+
+        assert len(clients) == 1
+        assert clients[0]["statut"] == "Annulé"
 
 
 class TestExcelFileOperations:

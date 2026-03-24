@@ -5,11 +5,24 @@ Main content GUI component
 import os
 import subprocess
 import sys
-from tkinter import messagebox
+import tkinter as tk
+from tkinter import messagebox, ttk
 
 import customtkinter as ctk
 
-from config import FINANCIAL_EXCEL_PATH, MAIN_BG_COLOR
+from config import (
+    BUTTON_BLUE,
+    BUTTON_GREEN,
+    BUTTON_RED,
+    FINANCIAL_EXCEL_PATH,
+    MAIN_BG_COLOR,
+    PANEL_BG_COLOR,
+    TEXT_COLOR,
+    MUTED_TEXT_COLOR,
+    INPUT_BG_COLOR,
+    ENTRY_FONT,
+    LABEL_FONT,
+)
 
 
 class MainContent:
@@ -29,22 +42,132 @@ class MainContent:
         self._tsarakonta_process = None
         self._embedded_tsarakonta = None
 
-        # Create scrollable main content
+        # Outer container (topbar + scrollable content)
+        self._container = ctk.CTkFrame(parent, fg_color=MAIN_BG_COLOR, corner_radius=0)
+        self._container.grid(row=0, column=1, sticky="nswe")
+        self._container.grid_rowconfigure(0, weight=0)
+        self._container.grid_rowconfigure(1, weight=1)
+        self._container.grid_columnconfigure(0, weight=1)
+
+        # Topbar with 3 icons
+        self._build_topbar()
+
+        # Scrollable main content
         self.main_scroll = ctk.CTkScrollableFrame(
-            parent, corner_radius=0, fg_color=MAIN_BG_COLOR
+            self._container, corner_radius=0, fg_color=MAIN_BG_COLOR
         )
-        self.main_scroll.grid(row=0, column=1, sticky="nswe", padx=(0, 0))
+        self.main_scroll.grid(row=1, column=0, sticky="nswe")
 
         self._show_welcome()
 
-    def update_content(self, content_type):
+    # ── Topbar ────────────────────────────────────────────────────────────
+
+    def _build_topbar(self):
+        """Create the persistent top bar with Bienvenue / Chercher / Résa LHM."""
+        topbar = ctk.CTkFrame(
+            self._container,
+            fg_color=PANEL_BG_COLOR,
+            corner_radius=0,
+            height=44,
+            border_width=0,
+        )
+        topbar.grid(row=0, column=0, sticky="ew")
+        topbar.grid_propagate(False)
+
+        # Right-side icons container
+        icons = ctk.CTkFrame(topbar, fg_color="transparent")
+        icons.pack(side="right", padx=12, pady=6)
+
+        # ── Résa LHM ──────────────────────────────────────────────────
+        ctk.CTkButton(
+            icons,
+            text="📋 Résa LHM",
+            width=110,
+            height=30,
+            fg_color=BUTTON_BLUE,
+            hover_color="#1565C0",
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            command=lambda: self.update_content("client_page"),
+        ).pack(side="right", padx=(6, 0))
+
+        # ── Chercher ──────────────────────────────────────────────────
+        ctk.CTkButton(
+            icons,
+            text="🔍 Chercher",
+            width=110,
+            height=30,
+            fg_color=BUTTON_GREEN,
+            hover_color="#2E7D32",
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            command=self._open_search_dialog,
+        ).pack(side="right", padx=(6, 0))
+
+        # ── Bienvenue ─────────────────────────────────────────────────
+        ctk.CTkButton(
+            icons,
+            text="🏠 Bienvenue",
+            width=110,
+            height=30,
+            fg_color=BUTTON_RED,
+            hover_color="#B71C1C",
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            command=self._go_home,
+        ).pack(side="right", padx=(0, 0))
+
+        # ── Comptes (admin uniquement) — côté gauche ─────────────────
+        try:
+            from utils.auth_handler import is_admin
+            if is_admin():
+                ctk.CTkButton(
+                    topbar,
+                    text="👤 Comptes",
+                    width=100,
+                    height=30,
+                    fg_color="#455A64",
+                    hover_color="#263238",
+                    corner_radius=8,
+                    font=ctk.CTkFont(size=12, weight="bold"),
+                    command=self._open_account_management,
+                ).pack(side="left", padx=(12, 0), pady=6)
+        except Exception:
+            pass
+
+    def _go_home(self):
+        """Navigate to home page with confirmation if not already there."""
+        if self.current_content_type in ("welcome", "home"):
+            return
+        if messagebox.askyesno(
+            "Retour à l'accueil",
+            "Voulez-vous retourner à l'accueil ?\n"
+            "Les modifications non enregistrées seront perdues.",
+            icon="warning",
+        ):
+            self.update_content("welcome")
+
+    def _open_search_dialog(self):
+        """Open the client search dialog."""
+        _SearchDialog(self._container, self.update_content)
+
+    def _open_account_management(self):
+        """Open account management window (admin only)."""
+        from gui.forms.account_management import AccountManagementWindow
+        AccountManagementWindow(self._container)
+
+    # ── /Topbar ───────────────────────────────────────────────────────────
+
+    def update_content(self, content_type, **kwargs):
         """
         Update main content based on selected menu item
 
         Args:
             content_type (str): Type of content to display
+            **kwargs: Optional data forwarded to the target view (e.g. client_to_edit)
         """
         self.current_content_type = content_type
+        self._nav_kwargs = kwargs
         # Clear current content
         for widget in self.main_scroll.winfo_children():
             widget.destroy()
@@ -113,6 +236,7 @@ class MainContent:
 
     def refresh(self):
         """Re-render the current view after a theme change."""
+        self._container.configure(fg_color=MAIN_BG_COLOR)
         self.main_scroll.configure(fg_color=MAIN_BG_COLOR)
         self.update_content(self.current_content_type)
 
@@ -138,7 +262,9 @@ class MainContent:
         """Show combined client form + list page."""
         from gui.forms.client_page import ClientPage
 
-        ClientPage(self.main_scroll)
+        client_to_edit = getattr(self, "_nav_kwargs", {}).get("client_to_edit")
+        self._nav_kwargs = {}
+        ClientPage(self.main_scroll, client_to_edit=client_to_edit)
 
     def _show_database_hub_page(self):
         """Show dedicated database hub page."""
@@ -715,3 +841,154 @@ class MainContent:
     def _on_hotel_saved(self):
         """Callback after hotel is saved/updated"""
         self._show_hotel_list()
+
+
+class _SearchDialog(tk.Toplevel):
+    """Dialog de recherche de dossier client (Chercher)."""
+
+    def __init__(self, parent, navigate_callback):
+        super().__init__(parent)
+        self.title("Rechercher un dossier client")
+        self.geometry("560x420")
+        self.configure(bg=PANEL_BG_COLOR)
+        self.resizable(False, False)
+        self.transient(parent)
+        self._navigate = navigate_callback
+        self._results = []
+
+        self.after(0, self._safe_grab)
+        self._build_ui()
+
+    def _safe_grab(self):
+        try:
+            self.wait_visibility()
+            self.grab_set()
+        except Exception:
+            pass
+
+    def _build_ui(self):
+        # Title
+        ctk.CTkLabel(
+            self,
+            text="Recherche de dossier client",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=TEXT_COLOR,
+        ).pack(pady=(16, 4))
+
+        ctk.CTkLabel(
+            self,
+            text="Entrez au moins le N° de dossier ou le Nom pour rechercher.",
+            font=ctk.CTkFont(size=12),
+            text_color=MUTED_TEXT_COLOR,
+        ).pack(pady=(0, 12))
+
+        fields_frame = ctk.CTkFrame(self, fg_color=PANEL_BG_COLOR)
+        fields_frame.pack(fill="x", padx=20, pady=(0, 8))
+
+        def _row(parent, label, attr):
+            row = tk.Frame(parent, bg=PANEL_BG_COLOR)
+            row.pack(fill="x", pady=3)
+            tk.Label(row, text=label, font=("Poppins", 10), fg=TEXT_COLOR,
+                     bg=PANEL_BG_COLOR, width=16, anchor="w").pack(side="left")
+            var = tk.StringVar()
+            entry = tk.Entry(row, textvariable=var, font=("Poppins", 10),
+                             bg=INPUT_BG_COLOR, fg=TEXT_COLOR, relief="flat",
+                             highlightthickness=1, highlightbackground="#9EC7CF")
+            entry.pack(side="left", fill="x", expand=True)
+            setattr(self, attr, var)
+            return entry
+
+        self._e_dossier = _row(fields_frame, "N° Dossier", "_var_dossier")
+        self._e_nom = _row(fields_frame, "Nom client", "_var_nom")
+        self._e_email = _row(fields_frame, "Email", "_var_email")
+        self._e_dossier.focus_set()
+        self._e_dossier.bind("<Return>", lambda e: self._search())
+        self._e_nom.bind("<Return>", lambda e: self._search())
+
+        ctk.CTkButton(
+            self, text="🔍 Rechercher", width=160, height=32,
+            fg_color=BUTTON_BLUE, hover_color="#1565C0",
+            corner_radius=8, font=ctk.CTkFont(size=12, weight="bold"),
+            command=self._search,
+        ).pack(pady=(0, 10))
+
+        # Results treeview
+        tree_frame = tk.Frame(self, bg=PANEL_BG_COLOR)
+        tree_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+
+        cols = ("dossier", "nom", "email", "statut", "arrivee")
+        self._tree = ttk.Treeview(tree_frame, columns=cols, show="headings", height=7)
+        headers = {"dossier": "N° Dossier", "nom": "Nom", "email": "Email",
+                   "statut": "Statut", "arrivee": "Arrivée"}
+        widths = {"dossier": 120, "nom": 140, "email": 140, "statut": 90, "arrivee": 90}
+        for c in cols:
+            self._tree.heading(c, text=headers[c])
+            self._tree.column(c, width=widths[c], minwidth=60)
+
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self._tree.yview)
+        self._tree.configure(yscrollcommand=vsb.set)
+        self._tree.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+        self._tree.bind("<Double-1>", self._open_selected)
+
+        ctk.CTkButton(
+            self, text="Ouvrir le dossier", width=160, height=30,
+            fg_color=BUTTON_GREEN, hover_color="#2E7D32",
+            corner_radius=8, font=ctk.CTkFont(size=12, weight="bold"),
+            command=self._open_selected,
+        ).pack(pady=(0, 12))
+
+    def _search(self):
+        from utils.excel_handler import load_all_clients
+        dossier = self._var_dossier.get().strip().lower()
+        nom = self._var_nom.get().strip().lower()
+        email = self._var_email.get().strip().lower()
+
+        if not dossier and not nom and not email:
+            messagebox.showwarning(
+                "Critère manquant",
+                "Veuillez entrer au moins un critère de recherche.",
+                parent=self,
+            )
+            return
+
+        try:
+            clients = load_all_clients()
+        except Exception:
+            clients = []
+
+        self._results = [
+            c for c in clients
+            if (not dossier or dossier in str(c.get("numero_dossier", "")).lower()
+                or dossier in str(c.get("ref_client", "")).lower())
+            and (not nom or nom in str(c.get("nom", "")).lower())
+            and (not email or email in str(c.get("email", "")).lower())
+        ]
+
+        for item in self._tree.get_children():
+            self._tree.delete(item)
+
+        for c in self._results:
+            self._tree.insert("", "end", values=(
+                c.get("numero_dossier") or c.get("ref_client", ""),
+                c.get("nom", ""),
+                c.get("email", ""),
+                c.get("statut") or "En cours",
+                c.get("date_arrivee", ""),
+            ))
+
+        if not self._results:
+            messagebox.showinfo("Aucun résultat", "Aucun dossier trouvé.", parent=self)
+
+    def _open_selected(self, event=None):
+        selection = self._tree.selection()
+        if not selection:
+            return
+        idx = self._tree.index(selection[0])
+        if idx >= len(self._results):
+            return
+        client = self._results[idx]
+        self.destroy()
+        # Navigate to client form in edit mode via client_page
+        # We pass the client via a global signal if supported, otherwise go to list
+        self._navigate("client_page")

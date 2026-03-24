@@ -332,6 +332,7 @@ def save_client_to_excel(client_data):
         "Âge Enfant",
         "Forfait",
         "Circuit",
+        "Statut",
         "SGL",
         "DBL",
         "TWN",
@@ -394,6 +395,7 @@ def save_client_to_excel(client_data):
         "Âge Enfant": ["Âge_Enfant", "age_enfant"],
         "Forfait": ["Forfait", "forfait"],
         "Circuit": ["Circuit", "circuit"],
+        "Statut": ["Statut", "statut"],
         "SGL": ["SGL_Count", "sgl_count"],
         "DBL": ["DBL_Count", "dbl_count"],
         "TWN": ["TWN_Count", "twn_count"],
@@ -458,8 +460,14 @@ def _save_client_infos_to_excel(client_data):
         "Restauration",
         "Hébergement",
         "Chambre",
+        "Statut",
         "Enfant",
         "Âge Enfant",
+        "Heure Arrivée",
+        "Heure Départ",
+        "Compagnie",
+        "Aéroport",
+        "Réf. Externe",
         "Forfait",
         "Circuit",
         "Type Circuit",
@@ -536,8 +544,14 @@ def _save_client_infos_to_excel(client_data):
         "Restauration": ["Restauration", "restauration"],
         "Hébergement": ["Hébergement", "hebergement"],
         "Chambre": ["Chambre", "chambre"],
+        "Statut": ["Statut", "statut"],
         "Enfant": ["Enfant", "enfant"],
         "Âge Enfant": ["Âge_Enfant", "age_enfant"],
+        "Heure Arrivée": ["Heure_Arrivee", "heure_arrivee"],
+        "Heure Départ": ["Heure_Depart", "heure_depart"],
+        "Compagnie": ["Compagnie", "compagnie"],
+        "Aéroport": ["Aeroport", "aeroport"],
+        "Réf. Externe": ["Ext_Ref", "ext_ref"],
         "Forfait": ["Forfait", "forfait"],
         "Circuit": ["Circuit", "circuit"],
         "Type Circuit": ["Type_Circuit", "type_circuit"],
@@ -648,6 +662,7 @@ def load_all_clients():
             "age_enfant": _cell("Âge Enfant", f"K{row}") or "",
             "forfait": _cell("Forfait", f"L{row}") or "",
             "circuit": _cell("Circuit", f"M{row}") or "",
+            "statut": _cell("Statut") or "En cours",
             "sgl_count": _cell("SGL") or "",
             "dbl_count": _cell("DBL") or "",
             "twn_count": _cell("TWN") or "",
@@ -656,7 +671,9 @@ def load_all_clients():
         }
         ref_key = client.get("ref_client")
         if ref_key and ref_key in infos_map:
+            main_status = client.get("statut") or "En cours"
             client.update(infos_map[ref_key])
+            client["statut"] = client.get("statut") or main_status
         clients.append(client)
 
     return clients
@@ -712,6 +729,7 @@ def update_client_in_excel(row_number, client_data):
         "Âge Enfant",
         "Forfait",
         "Circuit",
+        "Statut",
         "SGL",
         "DBL",
         "TWN",
@@ -752,6 +770,7 @@ def update_client_in_excel(row_number, client_data):
         "Âge Enfant": ["Âge_Enfant", "age_enfant"],
         "Forfait": ["Forfait", "forfait"],
         "Circuit": ["Circuit", "circuit"],
+        "Statut": ["Statut", "statut"],
         "SGL": ["SGL_Count", "sgl_count"],
         "DBL": ["DBL_Count", "dbl_count"],
         "TWN": ["TWN_Count", "twn_count"],
@@ -771,6 +790,68 @@ def update_client_in_excel(row_number, client_data):
     invalidate_client_cache()
     _save_client_infos_to_excel(client_data)
     return True
+
+
+def update_client_statut(row_number, new_statut):
+    """
+    Update only the Statut cell of a client row.
+
+    Args:
+        row_number (int): Excel row number of the client
+        new_statut (str): New statut value
+
+    Returns:
+        bool: True if successful
+    """
+    if not OPENPYXL_AVAILABLE:
+        return False
+    if not os.path.exists(CLIENT_EXCEL_PATH):
+        return False
+
+    wb = load_workbook(CLIENT_EXCEL_PATH)
+    try:
+        if CLIENT_SHEET_NAME not in wb.sheetnames:
+            return False
+
+        ws = wb[CLIENT_SHEET_NAME]
+        header_map = _ensure_headers(ws, [])
+        status_col = header_map.get("Statut")
+        ref_col = header_map.get("Réf. Client")
+        if not status_col:
+            return False
+
+        ws.cell(row=row_number, column=status_col, value=new_statut)
+
+        ref_client = ""
+        if ref_col:
+            ref_value = ws.cell(row=row_number, column=ref_col).value
+            ref_client = "" if ref_value is None else str(ref_value).strip()
+
+        if CLIENT_INFOS_SHEET_NAME in wb.sheetnames and ref_client:
+            info_ws = wb[CLIENT_INFOS_SHEET_NAME]
+            info_header_map = _ensure_headers(
+                info_ws,
+                ["Réf. Client", "Statut"],
+            )
+            info_ref_col = info_header_map.get("Réf. Client")
+            info_status_col = info_header_map.get("Statut")
+            if info_ref_col and info_status_col:
+                for info_row in range(2, info_ws.max_row + 1):
+                    info_ref_value = info_ws.cell(row=info_row, column=info_ref_col).value
+                    if info_ref_value is None:
+                        continue
+                    if str(info_ref_value).strip() == ref_client:
+                        info_ws.cell(row=info_row, column=info_status_col, value=new_statut)
+                        break
+
+        wb.save(CLIENT_EXCEL_PATH)
+        invalidate_client_cache()
+        return True
+    finally:
+        try:
+            wb.close()
+        except Exception:
+            pass
 
 
 def _load_client_infos_map():
@@ -804,6 +885,12 @@ def _load_client_infos_map():
             continue
         infos_map[ref_client] = {
             "numero_dossier": _cell(row, "Numéro Dossier") or "",
+            "statut": _cell(row, "Statut") or "",
+            "heure_arrivee": _cell(row, "Heure Arrivée") or "",
+            "heure_depart": _cell(row, "Heure Départ") or "",
+            "compagnie": _cell(row, "Compagnie") or "",
+            "aeroport": _cell(row, "Aéroport") or _cell(row, "Aeroport") or "",
+            "ext_ref": _cell(row, "Réf. Externe") or _cell(row, "Ref. Externe") or "",
             "type_circuit": _cell(row, "Type Circuit") or "",
             "id_circuit": _cell(row, "ID Circuit") or "",
             "itineraire_circuit": _cell(row, "Itinéraire Circuit") or "",

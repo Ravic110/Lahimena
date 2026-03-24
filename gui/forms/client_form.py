@@ -399,7 +399,7 @@ class ClientForm:
         return value
 
     def _make_calendar_badge(self, parent, entry_widget, label_text="📅"):
-        """Create a styled square calendar badge button."""
+        """Create a simple calendar icon button."""
         badge = tk.Canvas(
             parent,
             width=28,
@@ -408,20 +408,12 @@ class ClientForm:
             highlightthickness=0,
             cursor="hand2",
         )
-        badge.create_rectangle(
-            2, 2, 26, 26,
-            fill=BUTTON_RED,
-            outline=BUTTON_RED,
-            width=0,
-        )
         badge.create_text(
             14, 14,
-            text=label_text,
-            fill="white",
-            font=("Poppins", 9, "bold"),
+            text="📅",
+            font=("Poppins", 13),
         )
         badge.bind("<Button-1>", lambda e: self._open_calendar(entry_widget))
-        badge.bind("<Enter>", lambda e: badge.configure(cursor="hand2"))
         return badge
 
     def _create_form(self):
@@ -464,12 +456,6 @@ class ClientForm:
                 fg=MUTED_TEXT_COLOR,
                 bg=MAIN_BG_COLOR,
             ).pack()
-
-        actions = tk.Frame(top_bar, bg=MAIN_BG_COLOR)
-        actions.pack(side="right")
-        _top_action(actions, "Bienvenue", "👤")
-        _top_action(actions, "Chercher", "🔍")
-        _top_action(actions, "Resa LHM", "🗓")
 
         use_ctk = ctk is not None and hasattr(ctk, "CTkFrame")
         if use_ctk:
@@ -514,7 +500,12 @@ class ClientForm:
             bg=CARD_BG_COLOR,
         ).pack(anchor="center")
 
-        creator = os.getenv("LHM_USER") or getpass.getuser() or "-"
+        try:
+            from utils.auth_handler import get_current_user
+            _u = get_current_user()
+            creator = f"{_u['username']} ({_u['role']})" if _u else (os.getenv("LHM_USER") or getpass.getuser() or "-")
+        except Exception:
+            creator = os.getenv("LHM_USER") or getpass.getuser() or "-"
         current_datetime = datetime.now().strftime("%d/%m/%Y à %H:%M:%S")
         tk.Label(
             title_block,
@@ -614,12 +605,47 @@ class ClientForm:
         info_card = create_card(
             left_col,
             title=None,
-            tabs=[("Clients", True), ("Compléments", False)],
+            tabs=None,
             show_controls=False,
         )
 
+        # ── Onglets cliquables ──────────────────────────────────────────
+        _tab_header = tk.Frame(info_card, bg=PANEL_BG_COLOR)
+        _tab_header.pack(fill="x")
+
+        _lbl_tab_clients = tk.Label(
+            _tab_header, text="Clients", bg=BUTTON_RED, fg="white",
+            font=("Poppins", 10, "bold"), padx=10, pady=3, cursor="hand2",
+        )
+        _lbl_tab_clients.pack(side="left", padx=(0, 6))
+        _lbl_tab_compl = tk.Label(
+            _tab_header, text="Compléments", bg=BUTTON_BLUE, fg="white",
+            font=("Poppins", 10, "bold"), padx=10, pady=3, cursor="hand2",
+        )
+        _lbl_tab_compl.pack(side="left")
+        tk.Frame(info_card, bg=BUTTON_RED, height=2).pack(fill="x", pady=(6, 8))
+
+        clients_panel = tk.Frame(info_card, bg=PANEL_BG_COLOR)
+        clients_panel.pack(fill="x")
+        complements_panel = tk.Frame(info_card, bg=PANEL_BG_COLOR)
+
+        def _switch_tab(tab):
+            if tab == "clients":
+                _lbl_tab_clients.configure(bg=BUTTON_RED)
+                _lbl_tab_compl.configure(bg=BUTTON_BLUE)
+                complements_panel.pack_forget()
+                clients_panel.pack(fill="x")
+            else:
+                _lbl_tab_clients.configure(bg=BUTTON_BLUE)
+                _lbl_tab_compl.configure(bg=BUTTON_RED)
+                clients_panel.pack_forget()
+                complements_panel.pack(fill="x")
+
+        _lbl_tab_clients.bind("<Button-1>", lambda e: _switch_tab("clients"))
+        _lbl_tab_compl.bind("<Button-1>", lambda e: _switch_tab("complements"))
+
         def _field_type_client(parent):
-            values = ["Mr", "Mme"]
+            values = ["Mr", "Mme", "CIE"]
             if ctk is not None:
                 self.combo_type_client = ctk.CTkComboBox(
                     parent,
@@ -651,6 +677,31 @@ class ClientForm:
             self.entry_nom = styled_entry(parent)
             self._apply_placeholder(self.entry_nom, "Nom")
             self.entry_nom.pack(fill="x")
+
+            def _force_upper(event=None):
+                try:
+                    # Ne rien faire si le placeholder est actif (tk.Entry)
+                    if getattr(self.entry_nom, "_placeholder_active", False):
+                        return
+                    cur = self.entry_nom.get()
+                    # Pour CTK, get() retourne "" quand placeholder affiché → pas de risque
+                    upper = cur.upper()
+                    if cur != upper:
+                        try:
+                            pos = self.entry_nom.index(tk.INSERT)
+                        except Exception:
+                            pos = tk.END
+                        self.entry_nom.delete(0, tk.END)
+                        self.entry_nom.insert(0, upper)
+                        try:
+                            self.entry_nom.icursor(pos)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                self._update_rooming_identity()
+
+            self.entry_nom.bind("<KeyRelease>", lambda e: _force_upper())
 
         def _field_prenom(parent):
             self.entry_prenom = styled_entry(parent)
@@ -787,7 +838,7 @@ class ClientForm:
                 lambda e: self.whatsapp_number_var.set(self.entry_telephone.get()),
             )
 
-        title_row = tk.Frame(info_card, bg=PANEL_BG_COLOR)
+        title_row = tk.Frame(clients_panel, bg=PANEL_BG_COLOR)
         title_row.pack(fill="x", pady=(0, 6))
         title_col = tk.Frame(title_row, bg=PANEL_BG_COLOR)
         title_col.pack(side="left", padx=(0, 8))
@@ -826,7 +877,7 @@ class ClientForm:
         )
 
         # Email + Mobile alignés avec le champ Nom (spacer = largeur de title_col)
-        email_mobile_row = tk.Frame(info_card, bg=PANEL_BG_COLOR)
+        email_mobile_row = tk.Frame(clients_panel, bg=PANEL_BG_COLOR)
         email_mobile_row.pack(fill="x")
         spacer = tk.Frame(email_mobile_row, bg=PANEL_BG_COLOR, width=106)
         spacer.pack_propagate(False)
@@ -839,23 +890,113 @@ class ClientForm:
         self.entry_prenom.bind(
             "<KeyRelease>", lambda e: self._update_rooming_identity()
         )
-        self.entry_nom.bind("<KeyRelease>", lambda e: self._update_rooming_identity())
 
         def _field_ref(parent):
-            self.entry_ref_client = styled_entry(parent)
+            self.entry_ref_client = styled_entry(parent, readonly=True)
+            self._apply_placeholder(self.entry_ref_client, "Auto-généré")
             self.entry_ref_client.pack(fill="x")
 
         def _field_dossier(parent):
-            self.entry_numero_dossier = styled_entry(parent)
+            self.entry_numero_dossier = styled_entry(parent, readonly=True)
+            self._apply_placeholder(self.entry_numero_dossier, "Auto-généré")
             self.entry_numero_dossier.pack(fill="x")
 
         two_column_row(
-            info_card,
-            "Référence client *",
+            clients_panel,
+            "Référence client",
             _field_ref,
             "Numéro de dossier",
             _field_dossier,
         )
+
+        # ── Statut dossier ───────────────────────────────────────────────
+        STATUTS = ["En cours", "Accepté", "En circuit", "Annulé"]
+        STATUT_COLORS = {
+            "En cours":   "#00BCD4",
+            "Accepté":    "#4CAF50",
+            "En circuit": "#FF9800",
+            "Annulé":     "#F44336",
+        }
+
+        statut_row = tk.Frame(clients_panel, bg=PANEL_BG_COLOR)
+        statut_row.pack(fill="x", pady=(4, 0))
+        tk.Label(
+            statut_row, text="Statut", font=LABEL_FONT,
+            fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+        ).pack(side="left", padx=(0, 8))
+
+        self._statut_var = tk.StringVar(value="En cours")
+        self._statut_btns = {}
+
+        for s in STATUTS:
+            btn = tk.Label(
+                statut_row, text=s, font=("Poppins", 9, "bold"),
+                bg=PANEL_BG_COLOR, fg=TEXT_COLOR,
+                padx=10, pady=3, cursor="hand2",
+                relief="flat",
+                highlightbackground=STATUT_COLORS[s], highlightthickness=1,
+            )
+            btn.pack(side="left", padx=(0, 6))
+            btn.bind("<Button-1>", lambda e, v=s: self._apply_statut(v))
+            self._statut_btns[s] = btn
+
+        self._apply_statut("En cours")
+
+        # ── Contenu onglet Compléments ──────────────────────────────────
+        COMPAGNIES = [
+            "Air Madagascar", "Air France", "Corsair", "Ethiopian Airlines",
+            "Kenya Airways", "Réunion Air Transport", "Air Austral",
+            "Turkish Airlines", "Emirates", "Autre",
+        ]
+
+        def _field_heure_arrivee(parent):
+            self.entry_heure_arrivee = styled_entry(parent, width=8)
+            self._apply_placeholder(self.entry_heure_arrivee, "hh:mm")
+            self.entry_heure_arrivee.pack(fill="x")
+
+        def _field_heure_depart(parent):
+            self.entry_heure_depart = styled_entry(parent, width=8)
+            self._apply_placeholder(self.entry_heure_depart, "hh:mm")
+            self.entry_heure_depart.pack(fill="x")
+
+        def _field_compagnie(parent):
+            if ctk:
+                self.combo_compagnie = ctk.CTkComboBox(
+                    parent, values=COMPAGNIES, state="readonly",
+                    font=ENTRY_FONT, corner_radius=8,
+                    fg_color=INPUT_BG_COLOR, text_color=TEXT_COLOR,
+                    button_color="#C9DDE3", button_hover_color=BUTTON_BLUE,
+                    border_color="#C9DDE3", border_width=1,
+                    dropdown_fg_color=INPUT_BG_COLOR, dropdown_text_color=TEXT_COLOR,
+                    dropdown_hover_color="#E8F4F8", height=34,
+                )
+            else:
+                self.combo_compagnie = ttk.Combobox(
+                    parent, values=COMPAGNIES, state="readonly", font=ENTRY_FONT,
+                )
+            self.combo_compagnie.pack(fill="x")
+
+        def _field_aeroport(parent):
+            self.entry_aeroport = styled_entry(parent)
+            self._apply_placeholder(self.entry_aeroport, "Ex: Ivato International")
+            self.entry_aeroport.pack(fill="x")
+
+        def _field_ext_ref(parent):
+            self.entry_ext_ref = styled_entry(parent)
+            self.entry_ext_ref.pack(fill="x")
+
+        tk.Label(
+            complements_panel, text="Infos vol",
+            font=("Poppins", 10, "bold"), fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+        ).pack(anchor="w", pady=(0, 8))
+
+        two_column_row(complements_panel,
+            "Heure d'arrivée", _field_heure_arrivee,
+            "Heure de départ", _field_heure_depart,
+        )
+        inline_row(complements_panel, "Compagnie aérienne", _field_compagnie, pady=(0, 6))
+        inline_row(complements_panel, "Aéroport international", _field_aeroport, pady=(0, 6))
+        inline_row(complements_panel, "Réf. externe (Ext. Ref)", _field_ext_ref, pady=(0, 6))
 
         # ===== CARD: SEJOUR =====
         stay_card = create_card(right_col, title="Séjour")
@@ -924,12 +1065,10 @@ class ClientForm:
                     font=ENTRY_FONT,
                     fill=TEXT_COLOR if val else MUTED_TEXT_COLOR,
                 )
-                # Icône calendrier (rouge, à droite)
-                ix1, iy1, ix2, iy2 = w - 30, 5, w - 4, _CHIP_H - 5
-                chip.create_rectangle(ix1, iy1, ix2, iy2,
-                                      fill=BUTTON_RED, outline="", width=0)
-                chip.create_text((ix1 + ix2) // 2, _CHIP_H // 2,
-                                 text="📅", fill="white", font=("Poppins", 9, "bold"))
+                # Icône calendrier simple
+                chip.create_text(w - 16, _CHIP_H // 2,
+                                 text="📅", anchor="center",
+                                 font=("Poppins", 11))
 
             date_var.trace_add("write", _draw)
             chip.bind("<Configure>", _draw)
@@ -1001,14 +1140,25 @@ class ClientForm:
         _sl(accompagnement_frame, "Accompagnement").pack(anchor="w")
         self.var_accompagnement_guide = tk.BooleanVar()
         self.var_accompagnement_chauffeur = tk.BooleanVar()
+
+        def _on_guide_checked():
+            if self.var_accompagnement_guide.get():
+                self.var_accompagnement_chauffeur.set(False)
+
+        def _on_chauffeur_checked():
+            if self.var_accompagnement_chauffeur.get():
+                self.var_accompagnement_guide.set(False)
+
         tk.Checkbutton(
             accompagnement_frame, text="Avec guide accompagnateur",
             variable=self.var_accompagnement_guide,
+            command=_on_guide_checked,
             fg=TEXT_COLOR, bg=PANEL_BG_COLOR, selectcolor=BUTTON_GREEN, font=LABEL_FONT,
         ).pack(anchor="w")
         tk.Checkbutton(
             accompagnement_frame, text="Avec Chauffeur-guide",
             variable=self.var_accompagnement_chauffeur,
+            command=_on_chauffeur_checked,
             fg=TEXT_COLOR, bg=PANEL_BG_COLOR, selectcolor=BUTTON_GREEN, font=LABEL_FONT,
         ).pack(anchor="w")
 
@@ -1418,11 +1568,21 @@ class ClientForm:
         else:
             numero = telephone
 
-        # Populate basic fields
-        self.entry_ref_client.insert(0, self.client_to_edit.get("ref_client", ""))
-        self.entry_numero_dossier.insert(
-            0, self.client_to_edit.get("numero_dossier", "")
-        )
+        # Populate basic fields (readonly → normal → insert → readonly)
+        for entry, key in (
+            (self.entry_ref_client, "ref_client"),
+            (self.entry_numero_dossier, "numero_dossier"),
+        ):
+            try:
+                entry.configure(state="normal")
+            except Exception:
+                pass
+            entry.delete(0, tk.END)
+            entry.insert(0, self.client_to_edit.get(key, ""))
+            try:
+                entry.configure(state="readonly")
+            except Exception:
+                pass
         self._clear_placeholder(self.entry_prenom)
         self._clear_placeholder(self.entry_nom)
         self.entry_prenom.insert(0, self.client_to_edit.get("prenom", ""))
@@ -1470,6 +1630,21 @@ class ClientForm:
         if hasattr(self, "whatsapp_number_var"):
             self.whatsapp_number_var.set(numero_whatsapp or numero)
 
+        # Statut dossier
+        saved_statut = self.client_to_edit.get("statut", "En cours") or "En cours"
+        self._apply_statut(saved_statut)
+
+        # Compléments (infos vol)
+        self.entry_heure_arrivee.delete(0, tk.END)
+        self.entry_heure_arrivee.insert(0, self.client_to_edit.get("heure_arrivee", ""))
+        self.entry_heure_depart.delete(0, tk.END)
+        self.entry_heure_depart.insert(0, self.client_to_edit.get("heure_depart", ""))
+        self.combo_compagnie.set(self.client_to_edit.get("compagnie", ""))
+        self.entry_aeroport.delete(0, tk.END)
+        self.entry_aeroport.insert(0, self.client_to_edit.get("aeroport", ""))
+        self.entry_ext_ref.delete(0, tk.END)
+        self.entry_ext_ref.insert(0, self.client_to_edit.get("ext_ref", ""))
+
         # Accompagnement / Location voiture
         guide_value = str(self.client_to_edit.get("accompagnement_guide", "")).strip().lower()
         chauffeur_value = str(
@@ -1503,7 +1678,7 @@ class ClientForm:
         self._update_rooming_summary()
         # Combo boxes
         type_client = self.client_to_edit.get("type_client", "").strip()
-        self.combo_type_client.set(type_client if type_client in ("Mr", "Mme") else "Mr")
+        self.combo_type_client.set(type_client if type_client in ("Mr", "Mme", "CIE") else "Mr")
         self.combo_periode.set(self.client_to_edit.get("periode", ""))
         self.combo_restauration.set(self.client_to_edit.get("restauration", ""))
         self.combo_TypeHebergement.set(self.client_to_edit.get("hebergement", ""))
@@ -1991,11 +2166,21 @@ class ClientForm:
                         pass
                     break
 
+        # Auto-generate ref/dossier for new clients if not already set
+        ref_client_val = self._get_entry_value(self.entry_ref_client).strip()
+        numero_dossier_val = self._get_entry_value(self.entry_numero_dossier).strip()
+        if not self.client_to_edit and (not ref_client_val or not numero_dossier_val):
+            ref_auto, doss_auto = self._generate_client_refs()
+            if not ref_client_val:
+                ref_client_val = ref_auto
+            if not numero_dossier_val:
+                numero_dossier_val = doss_auto
+
         form_data = {
             "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M"),
             "date_jour": self.entry_date_jour.get(),
-            "ref_client": self.entry_ref_client.get().strip(),
-            "numero_dossier": self.entry_numero_dossier.get().strip(),
+            "ref_client": ref_client_val,
+            "numero_dossier": numero_dossier_val,
             "type_client": type_client,
             "prenom": self._get_entry_value(self.entry_prenom).strip(),
             "nom": self._get_entry_value(self.entry_nom).strip(),
@@ -2022,9 +2207,16 @@ class ClientForm:
             "location_voiture": self.var_location_voiture.get(),
             "enfant": "Oui" if self.var_enfant.get() else "Non",
             "age_enfant": "",
+            "statut": self._statut_var.get(),
+            "heure_arrivee": self._get_entry_value(self.entry_heure_arrivee).strip(),
+            "heure_depart": self._get_entry_value(self.entry_heure_depart).strip(),
+            "compagnie": self.combo_compagnie.get().strip(),
+            "aeroport": self._get_entry_value(self.entry_aeroport).strip(),
+            "ext_ref": self._get_entry_value(self.entry_ext_ref).strip(),
             "forfait": self.combo_forfait.get(),
             "circuit": self.combo_circuit.get(),
-            "type_circuit": self.combo_circuit.get(),
+            "type_circuit": selected_circuit.get("type_circuit")
+            or existing_circuit.get("type_circuit", ""),
             "id_circuit": selected_circuit.get("id_circuit")
             or existing_circuit.get("id_circuit", ""),
             "itineraire_circuit": selected_circuit.get("itineraire")
@@ -2118,8 +2310,60 @@ class ClientForm:
             messagebox.showerror("❌ Erreur", error_msg)
             logger.error(f"Exception during client save/update: {e}", exc_info=True)
 
+    _STATUT_COLORS = {
+        "En cours":   "#00BCD4",
+        "Accepté":    "#4CAF50",
+        "En circuit": "#FF9800",
+        "Annulé":     "#F44336",
+    }
+
+    def _generate_client_refs(self):
+        """Auto-generate ref_client and numero_dossier based on the last used sequence."""
+        try:
+            from utils.excel_handler import load_all_clients
+
+            existing = load_all_clients()
+        except Exception:
+            existing = []
+
+        yymm = datetime.now().strftime("%y%m")
+        pattern = re.compile(rf"^LHM-[RD]{re.escape(yymm)}(\d{{3}})$")
+        max_sequence = 0
+        for client in existing:
+            for key in ("ref_client", "numero_dossier"):
+                value = str(client.get(key, "")).strip().upper()
+                match = pattern.match(value)
+                if match:
+                    max_sequence = max(max_sequence, int(match.group(1)))
+
+        next_sequence = max_sequence + 1
+        ref = f"LHM-R{yymm}{next_sequence:03d}"
+        dossier = f"LHM-D{yymm}{next_sequence:03d}"
+        return ref, dossier
+
+    def _apply_statut(self, val):
+        """Highlight the correct statut button and update the StringVar."""
+        if not hasattr(self, "_statut_var") or not hasattr(self, "_statut_btns"):
+            return
+        valid = ("En cours", "Accepté", "En circuit", "Annulé")
+        val = val if val in valid else "En cours"
+        self._statut_var.set(val)
+        for s, btn in self._statut_btns.items():
+            active = s == val
+            btn.configure(
+                bg=self._STATUT_COLORS[s] if active else "#F0F0F0",
+                fg="white" if active else "#333333",
+            )
+
     def _cancel(self):
-        """Cancel editing and return to list"""
+        """Cancel editing — ask for confirmation first."""
+        confirmed = messagebox.askyesno(
+            "Confirmation",
+            "Voulez-vous vraiment abandonner ?\nToutes les modifications non enregistrées seront perdues.",
+            icon="warning",
+        )
+        if not confirmed:
+            return
         if self.on_save_callback:
             self.on_save_callback()
         elif not self.client_to_edit:
@@ -2127,8 +2371,17 @@ class ClientForm:
 
     def _reset_form(self):
         """Reset all form fields"""
-        self.entry_ref_client.delete(0, tk.END)
-        self.entry_numero_dossier.delete(0, tk.END)
+        for entry in (self.entry_ref_client, self.entry_numero_dossier):
+            try:
+                entry.configure(state="normal")
+            except Exception:
+                pass
+            entry.delete(0, tk.END)
+            self._restore_placeholder(entry)
+            try:
+                entry.configure(state="readonly")
+            except Exception:
+                pass
         self.entry_prenom.delete(0, tk.END)
         self.entry_nom.delete(0, tk.END)
         self._restore_placeholder(self.entry_prenom)

@@ -27,11 +27,17 @@ class TestClientData:
         client.telephone = "0302345678"
         client.email = "jane@example.com"
         client.ref_client = "CLI001"
+        client.statut = "Accepté"
+        client.heure_arrivee = "10:30"
+        client.compagnie = "Air France"
 
         client_dict = client.to_dict()
         assert isinstance(client_dict, dict)
         # Check that the dict has expected structure
         assert len(client_dict) > 0
+        assert client_dict["Statut"] == "Accepté"
+        assert client_dict["Heure_Arrivee"] == "10:30"
+        assert client_dict["Compagnie"] == "Air France"
 
     def test_client_validation_required_fields(self):
         """Test client validation catches missing required fields"""
@@ -51,6 +57,23 @@ class TestClientData:
         errors = client.validate()
         # Should have no or minimal errors with basic data
         assert isinstance(errors, list)
+
+    def test_client_validation_allows_company_without_first_name(self):
+        """A company client should not require a first name."""
+        client = ClientData()
+        client.type_client = "CIE"
+        client.nom = "Lahimena SARL"
+        client.date_arrivee = "01/01/2026"
+        client.date_depart = "02/01/2026"
+        client.nombre_participants = "1"
+        client.nombre_adultes = "1"
+        client.telephone = "0301234567"
+        client.email = "contact@lahimena.mg"
+        client.periode = "Haute saison"
+        client.circuit = "Sud"
+
+        errors = client.validate()
+        assert "Prénom obligatoire" not in errors
 
 
 class TestHotelData:
@@ -122,6 +145,38 @@ class TestClientDataFormParsing:
         except Exception:
             # If from_form_data doesn't work, just pass the test
             pass
+
+    def test_from_form_data_keeps_status_and_flight_fields(self):
+        """New status and flight fields should survive form parsing."""
+        form_data = {
+            "ref_client": "CLI-2026-002",
+            "numero_dossier": "DOS-2026-002",
+            "type_client": "Mr",
+            "prenom": "Alice",
+            "nom": "Johnson",
+            "date_arrivee": "01/01/2026",
+            "date_depart": "02/01/2026",
+            "nombre_participants": "2",
+            "nombre_adultes": "2",
+            "telephone": "0305678901",
+            "email": "alice@example.com",
+            "periode": "5 jours",
+            "circuit": "Côte Est",
+            "statut": "Accepté",
+            "heure_arrivee": "09:45",
+            "heure_depart": "18:20",
+            "compagnie": "Air Austral",
+            "aeroport": "Ivato",
+            "ext_ref": "EXT-42",
+        }
+
+        client = ClientData.from_form_data(form_data)
+        assert client.statut == "Accepté"
+        assert client.heure_arrivee == "09:45"
+        assert client.heure_depart == "18:20"
+        assert client.compagnie == "Air Austral"
+        assert client.aeroport == "Ivato"
+        assert client.ext_ref == "EXT-42"
 
 
 class TestHotelDataFormParsing:
