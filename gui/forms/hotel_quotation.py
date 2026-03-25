@@ -609,6 +609,28 @@ class HotelQuotation:
             row=1, column=1, columnspan=3, padx=(10, 0), pady=5, sticky="w"
         )
 
+        # Row 1b: Numéro dossier
+        tk.Label(
+            client_frame,
+            text="N° Dossier:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).grid(row=1, column=4, sticky="w", padx=(20, 0), pady=5)
+
+        self.client_dossier_var = tk.StringVar()
+        tk.Entry(
+            client_frame,
+            textvariable=self.client_dossier_var,
+            font=ENTRY_FONT,
+            width=18,
+            bg=MAIN_BG_COLOR,
+            fg=TEXT_COLOR,
+            state="readonly",
+            readonlybackground=MAIN_BG_COLOR,
+            relief="flat",
+        ).grid(row=1, column=5, padx=(4, 0), pady=5, sticky="w")
+
         # Row 2: Email and phone
         tk.Label(
             client_frame,
@@ -1369,6 +1391,8 @@ class HotelQuotation:
                     self.client_email_var.set(client["email"])
                     self.client_phone_var.set(client["telephone"])
                     self.client_var.set(client.get("ref_client", ""))
+                    if hasattr(self, "client_dossier_var"):
+                        self.client_dossier_var.set(str(client.get("numero_dossier") or "").strip())
 
                     # Restrict available hotels to client's itinerary
                     self.allowed_itinerary_cities = self._extract_allowed_cities_from_client(
@@ -1387,6 +1411,8 @@ class HotelQuotation:
             self.client_name_var.set("")
             self.client_email_var.set("")
             self.client_phone_var.set("")
+            if hasattr(self, "client_dossier_var"):
+                self.client_dossier_var.set("")
             self.preferred_room_type_label = ""
             self.allowed_itinerary_cities = []
             self.city_planned_days = {}
@@ -1846,6 +1872,7 @@ class HotelQuotation:
                     ),
                     "client_name": client_name,
                     "client_first_name": client_first_name,
+                    "numero_dossier": (self.client_dossier_var.get().strip() if hasattr(self, "client_dossier_var") else ""),
                     "currency": currency,
                     "adults": adults,
                     "children": (

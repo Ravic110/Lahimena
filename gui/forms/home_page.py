@@ -216,14 +216,13 @@ class HomePage:
                 continue
             values = (
                 _STATUT_BADGE.get(statut, statut),
-                client.get("ref_client", ""),
+                client.get("numero_dossier", ""),
                 client.get("nom", ""),
-                client.get("email", ""),
-                client.get("telephone", ""),
+                client.get("nombre_participants", ""),
+                client.get("duree_sejour", ""),
                 client.get("date_arrivee", ""),
                 client.get("date_depart", ""),
-                client.get("duree_sejour", ""),
-                client.get("circuit", ""),
+                client.get("restauration", ""),
                 client.get("compagnie", ""),
                 client.get("heure_arrivee", ""),
                 client.get("heure_depart", ""),
@@ -429,9 +428,9 @@ class HomePage:
         hsb = ttk.Scrollbar(tree_frame, orient="horizontal")
 
         cols = (
-            "statut", "ref_client", "nom", "email", "telephone",
-            "date_arrivee", "date_depart", "duree_sejour",
-            "circuit", "compagnie", "heure_arrivee", "heure_depart",
+            "statut", "numero_dossier", "nom", "nombre_participants",
+            "duree_sejour", "date_arrivee", "date_depart",
+            "restauration", "compagnie", "heure_arrivee", "heure_depart",
         )
         self._client_tree = ttk.Treeview(
             tree_frame, columns=cols, show="headings",
@@ -442,23 +441,23 @@ class HomePage:
         hsb.config(command=self._client_tree.xview)
 
         headers = {
-            "statut":            "Statut",
-            "ref_client":        "Réf. Client",
-            "nom":               "Nom",
-            "email":             "Email",
-            "telephone":         "Téléphone",
-            "date_arrivee":      "Arrivée",
-            "date_depart":       "Départ",
-            "duree_sejour":      "Durée",
-            "circuit":           "Circuit",
-            "compagnie":         "Compagnie",
-            "heure_arrivee":     "H. Arrivée",
-            "heure_depart":      "H. Départ",
+            "statut":               "Statut",
+            "numero_dossier":       "N° Dossier",
+            "nom":                  "Nom clients",
+            "nombre_participants":  "Nb pax",
+            "duree_sejour":         "Durée",
+            "date_arrivee":         "Début",
+            "date_depart":          "Fin",
+            "restauration":         "Formule",
+            "compagnie":            "Compagnie",
+            "heure_arrivee":        "H. Arrivée",
+            "heure_depart":         "H. Départ",
         }
         widths = {
-            "statut": 130, "ref_client": 120, "nom": 160, "email": 180,
-            "telephone": 110, "date_arrivee": 90, "date_depart": 90,
-            "duree_sejour": 65, "circuit": 160, "compagnie": 110,
+            "statut": 130, "numero_dossier": 130, "nom": 170,
+            "nombre_participants": 60, "duree_sejour": 60,
+            "date_arrivee": 90, "date_depart": 90,
+            "restauration": 130, "compagnie": 120,
             "heure_arrivee": 80, "heure_depart": 80,
         }
         for c in cols:
@@ -495,10 +494,12 @@ class HomePage:
         if not sel:
             return None
         values = self._client_tree.item(sel[0], "values")
-        ref = values[1]  # ref_client at index 1
+        numero_dossier = values[1]  # numero_dossier at index 1
         nom = values[2]
         for c in self._all_clients:
-            if c.get("ref_client") == ref and c.get("nom") == nom:
+            if c.get("nom") == nom and (
+                not numero_dossier or c.get("numero_dossier") == numero_dossier
+            ):
                 return c
         return None
 

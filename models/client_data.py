@@ -66,6 +66,7 @@ class ClientData:
         self.twn_count = ""  # Twin
         self.tpl_count = ""  # Triple
         self.fml_count = ""  # Familiale
+        self.rooming_commentaire = ""
 
     def to_dict(self):
         """
@@ -133,6 +134,7 @@ class ClientData:
             "TWN_Count": self.twn_count,
             "TPL_Count": self.tpl_count,
             "FML_Count": self.fml_count,
+            "Rooming_Commentaire": self.rooming_commentaire,
         }
 
     @classmethod
@@ -209,6 +211,7 @@ class ClientData:
         client.twn_count = form_data.get("twn_count", "").strip()
         client.tpl_count = form_data.get("tpl_count", "").strip()
         client.fml_count = form_data.get("fml_count", "").strip()
+        client.rooming_commentaire = form_data.get("rooming_commentaire", "")
         return client
 
     def validate(self):

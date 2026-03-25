@@ -166,6 +166,19 @@ class MainContent:
             content_type (str): Type of content to display
             **kwargs: Optional data forwarded to the target view (e.g. client_to_edit)
         """
+        _client_pages = ("client_form", "client_list", "client_page")
+        if (
+            self.current_content_type in _client_pages
+            and content_type not in _client_pages
+        ):
+            if not messagebox.askyesno(
+                "Quitter la section",
+                "Quitter la section Infos Clients ?\n"
+                "Les modifications non enregistrées seront perdues.",
+                icon="warning",
+            ):
+                return
+
         self.current_content_type = content_type
         self._nav_kwargs = kwargs
         # Clear current content

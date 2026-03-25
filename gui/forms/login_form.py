@@ -260,7 +260,12 @@ class LoginWindow(ctk.CTk):
         self.btn_login.configure(state="normal", text="LOGIN")
 
         if not success:
-            self._set_msg(message, BUTTON_RED)
+            if message == "suspended":
+                self._set_msg("🚫 Ce compte est suspendu. Contactez votre administrateur.", BUTTON_RED)
+            elif message == "access_expired":
+                self._set_msg("⏱ La durée d'accès de ce compte a expiré. Contactez votre administrateur.", BUTTON_RED)
+            else:
+                self._set_msg(message, BUTTON_RED)
             self.entry_password.delete(0, tk.END)
             return
 

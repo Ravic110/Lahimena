@@ -268,6 +268,17 @@ class TransportQuotation:
             self.field_vars[header] = field_var
             self.field_widgets[header] = (field_type, widget)
 
+        # ── Sans carburant toggle ──────────────────────────────────────────
+        self._sans_carburant_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            self.parent,
+            text="Sans carburant (carburant non compris dans la location)",
+            variable=self._sans_carburant_var,
+            command=self._on_sans_carburant_toggled,
+            bg=MAIN_BG_COLOR, fg=TEXT_COLOR,
+            selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+        ).pack(anchor="w", padx=20, pady=(0, 6))
+
         button_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         button_frame.pack(fill="x", padx=20, pady=(0, 12))
 
@@ -596,6 +607,11 @@ class TransportQuotation:
             consommation = self._to_float(vehicle_data.get("consommation", 0))
             energie = str(vehicle_data.get("energie") or "").strip()
 
+        if getattr(self, "_sans_carburant_var", None) and self._sans_carburant_var.get():
+            self._set_field_value("fuel_need", "0.00")
+            self._set_field_value("fuel_budget", "0.00")
+            return
+
         facteur_route = self._compute_route_consumption_factor(distance, duration)
         besoin_base = (consommation * distance) / 100 if consommation and distance else 0.0
         besoin = besoin_base * facteur_route if besoin_base else 0.0
@@ -604,6 +620,10 @@ class TransportQuotation:
         fuel_price = self._to_float(get_transport_fuel_price(energie)) if energie else 0.0
         budget = besoin * fuel_price if besoin and fuel_price else 0.0
         self._set_field_value("fuel_budget", self._format_number(budget))
+
+    def _on_sans_carburant_toggled(self):
+        """Re-run budget calc to apply or remove the sans-carburant override."""
+        self._update_distance_and_budget()
 
     def _load_edit_data(self):
         try:

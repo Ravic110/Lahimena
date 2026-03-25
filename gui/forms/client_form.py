@@ -54,6 +54,7 @@ from gui.ui_style import (
 )
 from models.client_data import ClientData
 from utils.excel_handler import (
+    get_km_mada_km_for_repere,
     load_all_circuits,
     load_all_hotels,
     load_circuit_catalog,
@@ -306,16 +307,19 @@ class ClientForm:
         """Load unique city options from hotel database"""
         try:
             hotels = load_all_hotels()
-            cities = sorted(
-                {
-                    (hotel.get("lieu") or "").strip()
-                    for hotel in hotels
-                    if hotel.get("lieu")
-                }
-            )
+            self._hotel_options_by_city = {}
+            for hotel in hotels:
+                city = (hotel.get("lieu") or "").strip()
+                nom = (hotel.get("nom") or "").strip()
+                if city and nom:
+                    self._hotel_options_by_city.setdefault(city, [])
+                    if nom not in self._hotel_options_by_city[city]:
+                        self._hotel_options_by_city[city].append(nom)
+            cities = sorted(self._hotel_options_by_city.keys())
             return cities
         except Exception as e:
             logger.warning(f"Failed to load city options: {e}")
+            self._hotel_options_by_city = {}
             return []
 
     def _load_circuit_options(self):
@@ -1144,23 +1148,31 @@ class ClientForm:
         def _on_guide_checked():
             if self.var_accompagnement_guide.get():
                 self.var_accompagnement_chauffeur.set(False)
+                self._cb_chauffeur.configure(state="disabled")
+            else:
+                self._cb_chauffeur.configure(state="normal")
 
         def _on_chauffeur_checked():
             if self.var_accompagnement_chauffeur.get():
                 self.var_accompagnement_guide.set(False)
+                self._cb_guide.configure(state="disabled")
+            else:
+                self._cb_guide.configure(state="normal")
 
-        tk.Checkbutton(
+        self._cb_guide = tk.Checkbutton(
             accompagnement_frame, text="Avec guide accompagnateur",
             variable=self.var_accompagnement_guide,
             command=_on_guide_checked,
             fg=TEXT_COLOR, bg=PANEL_BG_COLOR, selectcolor=BUTTON_GREEN, font=LABEL_FONT,
-        ).pack(anchor="w")
-        tk.Checkbutton(
+        )
+        self._cb_guide.pack(anchor="w")
+        self._cb_chauffeur = tk.Checkbutton(
             accompagnement_frame, text="Avec Chauffeur-guide",
             variable=self.var_accompagnement_chauffeur,
             command=_on_chauffeur_checked,
             fg=TEXT_COLOR, bg=PANEL_BG_COLOR, selectcolor=BUTTON_GREEN, font=LABEL_FONT,
-        ).pack(anchor="w")
+        )
+        self._cb_chauffeur.pack(anchor="w")
 
         location_frame = tk.Frame(bottom, bg=PANEL_BG_COLOR)
         location_frame.pack(side="left", fill="x", expand=True)
@@ -1380,19 +1392,19 @@ class ClientForm:
 
         # ── En-têtes de colonnes ─────────────────────────────────────────
         _ITIN = [
-            ("Date",              105),
-            ("Ville de départ",   145),
-            ("Ville d'arrivée",   145),
-            ("Distance (en Km)",   90),
-            ("Hébergement",         0),  # fill
+            ("Date",                  114),   # 110 + 4 padding
+            ("Ville de départ",       152),   # 148 + 4
+            ("Ville d'arrivée",       152),   # 148 + 4
+            ("Distance (km)",          94),   # 90 + 4
+            ("Hébergement",             0),   # fill
         ]
-        hdr_bg = "#D0E8ED"
+        hdr_bg = "#C5E0E8"
         hdr = tk.Frame(itineraire_card, bg=hdr_bg)
-        hdr.pack(fill="x", pady=(0, 1))
+        hdr.pack(fill="x", pady=(0, 2))
         for col_name, col_w in _ITIN:
             cell = tk.Frame(hdr, bg=hdr_bg)
             if col_w:
-                cell.configure(width=col_w, height=28)
+                cell.configure(width=col_w, height=30)
                 cell.pack_propagate(False)
                 cell.pack(side="left")
             else:
@@ -1400,7 +1412,7 @@ class ClientForm:
             tk.Label(
                 cell, text=col_name,
                 font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=hdr_bg,
-                padx=4, pady=3,
+                padx=6, pady=4,
             ).pack(anchor="w")
 
         # ── Zone scrollable ──────────────────────────────────────────────
@@ -1436,7 +1448,7 @@ class ClientForm:
         self._itin_inner.bind("<MouseWheel>", _on_mousewheel)
 
         self.itinerary_count_label = muted_label(itineraire_card, "0 itinéraire sélectionné")
-        self.itinerary_count_label.pack(anchor="w", pady=(0, 6))
+        self.itinerary_count_label.pack(anchor="w", pady=(0, 2))
 
         # Type d'hôtel à la ville d'arrivée (hidden from UI)
         self.combo_type_hotel_arrivee = ttk.Combobox(
@@ -1650,10 +1662,12 @@ class ClientForm:
         chauffeur_value = str(
             self.client_to_edit.get("accompagnement_chauffeur", "")
         ).strip().lower()
-        self.var_accompagnement_guide.set(guide_value in {"oui", "true", "1", "yes"})
-        self.var_accompagnement_chauffeur.set(
-            chauffeur_value in {"oui", "true", "1", "yes"}
-        )
+        guide_on = guide_value in {"oui", "true", "1", "yes"}
+        chauffeur_on = chauffeur_value in {"oui", "true", "1", "yes"}
+        self.var_accompagnement_guide.set(guide_on)
+        self.var_accompagnement_chauffeur.set(chauffeur_on)
+        self._cb_guide.configure(state="disabled" if chauffeur_on else "normal")
+        self._cb_chauffeur.configure(state="disabled" if guide_on else "normal")
         self.var_location_voiture.set(self.client_to_edit.get("location_voiture", ""))
 
         # Clear and rebuild rooming rows from saved data
@@ -1708,6 +1722,7 @@ class ClientForm:
 
         self._update_participants_total()
 
+
     def _open_calendar(self, entry_widget):
         """Open calendar dialog for date selection"""
         cal_dialog = CalendarDialog(self.parent, "Choisir une date")
@@ -1738,8 +1753,24 @@ class ClientForm:
                 self.entry_duree_sejour.delete(0, tk.END)
                 self.entry_duree_sejour.insert(0, f"{duration} jours")
                 self.entry_duree_sejour.configure(state="readonly")
+
+            if date_arr:
+                self._auto_set_saison(datetime.strptime(date_arr, "%d/%m/%Y"))
         except:
             pass
+
+    def _auto_set_saison(self, arrival):
+        """Set combo_periode based on arrival month (Basse/Moyenne/Haute)."""
+        m, d = arrival.month, arrival.day
+        if m in (1, 2, 3):
+            saison = "Basse saison"
+        elif m in (7, 8, 9):
+            saison = "Haute saison"
+        elif m == 12 and d >= 20:
+            saison = "Haute saison"
+        else:
+            saison = "Moyenne saison"
+        self.combo_periode.set(saison)
 
     def _sync_rooming_date(self):
         """Mirror arrival date to rooming list date field."""
@@ -1806,47 +1837,123 @@ class ClientForm:
         pass
 
     def _add_rooming_widget_row(self, data=None):
-        """Create one editable row in the rooming list canvas area."""
+        """Create one editable row — même design que la section séjour/itinéraire."""
         data = data or {}
-        COL_W = [95, 0, 50, 110, 55]
-        BORDER = "#C9DDE3"
-        row = tk.Frame(self._room_inner, bg=BORDER)
-        row.pack(fill="x", pady=(0, 1))
+        _H        = 34
+        _DATE_W   = 95
+        _PAX_W    = 50
+        _CHAMBRE_W = 110
+        _NOMBRE_W  = 55
+        ROW_BG    = PANEL_BG_COLOR
+        ROOM_OPTS = ["SGL (Single)", "DBL (Double)", "TWN (Twin)", "TPL (Triple)", "FML (Familiale)"]
 
-        def _cell(w):
-            f = tk.Frame(row, bg=BORDER)
-            if w:
-                f.configure(width=w, height=32)
-                f.pack_propagate(False)
-                f.pack(side="left", padx=(0, 1))
+        row = tk.Frame(self._room_inner, bg=ROW_BG)
+        row.pack(fill="x", pady=(0, 4))
+
+        _scroll = lambda e: self._room_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+
+        # ── Canvas chip (lecture seule) ───────────────────────────────────
+        def _make_chip(parent, w, h=_H):
+            c = tk.Canvas(parent, width=w, height=h, bg=ROW_BG,
+                          highlightthickness=0, cursor="arrow")
+            c.bind("<MouseWheel>", _scroll)
+            return c
+
+        def _bind_chip_draw(canvas, text_var, placeholder="", h=_H):
+            def _draw(*_):
+                canvas.delete("all")
+                w = canvas.winfo_width()
+                if w < 10:
+                    w = canvas.winfo_reqwidth()
+                r = 8
+                x1, y1, x2, y2 = 0, 1, w - 1, h - 2
+                pts = [x1+r,y1, x2-r,y1, x2,y1, x2,y1+r,
+                       x2,y2-r, x2,y2, x2-r,y2, x1+r,y2,
+                       x1,y2, x1,y2-r, x1,y1+r, x1,y1]
+                canvas.create_polygon(pts, smooth=True,
+                                      fill=INPUT_BG_COLOR, outline="#C9DDE3", width=1)
+                val = text_var.get() if text_var else ""
+                display = val if val else placeholder
+                fill = TEXT_COLOR if val else MUTED_TEXT_COLOR
+                canvas.create_text(8, h // 2, text=display,
+                                   anchor="w", font=ENTRY_FONT, fill=fill)
+            if text_var:
+                text_var.trace_add("write", _draw)
+            canvas.bind("<Configure>", _draw)
+            canvas.after(100, _draw)
+
+        def _make_entry(parent, var, w, expand=False):
+            if ctk:
+                e = ctk.CTkEntry(
+                    parent, textvariable=var,
+                    font=ENTRY_FONT, corner_radius=8,
+                    fg_color=INPUT_BG_COLOR, text_color=TEXT_COLOR,
+                    border_color="#C9DDE3", border_width=1,
+                    height=_H, width=w if not expand else 10,
+                )
             else:
-                f.pack(side="left", fill="x", expand=True)
-            return f
-
-        def _entry(parent, textvariable, readonly=False):
-            e = tk.Entry(parent, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
-                         textvariable=textvariable, relief="flat", bd=0,
-                         insertbackground=TEXT_COLOR)
-            if readonly:
-                e.configure(state="readonly", readonlybackground=INPUT_BG_COLOR)
+                e = tk.Entry(parent, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
+                             textvariable=var, relief="flat", bd=1,
+                             insertbackground=TEXT_COLOR)
+            e.bind("<MouseWheel>", _scroll)
             return e
 
+        def _make_combo(parent, values, var, w):
+            if ctk:
+                cb = ctk.CTkComboBox(
+                    parent, values=values, variable=var,
+                    state="readonly",
+                    font=ENTRY_FONT, corner_radius=8,
+                    fg_color=INPUT_BG_COLOR, text_color=TEXT_COLOR,
+                    button_color="#C9DDE3", button_hover_color=BUTTON_BLUE,
+                    border_color="#C9DDE3", border_width=1,
+                    dropdown_fg_color=INPUT_BG_COLOR,
+                    dropdown_text_color=TEXT_COLOR,
+                    dropdown_hover_color="#E8F4F8",
+                    height=_H, width=w,
+                )
+            else:
+                cb = ttk.Combobox(parent, values=values, textvariable=var,
+                                  state="readonly", font=ENTRY_FONT)
+            cb.bind("<MouseWheel>", _scroll)
+            return cb
+
+        # ── Date : chip readonly (synced depuis date arrivée) ─────────────
         date_var = tk.StringVar(value=data.get("date", ""))
-        _entry(_cell(COL_W[0]), date_var, readonly=True).pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+        date_chip = _make_chip(row, _DATE_W)
+        date_chip.pack(side="left", padx=(0, 4))
+        _bind_chip_draw(date_chip, date_var, placeholder="—")
 
+        # ── Nom & Prénom (expand) ─────────────────────────────────────────
         nom_var = tk.StringVar(value=data.get("nom", ""))
-        _entry(_cell(COL_W[1]), nom_var).pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+        nom_frame = tk.Frame(row, bg=ROW_BG)
+        nom_frame.pack(side="left", fill="x", expand=True, padx=(0, 4))
+        nom_frame.bind("<MouseWheel>", _scroll)
+        nom_entry = _make_entry(nom_frame, nom_var, 10, expand=True)
+        nom_entry.pack(fill="x", expand=True)
 
+        def _resize_nom(e):
+            new_w = max(e.width, 40)
+            if ctk and isinstance(nom_entry, ctk.CTkEntry):
+                nom_entry.configure(width=new_w)
+        nom_frame.bind("<Configure>", _resize_nom)
+
+        # ── Nb pax ────────────────────────────────────────────────────────
         pax_var = tk.StringVar(value=data.get("nb_pax", ""))
-        _entry(_cell(COL_W[2]), pax_var).pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+        pax_entry = _make_entry(row, pax_var, _PAX_W)
+        pax_entry.pack(side="left", padx=(0, 4))
 
-        ROOM_OPTS = ["SGL (Single)", "DBL (Double)", "TWN (Twin)", "TPL (Triple)", "FML (Familiale)"]
+        # ── Chambre (CTkComboBox) ─────────────────────────────────────────
         chambre_var = tk.StringVar(value=data.get("chambre", ""))
-        ttk.Combobox(_cell(COL_W[3]), values=ROOM_OPTS, textvariable=chambre_var,
-                     state="readonly", font=ENTRY_FONT).pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+        chambre_cb = _make_combo(row, ROOM_OPTS, chambre_var, _CHAMBRE_W)
+        chambre_cb.pack(side="left", padx=(0, 4))
 
+        # ── Nombre ────────────────────────────────────────────────────────
         nombre_var = tk.StringVar(value=data.get("nombre", ""))
-        _entry(_cell(COL_W[4]), nombre_var).pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+        nombre_entry = _make_entry(row, nombre_var, _NOMBRE_W)
+        nombre_entry.pack(side="left")
+
+        row.bind("<MouseWheel>", _scroll)
 
         self._rooming_widget_rows.append({
             "frame": row, "date_var": date_var, "nom_var": nom_var,
@@ -1900,68 +2007,151 @@ class ClientForm:
             self.combo_TypeChambre.set("")
 
     def _add_itinerary_widget_row(self, data=None):
-        """Create one editable row in the itinerary canvas area."""
+        """Create one editable row — même design que la section séjour."""
         data = data or {}
-        COL_W = [105, 145, 145, 90, 0]
-        BORDER = "#C9DDE3"
+        _H = 34
+        _DATE_W  = 110
+        _CITY_W  = 148
+        _DIST_W  = 90
+        ROW_BG   = PANEL_BG_COLOR
 
-        row = tk.Frame(self._itin_inner, bg=BORDER)
-        row.pack(fill="x", pady=(0, 1))
+        row = tk.Frame(self._itin_inner, bg=ROW_BG)
+        row.pack(fill="x", pady=(0, 4))
 
-        def _cell(w):
-            f = tk.Frame(row, bg=BORDER)
-            if w:
-                f.configure(width=w, height=32)
-                f.pack_propagate(False)
-                f.pack(side="left", padx=(0, 1))
+        _scroll = lambda e: self._itin_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+
+        # ── Helper : Canvas arrondi (même look que _date_chip) ───────────
+        def _make_chip(parent, w, h=_H, clickable=False):
+            c = tk.Canvas(parent, width=w, height=h, bg=ROW_BG,
+                          highlightthickness=0,
+                          cursor="hand2" if clickable else "arrow")
+            c.bind("<MouseWheel>", _scroll)
+            return c
+
+        def _bind_chip_draw(canvas, text_var, placeholder="", icon=None, h=_H):
+            def _draw(*_):
+                canvas.delete("all")
+                w = canvas.winfo_width()
+                if w < 10:
+                    w = canvas.winfo_reqwidth()
+                r = 8
+                x1, y1, x2, y2 = 0, 1, w - 1, h - 2
+                pts = [x1+r,y1, x2-r,y1, x2,y1, x2,y1+r,
+                       x2,y2-r, x2,y2, x2-r,y2, x1+r,y2,
+                       x1,y2, x1,y2-r, x1,y1+r, x1,y1]
+                canvas.create_polygon(pts, smooth=True,
+                                      fill=INPUT_BG_COLOR, outline="#C9DDE3", width=1)
+                val = text_var.get() if text_var else ""
+                display = val if val else placeholder
+                fill = TEXT_COLOR if val else MUTED_TEXT_COLOR
+                if icon:
+                    canvas.create_text(w - 16, h // 2, text=icon,
+                                       anchor="center", font=("Poppins", 11))
+                    canvas.create_text(10, h // 2, text=display,
+                                       anchor="w", font=ENTRY_FONT, fill=fill)
+                else:
+                    canvas.create_text(w // 2, h // 2, text=display,
+                                       anchor="center", font=ENTRY_FONT, fill=fill)
+            if text_var:
+                text_var.trace_add("write", _draw)
+            canvas.bind("<Configure>", _draw)
+            canvas.after(100, _draw)
+
+        def _make_itin_combo(parent, values, var, w):
+            if ctk:
+                cb = ctk.CTkComboBox(
+                    parent, values=values, variable=var,
+                    state="normal",
+                    font=ENTRY_FONT, corner_radius=8,
+                    fg_color=INPUT_BG_COLOR, text_color=TEXT_COLOR,
+                    button_color="#C9DDE3", button_hover_color=BUTTON_BLUE,
+                    border_color="#C9DDE3", border_width=1,
+                    dropdown_fg_color=INPUT_BG_COLOR,
+                    dropdown_text_color=TEXT_COLOR,
+                    dropdown_hover_color="#E8F4F8",
+                    height=_H, width=w,
+                )
             else:
-                f.pack(side="left", fill="x", expand=True)
-            return f
+                cb = ttk.Combobox(parent, values=values, textvariable=var,
+                                  state="normal", font=ENTRY_FONT)
+            cb.bind("<MouseWheel>", _scroll)
+            return cb
 
-        def _entry(parent, textvariable, readonly=False):
-            e = tk.Entry(parent, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
-                         textvariable=textvariable, relief="flat", bd=0,
-                         insertbackground=TEXT_COLOR)
-            if readonly:
-                e.configure(state="readonly", readonlybackground=INPUT_BG_COLOR)
-            return e
-
-        # Date
+        # ── Date : chip Canvas cliquable ──────────────────────────────────
         date_var = tk.StringVar(value=data.get("date", ""))
-        date_cell = _cell(COL_W[0])
-        date_e = _entry(date_cell, date_var, readonly=True)
-        date_e.pack(side="left", fill="both", expand=True, padx=(1, 0), pady=1, ipady=3)
-        self._make_calendar_badge(date_cell, date_e, "15").pack(side="left", padx=(2, 1), pady=1)
+        date_chip = _make_chip(row, _DATE_W, clickable=True)
+        date_chip.pack(side="left", padx=(0, 4))
+        _bind_chip_draw(date_chip, date_var, placeholder="Choisir une date", icon="📅")
 
-        # Ville de départ
+        def _open_date_picker_row(var=date_var):
+            cal = CalendarDialog(self.parent, "Choisir une date")
+            self.parent.wait_window(cal)
+            if cal.selected_date:
+                var.set(cal.selected_date.strftime("%d/%m/%Y"))
+
+        date_chip.bind("<Button-1>", lambda e: _open_date_picker_row())
+
+        # ── Ville de départ ───────────────────────────────────────────────
         depart_var = tk.StringVar(value=data.get("depart", ""))
-        dep_cell = _cell(COL_W[1])
-        dep_cb = ttk.Combobox(dep_cell, values=self.city_options, textvariable=depart_var,
-                              state="normal", font=ENTRY_FONT)
-        dep_cb.pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+        dep_cb = _make_itin_combo(row, self.city_options, depart_var, _CITY_W)
+        dep_cb.pack(side="left", padx=(0, 4))
 
-        # Ville d'arrivée
+        # ── Ville d'arrivée ───────────────────────────────────────────────
         arrivee_var = tk.StringVar(value=data.get("arrivee", ""))
-        arr_cell = _cell(COL_W[2])
-        arr_cb = ttk.Combobox(arr_cell, values=self.city_options, textvariable=arrivee_var,
-                              state="normal", font=ENTRY_FONT)
-        arr_cb.pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+        arr_cb = _make_itin_combo(row, self.city_options, arrivee_var, _CITY_W)
+        arr_cb.pack(side="left", padx=(0, 4))
 
-        # Distance
+        # ── Distance : chip Canvas lecture seule (auto KM_MADA) ───────────
         dist_var = tk.StringVar(value=data.get("distance", ""))
-        dist_cell = _cell(COL_W[3])
-        dist_e = _entry(dist_cell, dist_var)
-        dist_e.pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+        dist_chip = _make_chip(row, _DIST_W)
+        dist_chip.pack(side="left", padx=(0, 4))
+        _bind_chip_draw(dist_chip, dist_var, placeholder="—")
 
-        # Hébergement (fill)
+        def _auto_distance(*_):
+            dep = depart_var.get().strip()
+            arr = arrivee_var.get().strip()
+            if dep and arr:
+                try:
+                    km_dep = float(get_km_mada_km_for_repere(dep) or 0)
+                    km_arr = float(get_km_mada_km_for_repere(arr) or 0)
+                    d = round(abs(km_arr - km_dep))
+                    dist_var.set(str(d) if d else "")
+                except Exception:
+                    pass
+            else:
+                dist_var.set("")
+
+        depart_var.trace("w", _auto_distance)
+        arrivee_var.trace("w", _auto_distance)
+        if not dist_var.get():
+            _auto_distance()
+
+        # ── Hébergement : CTkComboBox filtré par ville d'arrivée ──────────
         heb_var = tk.StringVar(value=data.get("hebergement", ""))
-        heb_cell = _cell(COL_W[4])
-        heb_e = _entry(heb_cell, heb_var)
-        heb_e.pack(fill="both", expand=True, padx=1, pady=1, ipady=3)
+        heb_frame = tk.Frame(row, bg=ROW_BG)
+        heb_frame.pack(side="left", fill="x", expand=True)
+        heb_cb = _make_itin_combo(heb_frame, [], heb_var, 200)
+        heb_cb.pack(fill="x", expand=True)
+        heb_frame.bind("<MouseWheel>", _scroll)
 
-        # Bind mousewheel to child widgets
-        for w in (date_e, dep_cb, arr_cb, dist_e, heb_e, row, date_cell, dep_cell, arr_cell, dist_cell, heb_cell):
-            w.bind("<MouseWheel>", lambda e: self._itin_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+        def _resize_heb(e):
+            new_w = max(e.width, 80)
+            if ctk and isinstance(heb_cb, ctk.CTkComboBox):
+                heb_cb.configure(width=new_w)
+        heb_frame.bind("<Configure>", _resize_heb)
+
+        def _update_heb_options(*_):
+            city = arrivee_var.get().strip()
+            opts = self._hotel_options_by_city.get(city, [])
+            if ctk and isinstance(heb_cb, ctk.CTkComboBox):
+                heb_cb.configure(values=opts)
+            else:
+                heb_cb["values"] = opts
+
+        arrivee_var.trace("w", _update_heb_options)
+        _update_heb_options()
+
+        row.bind("<MouseWheel>", _scroll)
 
         self._itin_widget_rows.append({
             "frame": row,
@@ -2123,6 +2313,40 @@ class ClientForm:
         suffix = "itinéraire sélectionné" if count == 1 else "itinéraires sélectionnés"
         self.itinerary_count_label.config(text=f"{count} {suffix}")
 
+    def _generate_daily_description(self):
+        """Auto-generate a day-by-day description from itinerary rows into comment_client_text."""
+        rows = self._get_itinerary_rows()
+        if not rows:
+            return
+        lines = []
+        for i, row in enumerate(rows, start=1):
+            date = row.get("date", "").strip()
+            depart = row.get("depart", "").strip()
+            arrivee = row.get("arrivee", "").strip()
+            distance = row.get("distance", "").strip()
+            heb = row.get("hebergement", "").strip()
+
+            parts = [f"Jour {i}"]
+            if date:
+                parts[0] += f" ({date})"
+            parts.append(":")
+            if depart and arrivee:
+                parts.append(f"Départ de {depart} → Arrivée à {arrivee}.")
+            elif arrivee:
+                parts.append(f"Arrivée à {arrivee}.")
+            elif depart:
+                parts.append(f"Départ de {depart}.")
+            if distance:
+                parts.append(f"Distance : {distance} km.")
+            if heb:
+                parts.append(f"Hébergement : {heb}.")
+            lines.append(" ".join(parts))
+
+        description = "\n".join(lines)
+        if hasattr(self, "comment_client_text"):
+            self.comment_client_text.delete("1.0", tk.END)
+            self.comment_client_text.insert("1.0", description)
+
     def _validate(self):
         """Validate and save client data"""
         selected_circuit = self.circuit_map.get(self.combo_circuit.get().strip(), {})
@@ -2244,6 +2468,7 @@ class ClientForm:
             "twn_count": str(_room_counts["twn"]) if _room_counts["twn"] else "",
             "tpl_count": str(_room_counts["tpl"]) if _room_counts["tpl"] else "",
             "fml_count": str(_room_counts["fml"]) if _room_counts["fml"] else "",
+            "rooming_commentaire": "",
         }
 
         # Create client data object
@@ -2446,4 +2671,6 @@ class ClientForm:
         self.combo_type_hotel_arrivee.set("")
         self.var_accompagnement_guide.set(False)
         self.var_accompagnement_chauffeur.set(False)
+        self._cb_guide.configure(state="normal")
+        self._cb_chauffeur.configure(state="normal")
         self.var_location_voiture.set("")

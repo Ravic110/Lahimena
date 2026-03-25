@@ -2228,6 +2228,7 @@ def save_hotel_quotation_to_excel(quotation_data):
         headers = [
             "Date",
             "ID_Client",
+            "Numero_Dossier",
             "Nom_Client",
             "Prénom_Client",
             "Hôtel",
@@ -2265,6 +2266,7 @@ def save_hotel_quotation_to_excel(quotation_data):
                 "quote_date", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             ),
             "ID_Client": quotation_data.get("client_id", ""),
+            "Numero_Dossier": quotation_data.get("numero_dossier", ""),
             "Nom_Client": quotation_data.get("client_name", ""),
             "Prénom_Client": quotation_data.get("client_first_name", ""),
             "Hôtel": quotation_data.get("hotel_name", ""),
