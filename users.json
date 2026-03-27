@@ -14,6 +14,17 @@
     "role": "agent",
     "created_at": "2026-03-25 09:30:18",
     "password_changed_at": "2026-03-25 09:30:18",
-    "suspended": true
+    "suspended": false,
+    "access_expires_at": "2026-03-31"
+  },
+  {
+    "username": "Tsiky",
+    "password_hash": "7117a58427a9a24aab2e0293f1c275487feb15c7486408acaa0f1d838f11e556",
+    "salt": "17a89d05a9757a4ac570b1fe8264137c",
+    "role": "comptable",
+    "created_at": "2026-03-27 09:15:47",
+    "password_changed_at": "2026-03-27 09:15:47",
+    "suspended": false,
+    "access_expires_at": "2026-06-25"
   }
 ]

@@ -108,6 +108,23 @@ class Sidebar:
         # Marketing placeholder
         _btn11 = self._create_button("Marketing", self._show_marketing_page)
 
+        # Restrict navigation for comptable role
+        try:
+            from utils.auth_handler import current_role
+            if current_role() == "comptable":
+                for btn in self.primary_buttons:
+                    if btn.cget("text") != "Etat financier":
+                        btn.configure(
+                            state="disabled",
+                            fg_color="#AAAAAA",
+                            hover_color="#AAAAAA",
+                            text_color="#DDDDDD",
+                        )
+                # Set "Etat financier" as the active button
+                self._set_active(_btn10)
+        except Exception:
+            pass
+
     def _create_button(self, text, command=None):
         """Create a sidebar button"""
         btn = ctk.CTkButton(

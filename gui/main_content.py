@@ -78,17 +78,26 @@ class MainContent:
         icons = ctk.CTkFrame(topbar, fg_color="transparent")
         icons.pack(side="right", padx=12, pady=6)
 
+        # Detect comptable role once for this topbar
+        try:
+            from utils.auth_handler import current_role
+            _is_comptable = current_role() == "comptable"
+        except Exception:
+            _is_comptable = False
+
         # ── Résa LHM ──────────────────────────────────────────────────
         ctk.CTkButton(
             icons,
             text="📋 Résa LHM",
             width=110,
             height=30,
-            fg_color=BUTTON_BLUE,
-            hover_color="#1565C0",
+            fg_color="#AAAAAA" if _is_comptable else BUTTON_BLUE,
+            hover_color="#AAAAAA" if _is_comptable else "#1565C0",
+            text_color="#DDDDDD" if _is_comptable else "white",
             corner_radius=8,
             font=ctk.CTkFont(size=12, weight="bold"),
             command=lambda: self.update_content("client_page"),
+            state="disabled" if _is_comptable else "normal",
         ).pack(side="right", padx=(6, 0))
 
         # ── Chercher ──────────────────────────────────────────────────
@@ -97,11 +106,13 @@ class MainContent:
             text="🔍 Chercher",
             width=110,
             height=30,
-            fg_color=BUTTON_GREEN,
-            hover_color="#2E7D32",
+            fg_color="#AAAAAA" if _is_comptable else BUTTON_GREEN,
+            hover_color="#AAAAAA" if _is_comptable else "#2E7D32",
+            text_color="#DDDDDD" if _is_comptable else "white",
             corner_radius=8,
             font=ctk.CTkFont(size=12, weight="bold"),
             command=self._open_search_dialog,
+            state="disabled" if _is_comptable else "normal",
         ).pack(side="right", padx=(6, 0))
 
         # ── Bienvenue ─────────────────────────────────────────────────
@@ -110,11 +121,13 @@ class MainContent:
             text="🏠 Bienvenue",
             width=110,
             height=30,
-            fg_color=BUTTON_RED,
-            hover_color="#B71C1C",
+            fg_color="#AAAAAA" if _is_comptable else BUTTON_RED,
+            hover_color="#AAAAAA" if _is_comptable else "#B71C1C",
+            text_color="#DDDDDD" if _is_comptable else "white",
             corner_radius=8,
             font=ctk.CTkFont(size=12, weight="bold"),
             command=self._go_home,
+            state="disabled" if _is_comptable else "normal",
         ).pack(side="right", padx=(0, 0))
 
         # ── Comptes (admin uniquement) — côté gauche ─────────────────

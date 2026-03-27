@@ -359,28 +359,19 @@ class TransportQuotation:
         elif field_type == "vehicle_type":
             widget = ttk.Combobox(parent, textvariable=field_var, values=[""], font=ENTRY_FONT, width=30, state="readonly")
         elif field_type == "date":
-            frame = tk.Frame(parent, bg=MAIN_BG_COLOR)
             entry = tk.Entry(
-                frame,
+                parent,
                 textvariable=field_var,
                 font=ENTRY_FONT,
-                width=27,
+                width=32,
                 bg=READONLY_BG_COLOR,
                 readonlybackground=READONLY_BG_COLOR,
                 fg=TEXT_COLOR,
                 state="readonly",
+                cursor="hand2",
             )
-            entry.pack(side="left")
-            tk.Button(
-                frame,
-                text="📅",
-                font=("Poppins", 12),
-                width=3,
-                bg=BUTTON_GREEN,
-                fg="white",
-                command=lambda: self._open_calendar(field_var),
-            ).pack(side="left", padx=(5, 0))
-            return frame
+            entry.bind("<Button-1>", lambda e, v=field_var: self._open_calendar(v))
+            return entry
         else:
             state = "normal"
             bg = INPUT_BG_COLOR

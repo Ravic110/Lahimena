@@ -298,11 +298,29 @@ class HomePage:
         self._add_client_list(cards_container)
 
     def _add_quick_action(self, parent, text, route, color, hover):
+        try:
+            from utils.auth_handler import current_role
+            is_comptable = current_role() == "comptable"
+        except Exception:
+            is_comptable = False
+
+        if is_comptable:
+            btn_state = "disabled"
+            fg = "#AAAAAA"
+            hv = "#AAAAAA"
+            txt_color = "#DDDDDD"
+        else:
+            btn_state = "normal"
+            fg = color
+            hv = hover
+            txt_color = "white"
+
         ctk.CTkButton(
             parent, text=text,
             command=lambda: self._navigate(route),
-            fg_color=color, hover_color=hover,
-            corner_radius=12, height=42, text_color="white",
+            fg_color=fg, hover_color=hv,
+            corner_radius=12, height=42, text_color=txt_color,
+            state=btn_state,
         ).pack(side="left", padx=(0, 10), pady=4)
 
     def _add_dashboard(self, parent):

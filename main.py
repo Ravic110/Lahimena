@@ -296,6 +296,10 @@ def _launch_main_app(user):
     main_content = MainContent(app)
     _sidebar = Sidebar(app, main_content.update_content)
 
+    # Redirect comptable directly to financial section
+    if user.get("role") == "comptable":
+        main_content.update_content("financial_home")
+
     logger.info(f"Application démarrée — utilisateur : {user['username']} ({user['role']})")
     app.mainloop()
 

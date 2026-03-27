@@ -19,6 +19,7 @@ from config import (
     PANEL_BG_COLOR,
     TEXT_COLOR,
 )
+from gui.forms.client_form import CalendarDialog
 from utils.auth_handler import (
     ROLES,
     change_password,
@@ -210,20 +211,24 @@ class AccountManagementWindow(tk.Toplevel):
         self._expiry_var = tk.StringVar()
         self._expiry_entry = ctk.CTkEntry(
             date_row, textvariable=self._expiry_var,
-            placeholder_text="AAAA-MM-JJ",
+            placeholder_text="Cliquer pour choisir une date",
             height=34, fg_color=INPUT_BG_COLOR, text_color=TEXT_COLOR,
             border_color=_BORDER_CLR, corner_radius=8,
             font=ctk.CTkFont(family="Poppins", size=12),
+            state="readonly",
         )
         self._expiry_entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        self._expiry_entry._entry.configure(cursor="hand2")
+        self._expiry_entry._entry.bind("<Button-1>", lambda e: self._pick_expiry_date())
 
-        ctk.CTkButton(
+        self._expiry_apply_btn = ctk.CTkButton(
             date_row, text="Appliquer", width=90, height=34,
             fg_color=BUTTON_BLUE, hover_color="#1565C0",
             corner_radius=8,
             font=ctk.CTkFont(family="Poppins", size=11, weight="bold"),
             command=self._apply_expiry,
-        ).pack(side="left")
+        )
+        self._expiry_apply_btn.pack(side="left")
 
         ctk.CTkButton(
             panel, text="✕ Supprimer la limite", height=30, width=200,
@@ -330,9 +335,9 @@ class AccountManagementWindow(tk.Toplevel):
         self._panel_msg.configure(text="")
 
     def _set_panel_enabled(self, enabled: bool):
-        state = "normal" if enabled else "disabled"
-        self._expiry_entry.configure(state=state)
-        self._btn_suspend.configure(state=state)
+        self._expiry_entry.configure(state="readonly" if enabled else "disabled")
+        self._expiry_apply_btn.configure(state="normal" if enabled else "disabled")
+        self._btn_suspend.configure(state="normal" if enabled else "disabled")
 
     # ── Actions ───────────────────────────────────────────────────────────────
 
@@ -365,6 +370,12 @@ class AccountManagementWindow(tk.Toplevel):
             self._status_badge.configure(text="")
         else:
             messagebox.showerror("Erreur", err, parent=self)
+
+    def _pick_expiry_date(self):
+        cal = CalendarDialog(self, "Choisir la date d'expiration")
+        self.wait_window(cal)
+        if cal.selected_date:
+            self._expiry_var.set(cal.selected_date.strftime("%Y-%m-%d"))
 
     def _apply_expiry(self):
         username = self._get_selected_username()
@@ -449,9 +460,10 @@ class _CreateAccountDialog(tk.Toplevel):
         super().__init__(parent)
         self.on_created = on_created
         self.title("Nouveau compte")
-        self.geometry("500x530")
+        self.geometry("520x620")
         self.configure(bg=PANEL_BG_COLOR)
-        self.resizable(False, False)
+        self.resizable(False, True)
+        self.minsize(520, 580)
         self.transient(parent)
         self.after(0, self._safe_grab)
         self._build_ui()
@@ -503,8 +515,8 @@ class _CreateAccountDialog(tk.Toplevel):
 
         def _field(label, attr, show=""):
             tk.Label(body, text=label, font=("Poppins", 10, "bold"),
-                     fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(8, 2))
-            e = ctk.CTkEntry(body, height=36,
+                     fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(6, 2))
+            e = ctk.CTkEntry(body, height=34,
                              fg_color=INPUT_BG_COLOR, text_color=TEXT_COLOR,
                              border_color=_BORDER_CLR, corner_radius=8,
                              font=ctk.CTkFont(family="Poppins", size=12), show=show)
@@ -516,19 +528,23 @@ class _CreateAccountDialog(tk.Toplevel):
         _field("Confirmer le mot de passe", "_e_confirm", show="•")
 
         # Date d'expiration d'accès (optionnel)
-        tk.Label(body, text="Date d'expiration d'accès  (optionnel — AAAA-MM-JJ)",
+        tk.Label(body, text="Date d'expiration d'accès  (optionnel)",
                  font=("Poppins", 10, "bold"),
                  fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(8, 2))
         from datetime import datetime, timedelta
         _default_expiry = (datetime.now() + timedelta(days=90)).strftime("%Y-%m-%d")
+        self._expiry_var = tk.StringVar(value=_default_expiry)
         self._e_expiry = ctk.CTkEntry(
-            body, height=36,
+            body, textvariable=self._expiry_var, height=36,
             fg_color=INPUT_BG_COLOR, text_color=TEXT_COLOR,
             border_color=_BORDER_CLR, corner_radius=8,
             font=ctk.CTkFont(family="Poppins", size=12),
+            placeholder_text="Cliquer pour choisir une date",
+            state="readonly",
         )
-        self._e_expiry.insert(0, _default_expiry)
         self._e_expiry.pack(fill="x")
+        self._e_expiry._entry.configure(cursor="hand2")
+        self._e_expiry._entry.bind("<Button-1>", lambda e: self._pick_expiry_date())
 
         # Rôle — 3 cartes
         tk.Label(body, text="Rôle", font=("Poppins", 10, "bold"),
@@ -548,22 +564,23 @@ class _CreateAccountDialog(tk.Toplevel):
         self._role_cards = {}
 
         def _make_card(col, role, cfg):
-            card = tk.Frame(role_box, bg="#E8F4F8", cursor="hand2")
+            card = tk.Frame(role_box, bg="#E8F4F8", cursor="hand2",
+                            relief="solid", bd=1, highlightbackground=_BORDER_CLR)
             pad = (0, 4) if col < 2 else (4, 0)
-            card.grid(row=0, column=col, sticky="nsew", padx=pad)
+            card.grid(row=0, column=col, sticky="nsew", padx=pad, pady=2)
             top = tk.Frame(card, bg="#E8F4F8")
             top.pack(fill="x", padx=8, pady=(8, 2))
-            icon_l = tk.Label(top, text=cfg["icon"], font=("Poppins", 16),
+            icon_l = tk.Label(top, text=cfg["icon"], font=("Poppins", 15),
                               bg="#E8F4F8", fg=TEXT_COLOR)
             icon_l.pack(side="left")
             name_l = tk.Label(top, text=role.capitalize(),
                               font=("Poppins", 10, "bold"),
                               bg="#E8F4F8", fg=TEXT_COLOR)
             name_l.pack(side="left", padx=(6, 0))
-            desc_l = tk.Label(card, text=cfg["desc"], font=("Poppins", 8),
+            desc_l = tk.Label(card, text=cfg["desc"], font=("Poppins", 9),
                               bg="#E8F4F8", fg=MUTED_TEXT_COLOR,
-                              wraplength=120, justify="left")
-            desc_l.pack(anchor="w", padx=8, pady=(0, 8))
+                              wraplength=140, justify="left")
+            desc_l.pack(anchor="w", padx=8, pady=(0, 10))
             widgets = [card, top, icon_l, name_l, desc_l]
             self._role_cards[role] = (card, widgets, cfg)
             for w in widgets:
@@ -592,13 +609,19 @@ class _CreateAccountDialog(tk.Toplevel):
         _refresh()
         self._e_user.focus_set()
 
+    def _pick_expiry_date(self):
+        cal = CalendarDialog(self, "Choisir la date d'expiration")
+        self.wait_window(cal)
+        if cal.selected_date:
+            self._expiry_var.set(cal.selected_date.strftime("%Y-%m-%d"))
+
     def _create(self):
         import re
         user    = self._e_user.get().strip()
         pw      = self._e_pass.get()
         confirm = self._e_confirm.get()
         role    = self._role_var.get()
-        expiry  = self._e_expiry.get().strip()
+        expiry  = self._expiry_var.get().strip()
 
         if pw != confirm:
             self._msg.configure(text="Les mots de passe ne correspondent pas.")

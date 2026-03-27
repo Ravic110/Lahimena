@@ -48,17 +48,16 @@ class LoginWindow(ctk.CTk):
         super().__init__()
         self.on_login_success = on_login_success
         self.title("Lahimena Tours — Connexion")
-        self.geometry("900x600")
+        self.geometry("580x720")
         self.resizable(False, False)
-        self.configure(fg_color=MAIN_BG_COLOR)
 
         # Centrer la fenêtre
         self.update_idletasks()
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
-        x = (sw - 900) // 2
-        y = (sh - 600) // 2
-        self.geometry(f"900x600+{x}+{y}")
+        x = (sw - 580) // 2
+        y = (sh - 720) // 2
+        self.geometry(f"580x720+{x}+{y}")
 
         self._build_ui()
 
@@ -69,165 +68,245 @@ class LoginWindow(ctk.CTk):
     # ── Layout principal ──────────────────────────────────────────────────────
 
     def _build_ui(self):
-        self.grid_columnconfigure(0, weight=1)  # panneau gauche (déco)
-        self.grid_columnconfigure(1, weight=1)  # panneau droite (formulaire)
+        _TEAL        = "#0D7A87"
+        _TEAL_DARK   = "#0A606B"
+        _RED         = "#C62828"
+        _RED_DK      = "#A31515"
+        _BG          = "#F0F2F5"
+        _BTN_DK      = "#1C2233"
+        _BTN_HOVER   = "#2E3A55"
+        _TAB_W       = 62
+        _CARD_W      = 360
+        _CORNER_R    = 20
+        _BORDER_NRM  = "#7BB8C2"
+        _BORDER_FOC  = "#FFFFFF"
+        _PH_COLOR    = "#8BBCC4"
+        _TEXT_COLOR  = "#1C2A2E"
+        _RED_LEFT_SHIFT = 50
+        _RED_VERTICAL_SHIFT = 30
+
+        self.configure(fg_color=_BG)
+        self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # ── Panneau gauche — branding ─────────────────────────────────────
-        left = ctk.CTkFrame(self, fg_color=BUTTON_RED, corner_radius=0)
-        left.grid(row=0, column=0, sticky="nswe")
-        left.grid_rowconfigure(0, weight=1)
-        left.grid_columnconfigure(0, weight=1)
+        outer = ctk.CTkFrame(self, fg_color="transparent")
+        outer.grid(row=0, column=0)
 
-        branding = ctk.CTkFrame(left, fg_color="transparent")
-        branding.grid(row=0, column=0)
+        # ── Logo ──────────────────────────────────────────────────────────
+        logo_area = ctk.CTkFrame(outer, fg_color="transparent")
+        logo_area.pack(pady=(22, 18))
 
-        # Logo
         try:
+            from PIL import Image
             logo_img = ctk.CTkImage(
-                light_image=__import__("PIL.Image", fromlist=["Image"]).open(LOGO_PATH),
-                dark_image=__import__("PIL.Image", fromlist=["Image"]).open(LOGO_PATH),
-                size=(140, 140),
+                light_image=Image.open(LOGO_PATH),
+                size=(100, 100),
             )
-            ctk.CTkLabel(branding, image=logo_img, text="").pack(pady=(0, 16))
+            self._logo_img_ref = logo_img
+            ctk.CTkLabel(logo_area, image=logo_img, text="").pack()
         except Exception:
-            ctk.CTkLabel(
-                branding,
-                text="🦜",
-                font=ctk.CTkFont(size=72),
-                text_color="white",
-            ).pack(pady=(0, 16))
+            ctk.CTkLabel(logo_area, text="🦜",
+                         font=ctk.CTkFont(size=60),
+                         text_color=_RED).pack()
 
-        ctk.CTkLabel(
-            branding,
-            text="Lahimena",
-            font=ctk.CTkFont(size=36, weight="bold"),
-            text_color="white",
-        ).pack()
-        ctk.CTkLabel(
-            branding,
-            text="Tours Madagascar",
-            font=ctk.CTkFont(size=16),
-            text_color="#FFCCCC",
-        ).pack(pady=(4, 0))
+        ctk.CTkLabel(logo_area, text="Lahimena",
+                     font=ctk.CTkFont(family="Poppins", size=38, weight="bold"),
+                     text_color=_RED).pack(pady=(6, 0))
+        ctk.CTkLabel(logo_area, text="Tours Madagascar",
+                     font=ctk.CTkFont(family="Poppins", size=12),
+                     text_color="#AAAAAA").pack(pady=(2, 0))
 
-        ctk.CTkLabel(
-            left,
-            text="Malagasy authentique",
-            font=ctk.CTkFont(size=13, slant="italic"),
-            text_color="#FFE0E0",
-        ).grid(row=0, column=0, sticky="s", pady=(0, 24))
+        # ── Carte [onglet-rouge | carte-teal | onglet-rouge] ──────────────
+        card_row = tk.Frame(outer, bg=_BG)
+        card_row.pack(pady=(0, 22))
 
-        # ── Panneau droit — formulaire ────────────────────────────────────
-        right = ctk.CTkFrame(self, fg_color=PANEL_BG_COLOR, corner_radius=0)
-        right.grid(row=0, column=1, sticky="nswe")
-        right.grid_rowconfigure(0, weight=1)
-        right.grid_columnconfigure(0, weight=1)
+        # Canvas pour les onglets latéraux avec coins arrondis
+        def _draw_tab(canvas, side):
+            canvas.delete("all")
+            w = canvas.winfo_width()
+            h = canvas.winfo_height()
+            if w < 2 or h < 2:
+                return
+            r = _CORNER_R
 
-        form_box = ctk.CTkFrame(right, fg_color="transparent")
-        form_box.grid(row=0, column=0, padx=50)
+            # Polygone lisse : coins arrondis d'un seul côté, droits de l'autre
+            if side == "left":
+                pts = [
+                    w, 0,  w, 0,   # coin haut-droit : dur (répété)
+                    r, 0,           # haut, approche arc gauche
+                    0, 0,           # point de contrôle arc haut-gauche
+                    0, r,           # gauche, après arc haut
+                    0, h - r,       # gauche, avant arc bas
+                    0, h,           # point de contrôle arc bas-gauche
+                    r, h,           # bas, après arc gauche
+                    w, h,  w, h,   # coin bas-droit : dur (répété)
+                ]
+            else:
+                pts = [
+                    0, 0,  0, 0,   # coin haut-gauche : dur (répété)
+                    w - r, 0,       # haut, approche arc droit
+                    w, 0,           # point de contrôle arc haut-droit
+                    w, r,           # droit, après arc haut
+                    w, h - r,       # droit, avant arc bas
+                    w, h,           # point de contrôle arc bas-droit
+                    w - r, h,       # bas, après arc droit
+                    0, h,  0, h,   # coin bas-gauche : dur (répété)
+                ]
+            canvas.create_polygon(pts, smooth=True,
+                                  fill=_RED, outline=_RED, width=0)
 
-        ctk.CTkLabel(
-            form_box,
-            text="Connexion",
-            font=ctk.CTkFont(size=26, weight="bold"),
-            text_color=TEXT_COLOR,
-        ).pack(anchor="w", pady=(0, 4))
-        ctk.CTkLabel(
-            form_box,
-            text="Entrez vos identifiants pour accéder à l'application.",
-            font=ctk.CTkFont(size=12),
-            text_color=MUTED_TEXT_COLOR,
-        ).pack(anchor="w", pady=(0, 28))
+        # Le canvas gauche est élargi de _RED_LEFT_SHIFT pour déborder à gauche
+        left_cv = tk.Canvas(card_row, width=_TAB_W + _RED_LEFT_SHIFT, bg=_BG,
+                            highlightthickness=0, bd=0)
+        left_cv.pack(side="left", fill="y", pady=_RED_VERTICAL_SHIFT)
+        left_cv.bind("<Configure>", lambda e, c=left_cv: _draw_tab(c, "left"))
 
-        # Username
-        ctk.CTkLabel(
-            form_box, text="Nom d'utilisateur",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color=TEXT_COLOR,
-        ).pack(anchor="w")
-        self.entry_username = ctk.CTkEntry(
-            form_box, width=320, height=40,
-            placeholder_text="Votre identifiant",
-            fg_color=INPUT_BG_COLOR,
-            text_color=TEXT_COLOR,
-            border_color="#C9DDE3",
-            corner_radius=10,
-            font=ctk.CTkFont(size=13),
-        )
-        self.entry_username.pack(anchor="w", pady=(4, 16))
+        # Carte sans pady → sa hauteur naturelle dépasse les canvas de 30px en haut et en bas
+        card = tk.Frame(card_row, bg=_TEAL)
+        card.pack(side="left")
 
-        # Password
-        ctk.CTkLabel(
-            form_box, text="Mot de passe",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color=TEXT_COLOR,
-        ).pack(anchor="w")
-        self.entry_password = ctk.CTkEntry(
-            form_box, width=320, height=40,
-            placeholder_text="••••••••",
-            show="•",
-            fg_color=INPUT_BG_COLOR,
-            text_color=TEXT_COLOR,
-            border_color="#C9DDE3",
-            corner_radius=10,
-            font=ctk.CTkFont(size=13),
-        )
-        self.entry_password.pack(anchor="w", pady=(4, 8))
+        right_cv = tk.Canvas(card_row, width=_TAB_W, bg=_BG,
+                             highlightthickness=0, bd=0)
+        right_cv.pack(side="left", fill="y", pady=_RED_VERTICAL_SHIFT)
+        right_cv.bind("<Configure>", lambda e, c=right_cv: _draw_tab(c, "right"))
+
+        # ── Formulaire ────────────────────────────────────────────────────
+        form = tk.Frame(card, bg=_TEAL)
+        form.pack(padx=32, pady=(90, 90))
+
+        def _field_row(icon_char, hint, attr, show="", with_eye=False):
+
+            box = ctk.CTkFrame(form,
+                               fg_color="#F4F9FA",
+                               bg_color=_TEAL,
+                               corner_radius=8,
+                               border_width=1,
+                               border_color=_BORDER_NRM)
+            box.pack(fill="x", pady=(0, 16))
+
+            ctk.CTkLabel(box, text=icon_char,
+                         fg_color="transparent",
+                         font=ctk.CTkFont(size=13),
+                         text_color=_PH_COLOR).pack(side="left", padx=(14, 0))
+
+            e = tk.Entry(
+                box,
+                bg="#F4F9FA", fg=_PH_COLOR,
+                font=("Poppins", 11),
+                bd=0, highlightthickness=0,
+                insertbackground=_TEXT_COLOR,
+                show="",
+            )
+            e.pack(side="left", fill="x", expand=True, ipady=7,
+                   padx=(8, 0 if with_eye else 14))
+
+            e._hint      = hint
+            e._real_show = show
+            e._is_ph     = True
+            e.insert(0, hint)
+
+            def _focus_in(ev, entry=e):
+                if entry._is_ph:
+                    entry.delete(0, "end")
+                    entry.config(fg=_TEXT_COLOR, show=entry._real_show,
+                                 bg="white")
+                    entry._is_ph = False
+                box.configure(border_color=_BORDER_FOC, fg_color="white")
+
+            def _focus_out(ev, entry=e):
+                if not entry.get():
+                    entry.config(show="", fg=_PH_COLOR, bg="#F4F9FA")
+                    entry.insert(0, entry._hint)
+                    entry._is_ph = True
+                box.configure(border_color=_BORDER_NRM, fg_color="#F4F9FA")
+
+            e.bind("<FocusIn>",  _focus_in)
+            e.bind("<FocusOut>", _focus_out)
+
+            if with_eye:
+                _vis = [False]
+                _eye_ref = [None]
+
+                def _toggle(_vis=_vis, entry=e):
+                    if entry._is_ph:
+                        return
+                    _vis[0] = not _vis[0]
+                    entry.config(show="" if _vis[0] else "•")
+                    _eye_ref[0].configure(text="🙈" if _vis[0] else "👁")
+
+                eye_lbl = ctk.CTkLabel(
+                    box, text="👁",
+                    fg_color="transparent",
+                    font=ctk.CTkFont(size=14),
+                    text_color="#AAAAAA",
+                    cursor="hand2",
+                )
+                eye_lbl.pack(side="left", padx=(2, 12))
+                eye_lbl.bind("<Button-1>", lambda ev: _toggle())
+                _eye_ref[0] = eye_lbl
+
+            setattr(self, attr, e)
+            return e
+
+        _field_row("👤", "Nom d'utilisateur", "entry_username")
+        _field_row("🔒", "Mot de passe", "entry_password",
+                   show="•", with_eye=True)
         self.entry_password.bind("<Return>", lambda e: self._do_login())
 
-        # Show/hide password + Remember me
-        opts_row = ctk.CTkFrame(form_box, fg_color="transparent")
-        opts_row.pack(fill="x", pady=(0, 20))
+        # ── Ligne options ─────────────────────────────────────────────────
+        opts = ctk.CTkFrame(form, fg_color="transparent", bg_color=_TEAL)
+        opts.pack(fill="x", pady=(4, 14))
 
-        self._show_pw_var = tk.BooleanVar(value=False)
+        self._remember_var = tk.BooleanVar(value=False)
         ctk.CTkCheckBox(
-            opts_row,
-            text="Afficher le mot de passe",
-            variable=self._show_pw_var,
-            command=self._toggle_password_visibility,
-            font=ctk.CTkFont(size=12),
-            text_color=MUTED_TEXT_COLOR,
-            fg_color=BUTTON_BLUE,
-            hover_color=BUTTON_BLUE,
-            border_color="#C9DDE3",
-            width=20, height=20,
+            opts,
+            text="Se souvenir de moi",
+            variable=self._remember_var,
+            onvalue=True, offvalue=False,
+            fg_color=_RED,
+            hover_color=_RED_DK,
+            border_color="#A8D8DF",
+            checkmark_color="white",
+            text_color="#A8D8DF",
+            font=ctk.CTkFont(family="Poppins", size=9),
+            bg_color="transparent",
+            corner_radius=4,
+            checkbox_width=16, checkbox_height=16,
         ).pack(side="left")
 
-        # Message d'erreur / info
+        forgot = tk.Label(opts, text="Mot de passe oublié ?",
+                          bg=_TEAL, fg="#A8D8DF",
+                          font=("Poppins", 9, "underline"),
+                          cursor="hand2")
+        forgot.pack(side="right")
+        forgot.bind("<Button-1>", lambda e: self._show_forgot_password())
+
+        # ── Message d'erreur ──────────────────────────────────────────────
         self._msg_var = tk.StringVar(value="")
         self._msg_label = ctk.CTkLabel(
-            form_box,
+            form,
             textvariable=self._msg_var,
-            font=ctk.CTkFont(size=12),
-            text_color=BUTTON_RED,
-            wraplength=320,
+            font=ctk.CTkFont(family="Poppins", size=10),
+            text_color="#FFB3B3",
+            fg_color="transparent",
+            wraplength=_CARD_W - 10,
         )
-        self._msg_label.pack(anchor="w", pady=(0, 10))
+        self._msg_label.pack(pady=(0, 8))
 
-        # Bouton LOGIN
+        # ── Bouton SE CONNECTER ───────────────────────────────────────────
         self.btn_login = ctk.CTkButton(
-            form_box,
-            text="LOGIN",
-            width=320, height=44,
-            fg_color=BUTTON_RED,
-            hover_color="#B71C1C",
-            corner_radius=10,
-            font=ctk.CTkFont(size=15, weight="bold"),
+            form,
+            text="SE CONNECTER",
+            width=_CARD_W - 4,
+            height=44,
+            fg_color=_BTN_DK,
+            hover_color=_BTN_HOVER,
+            corner_radius=8,
+            font=ctk.CTkFont(family="Poppins", size=13, weight="bold"),
+            text_color="white",
             command=self._do_login,
         )
-        self.btn_login.pack(anchor="w", pady=(0, 16))
-
-        # Mot de passe oublié
-        forgot_lbl = ctk.CTkLabel(
-            form_box,
-            text="Mot de passe oublié ?",
-            font=ctk.CTkFont(size=12, underline=True),
-            text_color=BUTTON_BLUE,
-            cursor="hand2",
-        )
-        forgot_lbl.pack(anchor="w")
-        forgot_lbl.bind("<Button-1>", lambda e: self._show_forgot_password())
+        self.btn_login.pack()
 
         self.entry_username.focus_set()
 
@@ -244,9 +323,22 @@ class LoginWindow(ctk.CTk):
         if color:
             self._msg_label.configure(text_color=color)
 
+    def _field_value(self, entry):
+        """Retourne la valeur réelle du champ (vide si placeholder actif)."""
+        return "" if getattr(entry, "_is_ph", False) else entry.get()
+
+    def _reset_password_field(self):
+        """Vide le champ mot de passe et restaure le placeholder."""
+        e = self.entry_password
+        e.delete(0, "end")
+        e.config(show="")
+        e.insert(0, e._hint)
+        e.config(fg="#BBBBBB")
+        e._is_ph = True
+
     def _do_login(self):
-        username = self.entry_username.get().strip()
-        password = self.entry_password.get()
+        username = self._field_value(self.entry_username).strip()
+        password = self._field_value(self.entry_password)
 
         if not username or not password:
             self._set_msg("Veuillez remplir tous les champs.", BUTTON_RED)
@@ -257,7 +349,7 @@ class LoginWindow(ctk.CTk):
 
         success, user, message = authenticate(username, password)
 
-        self.btn_login.configure(state="normal", text="LOGIN")
+        self.btn_login.configure(state="normal", text="SE CONNECTER")
 
         if not success:
             if message == "suspended":
@@ -266,7 +358,7 @@ class LoginWindow(ctk.CTk):
                 self._set_msg("⏱ La durée d'accès de ce compte a expiré. Contactez votre administrateur.", BUTTON_RED)
             else:
                 self._set_msg(message, BUTTON_RED)
-            self.entry_password.delete(0, tk.END)
+            self._reset_password_field()
             return
 
         if message == "expired":
@@ -323,12 +415,6 @@ class _FirstRunDialog(tk.Toplevel):
         self._build_ui()
 
     def _build_ui(self):
-        ctk.CTkLabel(
-            self,
-            text="Bienvenue sur Lahimena Tours",
-            font=ctk.CTkFont(size=18, weight="bold"),
-            text_color=TEXT_COLOR,
-        ).pack(pady=(24, 4))
 
         ctk.CTkLabel(
             self,

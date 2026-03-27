@@ -1064,15 +1064,11 @@ class ClientForm:
                                     fill=INPUT_BG_COLOR, outline="#C9DDE3", width=1)
                 val = date_var.get()
                 chip.create_text(
-                    12, _CHIP_H // 2,
-                    text=val or "Choisir une date", anchor="w",
+                    w // 2, _CHIP_H // 2,
+                    text=val or "Choisir une date", anchor="center",
                     font=ENTRY_FONT,
                     fill=TEXT_COLOR if val else MUTED_TEXT_COLOR,
                 )
-                # Icône calendrier simple
-                chip.create_text(w - 16, _CHIP_H // 2,
-                                 text="📅", anchor="center",
-                                 font=("Poppins", 11))
 
             date_var.trace_add("write", _draw)
             chip.bind("<Configure>", _draw)
@@ -2081,7 +2077,7 @@ class ClientForm:
         date_var = tk.StringVar(value=data.get("date", ""))
         date_chip = _make_chip(row, _DATE_W, clickable=True)
         date_chip.pack(side="left", padx=(0, 4))
-        _bind_chip_draw(date_chip, date_var, placeholder="Choisir une date", icon="📅")
+        _bind_chip_draw(date_chip, date_var, placeholder="Choisir une date")
 
         def _open_date_picker_row(var=date_var):
             cal = CalendarDialog(self.parent, "Choisir une date")
