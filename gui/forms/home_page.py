@@ -453,7 +453,7 @@ class HomePage:
         self._client_tree = ttk.Treeview(
             tree_frame, columns=cols, show="headings",
             yscrollcommand=vsb.set, xscrollcommand=hsb.set,
-            height=10,
+            height=16,
         )
         vsb.config(command=self._client_tree.yview)
         hsb.config(command=self._client_tree.xview)

@@ -158,6 +158,8 @@ def create_user(username: str, password: str, role: str,
         "access_expires_at":   access_expires_at,
     })
     if _save_users(users):
+        from utils.activity_log import log_activity
+        log_activity("create_user", f"Compte créé : {username} ({role})")
         return True, ""
     return False, "Erreur lors de la sauvegarde du fichier utilisateurs."
 
@@ -168,6 +170,8 @@ def delete_user(username: str) -> tuple[bool, str]:
     if len(new_users) == len(users):
         return False, f"Utilisateur « {username} » introuvable."
     if _save_users(new_users):
+        from utils.activity_log import log_activity
+        log_activity("delete_user", f"Compte supprimé : {username}")
         return True, ""
     return False, "Erreur lors de la sauvegarde."
 
@@ -183,6 +187,10 @@ def change_password(username: str, new_password: str) -> tuple[bool, str]:
             u["salt"]                = salt
             u["password_changed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             if _save_users(users):
+                from utils.activity_log import log_activity
+                log_activity("change_password",
+                             f"Mot de passe modifié pour : {username}",
+                             username=username, role=u.get("role", ""))
                 return True, ""
             return False, "Erreur lors de la sauvegarde."
     return False, f"Utilisateur « {username} » introuvable."
@@ -195,6 +203,8 @@ def suspend_user(username: str) -> tuple[bool, str]:
         if u["username"].lower() == username.lower():
             u["suspended"] = True
             if _save_users(users):
+                from utils.activity_log import log_activity
+                log_activity("suspend_user", f"Compte suspendu : {username}")
                 return True, ""
             return False, "Erreur lors de la sauvegarde."
     return False, f"Utilisateur « {username} » introuvable."
@@ -207,6 +217,8 @@ def reactivate_user(username: str) -> tuple[bool, str]:
         if u["username"].lower() == username.lower():
             u["suspended"] = False
             if _save_users(users):
+                from utils.activity_log import log_activity
+                log_activity("reactivate_user", f"Compte réactivé : {username}")
                 return True, ""
             return False, "Erreur lors de la sauvegarde."
     return False, f"Utilisateur « {username} » introuvable."
@@ -222,6 +234,10 @@ def set_access_expiry(username: str, expires_at: str) -> tuple[bool, str]:
         if u["username"].lower() == username.lower():
             u["access_expires_at"] = expires_at
             if _save_users(users):
+                from utils.activity_log import log_activity
+                detail = f"Expiration fixée au {expires_at}" if expires_at \
+                         else "Limite d'accès supprimée"
+                log_activity("set_expiry", f"{detail} pour : {username}")
                 return True, ""
             return False, "Erreur lors de la sauvegarde."
     return False, f"Utilisateur « {username} » introuvable."
@@ -259,9 +275,17 @@ def authenticate(username: str, password: str) -> tuple[bool, dict | None, str]:
                 "created_at":          u.get("created_at", ""),
                 "password_changed_at": u.get("password_changed_at", ""),
             }
+            from utils.activity_log import log_activity
             if is_password_expired(u):
+                log_activity("login", "Connexion (mot de passe expiré)",
+                             username=user_info["username"], role=user_info["role"])
                 return True, user_info, "expired"
+            log_activity("login", "Connexion réussie",
+                         username=user_info["username"], role=user_info["role"])
             return True, user_info, ""
+    from utils.activity_log import log_activity
+    log_activity("login_failed", f"Tentative échouée pour : {username}",
+                 username=username, role="")
     return False, None, "Nom d'utilisateur introuvable."
 
 
@@ -289,4 +313,9 @@ def is_admin() -> bool:
 
 
 def logout():
+    u = _current_user
+    if u:
+        from utils.activity_log import log_activity
+        log_activity("logout", "Déconnexion",
+                     username=u.get("username", ""), role=u.get("role", ""))
     set_current_user(None)

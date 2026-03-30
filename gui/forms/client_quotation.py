@@ -819,6 +819,13 @@ class ClientQuotation:
             "✅ Devis généré",
             f"Le devis PDF a été sauvegardé :\n{filename}",
         )
+        try:
+            from utils.activity_log import log_activity
+            client_name = self.client_var.get().strip()
+            log_activity("create_quotation",
+                         f"Devis généré pour : {client_name} — {filename}")
+        except Exception:
+            pass
 
         try:
             if os.name == "nt":
@@ -879,3 +886,10 @@ class ClientQuotation:
             "Facture générée",
             "La facture a été créée et intégrée automatiquement dans l'état financier.",
         )
+        try:
+            from utils.activity_log import log_activity
+            client_name = self.client_var.get().strip()
+            log_activity("create_invoice",
+                         f"Facture générée pour : {client_name}")
+        except Exception:
+            pass

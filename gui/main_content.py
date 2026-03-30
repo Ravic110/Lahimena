@@ -194,6 +194,26 @@ class MainContent:
 
         self.current_content_type = content_type
         self._nav_kwargs = kwargs
+
+        # Trace la navigation
+        try:
+            from utils.activity_log import log_activity
+            _NAV_LABELS = {
+                "client_form": "Formulaire client", "client_list": "Liste clients",
+                "billing_quotes_hub_page": "Devis & Factures",
+                "cotation_hub_page": "Cotations", "database_hub_page": "Base de données",
+                "hotel_quotation": "Cotation hôtel", "current_quotes": "Devis en cours",
+                "collective_expense_quotation": "Frais collectifs",
+                "transport_page": "Transport", "air_ticket_page": "Billets avion",
+                "visite_excursion_quotation": "Visites & Excursions",
+                "parametrage_page": "Paramétrage", "current_invoices": "Factures",
+                "financial_home": "État financier", "expenses_page": "Dépenses",
+            }
+            page_label = _NAV_LABELS.get(content_type, content_type)
+            log_activity("navigate", f"Page : {page_label}")
+        except Exception:
+            pass
+
         # Clear current content
         for widget in self.main_scroll.winfo_children():
             widget.destroy()

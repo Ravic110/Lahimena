@@ -58,7 +58,7 @@ def configure_combobox_style(root):
     root.option_add("*TCombobox*Listbox.selectForeground", "white")
 
 
-def create_card(parent, title=None, tabs=None, show_controls=False, on_add=None, on_remove=None, expand=False):
+def create_card(parent, title=None, tabs=None, show_controls=False, on_add=None, on_remove=None, expand=False, on_tab_click=None):
     """Create a rounded card container with optional title and tabs."""
     if CTK_AVAILABLE:
         card = ctk.CTkFrame(
@@ -95,9 +95,10 @@ def create_card(parent, title=None, tabs=None, show_controls=False, on_add=None,
         if title and not tabs:
             chip_items = [(title, True)]
 
+        _chip_refs = {}
         for label, is_active in chip_items:
             bg = BUTTON_RED if is_active else BUTTON_BLUE
-            tk.Label(
+            chip = tk.Label(
                 chips,
                 text=label,
                 bg=bg,
@@ -105,7 +106,20 @@ def create_card(parent, title=None, tabs=None, show_controls=False, on_add=None,
                 font=("Poppins", 10, "bold"),
                 padx=10,
                 pady=3,
-            ).pack(side="left", padx=(0, 6))
+                cursor="hand2" if on_tab_click else "",
+            )
+            chip.pack(side="left", padx=(0, 6))
+            _chip_refs[label] = chip
+
+        if on_tab_click:
+            def _make_handler(lbl, refs):
+                def _handler(e):
+                    for l, c in refs.items():
+                        c.configure(bg=BUTTON_RED if l == lbl else BUTTON_BLUE)
+                    on_tab_click(lbl)
+                return _handler
+            for lbl, chip in _chip_refs.items():
+                chip.bind("<Button-1>", _make_handler(lbl, _chip_refs))
 
         if show_controls:
             controls = tk.Frame(header_row, bg=PANEL_BG_COLOR)

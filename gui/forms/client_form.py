@@ -649,7 +649,7 @@ class ClientForm:
         _lbl_tab_compl.bind("<Button-1>", lambda e: _switch_tab("complements"))
 
         def _field_type_client(parent):
-            values = ["Mr", "Mme", "CIE"]
+            values = ["Mr", "Mme", "Non précisé", "CIE"]
             if ctk is not None:
                 self.combo_type_client = ctk.CTkComboBox(
                     parent,
@@ -1347,6 +1347,21 @@ class ClientForm:
         self.entry_itineraire_distance = styled_entry(right_col, width=10)
         self.entry_itineraire_hebergement = styled_entry(right_col, width=18)
 
+        # ── Panneaux d'onglets (créés avant la carte pour le callback) ────
+        _active_panel = [None]
+
+        def _switch_itin_tab(tab_name):
+            if _active_panel[0]:
+                _active_panel[0].pack_forget()
+            panel = {
+                "Itinéraires":   _itin_panels[0],
+                "Voiture":       _itin_panels[1],
+                "Guide national": _itin_panels[2],
+            }.get(tab_name)
+            if panel is not None:
+                panel.pack(fill="both", expand=True)
+                _active_panel[0] = panel
+
         itineraire_card = create_card(
             right_col,
             title=None,
@@ -1355,10 +1370,18 @@ class ClientForm:
             on_add=self._add_itinerary_row,
             on_remove=self._remove_selected_itinerary_rows,
             expand=True,
+            on_tab_click=_switch_itin_tab,
         )
 
+        itin_panel        = tk.Frame(itineraire_card, bg=PANEL_BG_COLOR)
+        voiture_panel     = tk.Frame(itineraire_card, bg=PANEL_BG_COLOR)
+        guide_panel       = tk.Frame(itineraire_card, bg=PANEL_BG_COLOR)
+        _itin_panels      = [itin_panel, voiture_panel, guide_panel]
+        _active_panel[0]  = itin_panel
+        itin_panel.pack(fill="both", expand=True)
+
         # ── Sélection du circuit ──────────────────────────────────────────
-        circuit_row = tk.Frame(itineraire_card, bg=PANEL_BG_COLOR)
+        circuit_row = tk.Frame(itin_panel, bg=PANEL_BG_COLOR)
         circuit_row.pack(fill="x", pady=(0, 6))
 
         tk.Label(
@@ -1395,7 +1418,7 @@ class ClientForm:
             ("Hébergement",             0),   # fill
         ]
         hdr_bg = "#C5E0E8"
-        hdr = tk.Frame(itineraire_card, bg=hdr_bg)
+        hdr = tk.Frame(itin_panel, bg=hdr_bg)
         hdr.pack(fill="x", pady=(0, 2))
         for col_name, col_w in _ITIN:
             cell = tk.Frame(hdr, bg=hdr_bg)
@@ -1412,7 +1435,7 @@ class ClientForm:
             ).pack(anchor="w")
 
         # ── Zone scrollable ──────────────────────────────────────────────
-        scroll_outer = tk.Frame(itineraire_card, bg=PANEL_BG_COLOR)
+        scroll_outer = tk.Frame(itin_panel, bg=PANEL_BG_COLOR)
         scroll_outer.pack(fill="both", expand=True, pady=(0, 6))
 
         self._itin_canvas = tk.Canvas(
@@ -1443,14 +1466,77 @@ class ClientForm:
         self._itin_canvas.bind("<MouseWheel>", _on_mousewheel)
         self._itin_inner.bind("<MouseWheel>", _on_mousewheel)
 
-        self.itinerary_count_label = muted_label(itineraire_card, "0 itinéraire sélectionné")
+        self.itinerary_count_label = muted_label(itin_panel, "0 itinéraire sélectionné")
         self.itinerary_count_label.pack(anchor="w", pady=(0, 2))
 
         # Type d'hôtel à la ville d'arrivée (hidden from UI)
         self.combo_type_hotel_arrivee = ttk.Combobox(
-            itineraire_card, values=HOTEL_ARRIVAL_TYPES, state="readonly", width=37
+            itin_panel, values=HOTEL_ARRIVAL_TYPES, state="readonly", width=37
         )
         # Not packed on purpose: field removed from visible form.
+
+        # ── Panneau VOITURE ───────────────────────────────────────────────
+        _vp = voiture_panel
+        tk.Label(_vp, text="Type de véhicule", font=LABEL_FONT,
+                 fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(10, 4))
+        self.combo_type_vehicule = _stay_combo(
+            _vp, ["", "4x4", "Berline", "Minivan", "Minibus", "Autre"],
+            fixed_width=220,
+        )
+        self.combo_type_vehicule.pack(anchor="w")
+
+        tk.Label(_vp, text="Carburant", font=LABEL_FONT,
+                 fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(12, 4))
+        self.var_location_voiture_tab = tk.StringVar(value="")
+        for val in ("Avec carburant", "Sans carburant"):
+            tk.Radiobutton(
+                _vp, text=val,
+                variable=self.var_location_voiture_tab, value=val,
+                fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+                selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+            ).pack(anchor="w")
+
+        tk.Label(_vp, text="Notes", font=LABEL_FONT,
+                 fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(12, 4))
+        self.voiture_notes_text = tk.Text(
+            _vp, height=5, font=ENTRY_FONT,
+            bg="#FFF6E0", fg=TEXT_COLOR, wrap="word",
+            relief="flat", highlightthickness=1,
+            highlightbackground="#E6C87A", highlightcolor="#E6C87A",
+            bd=0, padx=8, pady=6,
+        )
+        self.voiture_notes_text.pack(fill="x", pady=(0, 10))
+
+        # ── Panneau GUIDE NATIONAL ────────────────────────────────────────
+        _gp = guide_panel
+        self.var_guide_national = tk.BooleanVar()
+        tk.Checkbutton(
+            _gp, text="Avec guide national",
+            variable=self.var_guide_national,
+            fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+            selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+        ).pack(anchor="w", pady=(10, 8))
+
+        tk.Label(_gp, text="Langue(s) du guide", font=LABEL_FONT,
+                 fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(0, 4))
+        self.combo_langue_guide = _stay_combo(
+            _gp,
+            ["", "Français", "Anglais", "Allemand", "Italien",
+             "Espagnol", "Chinois", "Japonais", "Autre"],
+            fixed_width=220,
+        )
+        self.combo_langue_guide.pack(anchor="w")
+
+        tk.Label(_gp, text="Notes", font=LABEL_FONT,
+                 fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(12, 4))
+        self.guide_notes_text = tk.Text(
+            _gp, height=5, font=ENTRY_FONT,
+            bg="#FFF6E0", fg=TEXT_COLOR, wrap="word",
+            relief="flat", highlightthickness=1,
+            highlightbackground="#E6C87A", highlightcolor="#E6C87A",
+            bd=0, padx=8, pady=6,
+        )
+        self.guide_notes_text.pack(fill="x", pady=(0, 10))
 
         def _build_comment_block(parent, title):
             wrapper = tk.Frame(parent, bg=CARD_BG_COLOR)
@@ -1664,7 +1750,15 @@ class ClientForm:
         self.var_accompagnement_chauffeur.set(chauffeur_on)
         self._cb_guide.configure(state="disabled" if chauffeur_on else "normal")
         self._cb_chauffeur.configure(state="disabled" if guide_on else "normal")
-        self.var_location_voiture.set(self.client_to_edit.get("location_voiture", ""))
+        guide_nat = str(self.client_to_edit.get("guide_national", "")).strip().lower()
+        self.var_guide_national.set(guide_nat in {"oui", "true", "1", "yes"})
+        self.combo_langue_guide.set(self.client_to_edit.get("langue_guide", ""))
+        self.guide_notes_text.delete("1.0", "end")
+        self.guide_notes_text.insert("1.0", self.client_to_edit.get("guide_notes", ""))
+        self.var_location_voiture_tab.set(self.client_to_edit.get("location_voiture", ""))
+        self.combo_type_vehicule.set(self.client_to_edit.get("type_vehicule", ""))
+        self.voiture_notes_text.delete("1.0", "end")
+        self.voiture_notes_text.insert("1.0", self.client_to_edit.get("voiture_notes", ""))
 
         # Clear and rebuild rooming rows from saved data
         for rw in getattr(self, "_rooming_widget_rows", []):
@@ -1688,7 +1782,7 @@ class ClientForm:
         self._update_rooming_summary()
         # Combo boxes
         type_client = self.client_to_edit.get("type_client", "").strip()
-        self.combo_type_client.set(type_client if type_client in ("Mr", "Mme", "CIE") else "Mr")
+        self.combo_type_client.set(type_client if type_client in ("Mr", "Mme", "Non précisé", "CIE") else "Mr")
         self.combo_periode.set(self.client_to_edit.get("periode", ""))
         self.combo_restauration.set(self.client_to_edit.get("restauration", ""))
         self.combo_TypeHebergement.set(self.client_to_edit.get("hebergement", ""))
@@ -2424,7 +2518,12 @@ class ClientForm:
             "accompagnement_chauffeur": "Oui"
             if self.var_accompagnement_chauffeur.get()
             else "Non",
-            "location_voiture": self.var_location_voiture.get(),
+            "guide_national": "Oui" if self.var_guide_national.get() else "Non",
+            "langue_guide": self.combo_langue_guide.get(),
+            "guide_notes": self.guide_notes_text.get("1.0", "end").strip(),
+            "location_voiture": self.var_location_voiture_tab.get(),
+            "type_vehicule": self.combo_type_vehicule.get(),
+            "voiture_notes": self.voiture_notes_text.get("1.0", "end").strip(),
             "enfant": "Oui" if self.var_enfant.get() else "Non",
             "age_enfant": "",
             "statut": self._statut_var.get(),
@@ -2499,6 +2598,9 @@ class ClientForm:
                         "✅ SUCCÈS", f"Client {client.nom} modifié avec succès !"
                     )
                     logger.info(f"Client updated: {client.ref_client} - {client.nom}")
+                    from utils.activity_log import log_activity
+                    log_activity("edit_client",
+                                 f"Client modifié : {client.nom} ({client.ref_client})")
                     if self.on_save_callback:
                         self.on_save_callback()
                 else:
@@ -2517,6 +2619,9 @@ class ClientForm:
                     logger.info(
                         f"New client saved: {client.ref_client} - {client.nom} at row {row}"
                     )
+                    from utils.activity_log import log_activity
+                    log_activity("create_client",
+                                 f"Client créé : {client.nom} ({client.ref_client})")
                     self._reset_form()
                     if self.on_save_callback:
                         self.on_save_callback()
@@ -2669,4 +2774,10 @@ class ClientForm:
         self.var_accompagnement_chauffeur.set(False)
         self._cb_guide.configure(state="normal")
         self._cb_chauffeur.configure(state="normal")
+        self.var_guide_national.set(False)
+        self.combo_langue_guide.set("")
+        self.guide_notes_text.delete("1.0", "end")
         self.var_location_voiture.set("")
+        self.var_location_voiture_tab.set("")
+        self.combo_type_vehicule.set("")
+        self.voiture_notes_text.delete("1.0", "end")

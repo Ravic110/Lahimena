@@ -1,0 +1,62 @@
+[
+  {
+    "timestamp": "2026-03-30 12:08:21",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-30 12:10:33",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "edit_client",
+    "label": "Modification d'un client",
+    "details": "Client modifié : dollard (GH56)"
+  },
+  {
+    "timestamp": "2026-03-30 14:31:21",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-30 14:55:22",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-30 16:13:45",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-30 16:21:11",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-30 16:22:21",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
+  }
+]
