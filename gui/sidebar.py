@@ -89,24 +89,24 @@ class Sidebar:
         self._set_active(home_btn)
 
         # Client Information (direct access)
-        _btn1 = self._create_button("Infos Clients & Voyages", self._show_client_page)
+        btn_clients = self._create_button("Infos Clients & Voyages", self._show_client_page)
 
         # Quotation module hub
-        _btn2 = self._create_button("Cotation", self._show_cotation_hub_page)
+        btn_cotation = self._create_button("Cotation", self._show_cotation_hub_page)
 
         # Invoices / Quotes hub
-        _btn4 = self._create_button("Facture/Devis", self._show_billing_quotes_hub_page)
+        btn_facture = self._create_button("Facture/Devis", self._show_billing_quotes_hub_page)
 
         # Unified Databases section (dedicated hub page)
-        _btn_db = self._create_button(
+        btn_bdd = self._create_button(
             "Bases de données (BDD)", self._show_database_hub_page
         )
 
         # Financial Statements (single entry point, no sidebar submenu)
-        _btn10 = self._create_button("Etat financier", self._show_financial_home)
+        btn_financier = self._create_button("Etat financier", self._show_financial_home)
 
         # Marketing placeholder
-        _btn11 = self._create_button("Marketing", self._show_marketing_page)
+        btn_marketing = self._create_button("Marketing", self._show_marketing_page)
 
         # Restrict navigation for comptable role
         try:
@@ -121,7 +121,7 @@ class Sidebar:
                             text_color="#DDDDDD",
                         )
                 # Set "Etat financier" as the active button
-                self._set_active(_btn10)
+                self._set_active(btn_financier)
         except Exception:
             pass
 

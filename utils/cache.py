@@ -152,7 +152,17 @@ def cached_exchange_rates(ttl_seconds=3600):
 def _make_cache_key(prefix, args, kwargs):
     if not args and not kwargs:
         return prefix
-    return (prefix, args, tuple(sorted(kwargs.items())))
+    # Convertir les valeurs non-hashables en leur représentation str pour éviter TypeError
+    def _safe(v):
+        try:
+            hash(v)
+            return v
+        except TypeError:
+            return str(v)
+
+    safe_args = tuple(_safe(a) for a in args)
+    safe_kwargs = tuple(sorted((k, _safe(v)) for k, v in kwargs.items()))
+    return (prefix, safe_args, safe_kwargs)
 
 
 def cached_hotel_data(ttl_seconds=86400):

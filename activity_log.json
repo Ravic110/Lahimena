@@ -58,5 +58,122 @@
     "label": "Navigation",
     "category": "nav",
     "details": "Page : client_page"
+  },
+  {
+    "timestamp": "2026-03-31 11:06:15",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-31 18:12:56",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-31 18:50:49",
+    "username": "Tsiky",
+    "role": "comptable",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-31 18:50:52",
+    "username": "Tsiky",
+    "role": "comptable",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : État financier"
+  },
+  {
+    "timestamp": "2026-03-31 18:52:01",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-31 19:08:29",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-31 19:08:39",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
+  },
+  {
+    "timestamp": "2026-03-31 19:39:02",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-31 20:10:23",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-31 20:11:39",
+    "username": "Tsiky",
+    "role": "comptable",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-31 20:11:44",
+    "username": "Tsiky",
+    "role": "comptable",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : État financier"
+  },
+  {
+    "timestamp": "2026-03-31 20:14:37",
+    "username": "Tsiky",
+    "role": "comptable",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-03-31 20:14:42",
+    "username": "Tsiky",
+    "role": "comptable",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : État financier"
   }
 ]

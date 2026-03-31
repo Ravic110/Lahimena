@@ -1,11 +1,12 @@
 [
   {
     "username": "Victorien",
-    "password_hash": "f5ae72069bcfa3ff6b2cb99008f3f3c3427856572246387dc07e823dd736bd3e",
-    "salt": "54435bd4de4f541327bca8dc4798969c",
+    "password_hash": "5d2a67d592fc3ba29d447cf1ff413c571d2a8d348c4d2cac2fcf484486773326",
+    "salt": "dd323fe94111e4484af72c2c95c1a101efa24fcf325852fc504b9897e1c87060",
     "role": "admin",
     "created_at": "2026-03-24 11:15:23",
-    "password_changed_at": "2026-03-24 11:15:23"
+    "password_changed_at": "2026-03-24 11:15:23",
+    "hash_version": 2
   },
   {
     "username": "simpleUser",
@@ -19,12 +20,13 @@
   },
   {
     "username": "Tsiky",
-    "password_hash": "7117a58427a9a24aab2e0293f1c275487feb15c7486408acaa0f1d838f11e556",
-    "salt": "17a89d05a9757a4ac570b1fe8264137c",
+    "password_hash": "f12a59d2c4853d2ca7f878e45d1cd6bdc3327982a9e658e68c6c8ed96788b851",
+    "salt": "0f4d139b35022f772837bf728a4beff03020cdd134d165a95cd7c29aa9ac4532",
     "role": "comptable",
     "created_at": "2026-03-27 09:15:47",
     "password_changed_at": "2026-03-27 09:15:47",
     "suspended": false,
-    "access_expires_at": "2026-06-25"
+    "access_expires_at": "2026-06-25",
+    "hash_version": 2
   }
 ]

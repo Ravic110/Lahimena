@@ -356,6 +356,10 @@ class LoginWindow(ctk.CTk):
                 self._set_msg("🚫 Ce compte est suspendu. Contactez votre administrateur.", BUTTON_RED)
             elif message == "access_expired":
                 self._set_msg("⏱ La durée d'accès de ce compte a expiré. Contactez votre administrateur.", BUTTON_RED)
+            elif message and message.startswith("locked:"):
+                mins = message.split(":")[1]
+                self._set_msg(f"🔒 Trop de tentatives échouées. Réessayez dans {mins} min.", BUTTON_RED)
+                self.btn_login.configure(state="disabled")
             else:
                 self._set_msg(message, BUTTON_RED)
             self._reset_password_field()

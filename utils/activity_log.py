@@ -39,6 +39,8 @@ ACTION_META = {
     "suspend_user":       ("Suspension d'un compte",           "user"),
     "reactivate_user":    ("Réactivation d'un compte",         "user"),
     "change_password":    ("Changement de mot de passe",       "user"),
+    "change_user_role":   ("Modification du rôle",             "user"),
+    "duplicate_user":     ("Duplication d'un compte",          "user"),
     "set_expiry":         ("Modification date d'expiration",   "user"),
     "create_quotation":   ("Création d'une cotation",          "quota"),
     "edit_quotation":     ("Modification d'une cotation",      "quota"),
@@ -64,6 +66,12 @@ def _load() -> list:
         return []
 
 
+def _iter_entries(entries: list):
+    for entry in entries:
+        if isinstance(entry, dict):
+            yield entry
+
+
 def _save(entries: list) -> None:
     with open(ACTIVITY_FILE, "w", encoding="utf-8") as f:
         json.dump(entries, f, ensure_ascii=False, indent=2)
@@ -78,7 +86,7 @@ def _rotate_old_entries(entries: list) -> list:
     """
     cutoff = datetime.now() - timedelta(days=30)
     recent, old = [], []
-    for e in entries:
+    for e in _iter_entries(entries):
         try:
             ts = datetime.strptime(e["timestamp"], "%Y-%m-%d %H:%M:%S")
             (old if ts < cutoff else recent).append(e)
@@ -119,7 +127,7 @@ def _check_brute_force(username: str, entries: list) -> bool:
     """
     window_start = datetime.now() - timedelta(minutes=BRUTE_FORCE_WINDOW_MIN)
     count = 0
-    for e in entries:
+    for e in _iter_entries(entries):
         if e.get("action") != "login_failed":
             continue
         if e.get("username", "").lower() != username.lower():
@@ -165,7 +173,7 @@ def log_activity(action: str, details: str = "", username: str = "",
         "details":   details,
     }
 
-    entries = _load()
+    entries = list(_iter_entries(_load()))
 
     # Alerte brute force
     if action == "login_failed" and username:
@@ -204,7 +212,7 @@ def get_activity(username: str = "", limit: int = 500,
       date_to       : date fin "YYYY-MM-DD"
       search        : recherche texte libre sur tous les champs
     """
-    entries = _load()
+    entries = list(_iter_entries(_load()))
 
     if username:
         entries = [e for e in entries
@@ -248,7 +256,7 @@ def get_user_stats(username: str) -> dict:
       - daily_counts : {date_str: count}  (30 derniers jours)
       - brute_force_detected : bool
     """
-    entries = _load()
+    entries = list(_iter_entries(_load()))
     user_entries = [e for e in entries
                     if e.get("username", "").lower() == username.lower()]
 
@@ -293,6 +301,26 @@ def get_user_stats(username: str) -> dict:
         "daily_counts":       daily_counts,
         "brute_force_detected": brute,
     }
+
+
+def get_recent_activity_summary(username: str, limit: int = 5) -> list:
+    """Retourne les actions récentes d'un utilisateur pour un affichage résumé."""
+    return get_activity(username=username, limit=limit)
+
+
+def get_brute_force_usernames() -> list[str]:
+    """Retourne les utilisateurs avec trop d'échecs de connexion récents."""
+    entries = list(_iter_entries(_load()))
+    failed_users = {
+        e.get("username", "").strip()
+        for e in entries
+        if e.get("action") == "login_failed" and e.get("username", "").strip()
+    }
+    return sorted(
+        username
+        for username in failed_users
+        if _check_brute_force(username, entries)
+    )
 
 
 def get_archive_months() -> list[str]:

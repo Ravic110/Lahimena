@@ -1948,7 +1948,7 @@ class HotelQuotation:
                 if os.name == "nt":  # Windows
                     os.startfile(filename)
                 elif os.name == "posix":  # macOS/Linux
-                    subprocess.run(["xdg-open", filename])
+                    subprocess.run(["xdg-open", filename], check=False)
             except Exception as e:
                 logger.warning(f"Could not open quotation file automatically: {e}")
                 messagebox.showwarning(
@@ -2051,7 +2051,7 @@ class HotelQuotation:
             if os.name == "nt":  # Windows
                 os.startfile(filepath)
             elif os.name == "posix":  # macOS/Linux
-                subprocess.run(["xdg-open", filepath])
+                subprocess.run(["xdg-open", filepath], check=False)
 
             logger.info(f"Opened quotation: {filename}")
 

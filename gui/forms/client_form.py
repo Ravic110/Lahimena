@@ -1846,7 +1846,7 @@ class ClientForm:
 
             if date_arr:
                 self._auto_set_saison(datetime.strptime(date_arr, "%d/%m/%Y"))
-        except:
+        except (ValueError, AttributeError):
             pass
 
     def _auto_set_saison(self, arrival):

@@ -166,8 +166,16 @@ class MainContent:
 
     def _open_account_management(self):
         """Open account management window (admin only)."""
-        from gui.forms.account_management import AccountManagementWindow
-        AccountManagementWindow(self._container)
+        import traceback
+        from tkinter import messagebox
+        try:
+            from gui.forms.account_management import AccountManagementWindow
+            AccountManagementWindow(self._container)
+        except Exception as e:
+            messagebox.showerror(
+                "Erreur — Gestion des comptes",
+                f"{type(e).__name__}: {e}\n\n{traceback.format_exc()}",
+            )
 
     # ── /Topbar ───────────────────────────────────────────────────────────
 

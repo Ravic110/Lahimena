@@ -230,17 +230,25 @@ def styled_label(parent, text):
 
 
 def action_button(parent, text, variant="primary", command=None):
-    """Create a styled button (primary/secondary/danger)."""
+    """Create a styled button.
+
+    Variants acceptés :
+        "primary"   → vert (défaut)
+        "secondary" → gris
+        "danger"    → rouge
+        "blue"      → bleu  (alias : "info")
+        "orange"    → orange (alias : "accent")
+    """
     if variant == "secondary":
         bg = BUTTON_GRAY
         hover = BUTTON_GRAY
     elif variant == "danger":
         bg = BUTTON_RED
         hover = BUTTON_RED
-    elif variant == "accent":
+    elif variant in ("orange", "accent"):
         bg = BUTTON_ORANGE
         hover = BUTTON_ORANGE
-    elif variant in ("info", "blue"):
+    elif variant in ("blue", "info"):
         bg = BUTTON_BLUE
         hover = BUTTON_BLUE
     else:

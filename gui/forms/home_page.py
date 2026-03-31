@@ -50,6 +50,11 @@ class HomePage:
     def __init__(self, parent, navigate_callback=None):
         self.parent = parent
         self.navigate_callback = navigate_callback
+        self._shell = None
+        self._destroyed = False
+        self._dashboard_after_id = None
+        self._clients_after_id = None
+        self._clock_after_id = None
         self.clock_label = None
         self.dashboard_stats = self._empty_dashboard_stats()
         self._dashboard_value_labels = {}
@@ -86,21 +91,28 @@ class HomePage:
         threading.Thread(target=worker, daemon=True).start()
 
     def _poll_dashboard_stats(self):
-        try:
-            if not self.parent.winfo_exists():
-                return
-        except Exception:
+        if not self._is_alive():
             return
         if self._pending_dashboard_stats is not None:
             stats = self._pending_dashboard_stats
             self._pending_dashboard_stats = None
             self._apply_dashboard_stats(stats)
             return
-        self.parent.after(100, self._poll_dashboard_stats)
+        self._schedule_after("_dashboard_after_id", 100, self._poll_dashboard_stats)
 
     def _apply_dashboard_stats(self, stats):
         self.dashboard_stats = stats
         if not self._dashboard_value_labels:
+            return
+        required = ("clients", "collective", "quotes", "invoices")
+        try:
+            if any(
+                key not in self._dashboard_value_labels
+                or not self._dashboard_value_labels[key].winfo_exists()
+                for key in required
+            ):
+                return
+        except Exception:
             return
         self._dashboard_value_labels["clients"].configure(
             text=f"{stats['clients']}"
@@ -185,10 +197,7 @@ class HomePage:
         threading.Thread(target=worker, daemon=True).start()
 
     def _poll_clients(self):
-        try:
-            if not self.parent.winfo_exists():
-                return
-        except Exception:
+        if not self._is_alive():
             return
         if self._pending_clients is not None:
             clients = self._pending_clients
@@ -196,7 +205,7 @@ class HomePage:
             self._all_clients = clients
             self._refresh_client_tree()
             return
-        self.parent.after(150, self._poll_clients)
+        self._schedule_after("_clients_after_id", 150, self._poll_clients)
 
     def _refresh_client_tree(self):
         if self._client_tree is None or not self._client_tree.winfo_exists():
@@ -240,6 +249,8 @@ class HomePage:
     def _build_ui(self):
         shell = ctk.CTkFrame(self.parent, fg_color="transparent")
         shell.pack(fill="both", expand=True, padx=24, pady=24)
+        shell.bind("<Destroy>", self._on_destroy, add="+")
+        self._shell = shell
 
         # Hero banner
         hero = ctk.CTkFrame(
@@ -543,12 +554,50 @@ class HomePage:
 
     def _start_clock(self):
         try:
-            if not self.clock_label or not self.clock_label.winfo_exists():
+            if not self._is_alive() or not self.clock_label or not self.clock_label.winfo_exists():
                 return
             self.clock_label.configure(text=datetime.now().strftime("%d/%m/%Y\n%H:%M:%S"))
-            self.parent.after(1000, self._start_clock)
+            self._schedule_after("_clock_after_id", 1000, self._start_clock)
         except Exception:
             return
+
+    def _is_alive(self):
+        if self._destroyed:
+            return False
+        try:
+            return bool(self.parent.winfo_exists() and self._shell and self._shell.winfo_exists())
+        except Exception:
+            return False
+
+    def _schedule_after(self, attr_name, delay_ms, callback):
+        if not self._is_alive():
+            return
+        try:
+            job_id = self.parent.after(delay_ms, callback)
+        except Exception:
+            return
+        setattr(self, attr_name, job_id)
+
+    def _cancel_after(self, attr_name):
+        job_id = getattr(self, attr_name, None)
+        if not job_id:
+            return
+        try:
+            self.parent.after_cancel(job_id)
+        except Exception:
+            pass
+        setattr(self, attr_name, None)
+
+    def _on_destroy(self, event=None):
+        if self._shell is None or event is None or event.widget is not self._shell:
+            return
+        self._destroyed = True
+        self._cancel_after("_dashboard_after_id")
+        self._cancel_after("_clients_after_id")
+        self._cancel_after("_clock_after_id")
+        self._dashboard_value_labels.clear()
+        self.clock_label = None
+        self._client_tree = None
 
 
 # ── Modal: choisir l'action sur un client ─────────────────────────────────────
