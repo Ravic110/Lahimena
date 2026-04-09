@@ -234,6 +234,7 @@ class MainContent:
             "client_form": self._show_client_page,
             "client_list": self._show_client_page,
             "client_page": self._show_client_page,
+            "client_hotel_cotation": self._show_client_hotel_cotation,
             "billing_quotes_hub_page": self._show_billing_quotes_hub_page,
             "cotation_hub_page": self._show_cotation_hub_page,
             "database_hub_page": self._show_database_hub_page,
@@ -319,6 +320,18 @@ class MainContent:
         client_to_edit = getattr(self, "_nav_kwargs", {}).get("client_to_edit")
         self._nav_kwargs = {}
         ClientPage(self.main_scroll, client_to_edit=client_to_edit)
+
+    def _show_client_hotel_cotation(self):
+        """Show hotel quotation table for a specific client."""
+        from gui.forms.client_hotel_cotation import ClientHotelCotation
+
+        client = getattr(self, "_nav_kwargs", {}).get("client", {})
+        self._nav_kwargs = {}
+        ClientHotelCotation(
+            self.main_scroll,
+            client=client,
+            on_back=lambda: self.update_content("welcome"),
+        )
 
     def _show_database_hub_page(self):
         """Show dedicated database hub page."""
