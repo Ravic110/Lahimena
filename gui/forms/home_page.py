@@ -615,13 +615,13 @@ class _ClientActionModal(tk.Toplevel):
         self.configure(bg=PANEL_BG_COLOR)
         self.resizable(False, False)
         self.transient(parent)
-        self.after(0, self._safe_grab)
+        self.after(0, self._safe_focus)
         self._build()
 
-    def _safe_grab(self):
+    def _safe_focus(self):
         try:
-            self.wait_visibility()
-            self.grab_set()
+            self.lift()
+            self.focus_set()
         except Exception:
             pass
 
@@ -702,13 +702,13 @@ class _ChangeStatutDialog(tk.Toplevel):
         self.configure(bg=PANEL_BG_COLOR)
         self.resizable(False, False)
         self.transient(parent)
-        self.after(0, self._safe_grab)
+        self.after(0, self._safe_focus)
         self._build()
 
-    def _safe_grab(self):
+    def _safe_focus(self):
         try:
-            self.wait_visibility()
-            self.grab_set()
+            self.lift()
+            self.focus_set()
         except Exception:
             pass
 

@@ -295,7 +295,7 @@ class CompteResultatNatureWindow(tk.Toplevel):
                                 total += deb - cred
                             else:
                                 total += cred - deb
-                        except:
+                        except (ValueError, TypeError, KeyError):
                             pass
             return total
 
@@ -305,7 +305,7 @@ class CompteResultatNatureWindow(tk.Toplevel):
                 deb = float(debit_group.get((annee, compte), 0))
                 cred = float(credit_group.get((annee, compte), 0))
                 return deb - cred
-            except:
+            except (ValueError, TypeError):
                 return 0.0
 
         # Construire ledger selon mapping ordre

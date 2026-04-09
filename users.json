@@ -10,13 +10,14 @@
   },
   {
     "username": "simpleUser",
-    "password_hash": "3b5acd7bdd350774461f1518e10cb49333decb659fbdfd6670023a6f30f654cc",
-    "salt": "1daa544d6369213e2e7ec53db3ce1c83",
+    "password_hash": "df0227aecb7c4ec3f01ac16e389613a1f6bcf9c9e3b677963c0791b7b08607ab",
+    "salt": "d1e5c4a2cf999cf7f55e8ae0f22b4d01a7e32c1fc07b703eedf40000735a4f9c",
     "role": "agent",
     "created_at": "2026-03-25 09:30:18",
     "password_changed_at": "2026-03-25 09:30:18",
     "suspended": false,
-    "access_expires_at": "2026-03-31"
+    "access_expires_at": "2026-03-31",
+    "hash_version": 2
   },
   {
     "username": "Tsiky",
@@ -28,5 +29,16 @@
     "suspended": false,
     "access_expires_at": "2026-06-25",
     "hash_version": 2
+  },
+  {
+    "username": "user2",
+    "password_hash": "378e3081035365e805632b0d9c141be23941559a372f9d5326afcbee7b91f25a",
+    "salt": "f09da1b58c07b6bec70c093dfc7b1c6659a7b60c6eb1280442f0b3e47ad69982",
+    "hash_version": 2,
+    "role": "agent",
+    "created_at": "2026-03-31 22:18:45",
+    "password_changed_at": "2026-03-31 22:18:45",
+    "suspended": false,
+    "access_expires_at": "2026-04-30"
   }
 ]

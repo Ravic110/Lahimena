@@ -811,13 +811,14 @@ class InvoiceManagement:
             return
 
         messagebox.showinfo("Succès", f"Facture PDF générée:\n{filepath}")
-        try:
-            if os.name == "nt":
-                os.startfile(filepath)
-            elif os.name == "posix":
-                subprocess.run(["xdg-open", filepath], check=False)
-        except Exception:
-            pass
+        if os.path.exists(filepath):
+            try:
+                if os.name == "nt":
+                    os.startfile(filepath)
+                elif os.name == "posix":
+                    subprocess.run(["xdg-open", filepath], check=False)
+            except Exception:
+                pass
 
     def _resolve_client_contact(self, invoice):
         client_id = str(invoice.get("Client_ID") or "").strip()

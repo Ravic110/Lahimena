@@ -43,9 +43,16 @@ class DialogueLigne(tk.Toplevel):
         self.title("Ajouter écriture" if self.ajout else "Modifier écriture")
         self.geometry("550x500")
         self.transient(parent)
-        self.grab_set()
+        self.after(0, self._safe_focus)
 
         self.creer_widgets(donnees)
+
+    def _safe_focus(self):
+        try:
+            self.lift()
+            self.focus_set()
+        except Exception:
+            pass
 
     def creer_widgets(self, donnees):
         """Crée les widgets du dialogue"""

@@ -78,7 +78,7 @@ class CalendarDialog(tk.Toplevel):
 
         # Center window
         self.transient(parent)
-        self.after(0, self._safe_grab)
+        self.after(0, self._safe_focus)
 
         self.selected_date = None
         self.current_month = datetime.now().month
@@ -86,12 +86,11 @@ class CalendarDialog(tk.Toplevel):
 
         self._create_widgets()
 
-    def _safe_grab(self):
-        """Grab focus once the window is viewable."""
+    def _safe_focus(self):
         try:
-            self.wait_visibility()
-            self.grab_set()
-        except tk.TclError:
+            self.lift()
+            self.focus_set()
+        except Exception:
             pass
 
     def _create_widgets(self):

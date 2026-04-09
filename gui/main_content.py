@@ -910,13 +910,13 @@ class _SearchDialog(tk.Toplevel):
         self._navigate = navigate_callback
         self._results = []
 
-        self.after(0, self._safe_grab)
+        self.after(0, self._safe_focus)
         self._build_ui()
 
-    def _safe_grab(self):
+    def _safe_focus(self):
         try:
-            self.wait_visibility()
-            self.grab_set()
+            self.lift()
+            self.focus_set()
         except Exception:
             pass
 

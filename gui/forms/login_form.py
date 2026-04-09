@@ -413,10 +413,17 @@ class _FirstRunDialog(tk.Toplevel):
         self.configure(bg=PANEL_BG_COLOR)
         self.resizable(False, False)
         self.transient(parent)
-        self.grab_set()
         self.protocol("WM_DELETE_WINDOW", lambda: None)  # non fermable
+        self.after(0, self._safe_focus)
 
         self._build_ui()
+
+    def _safe_focus(self):
+        try:
+            self.lift()
+            self.focus_set()
+        except Exception:
+            pass
 
     def _build_ui(self):
 
@@ -502,11 +509,18 @@ class _ChangePasswordDialog(tk.Toplevel):
         self.configure(bg=PANEL_BG_COLOR)
         self.resizable(False, False)
         self.transient(parent)
-        self.grab_set()
         if forced:
             self.protocol("WM_DELETE_WINDOW", lambda: None)
+        self.after(0, self._safe_focus)
 
         self._build_ui()
+
+    def _safe_focus(self):
+        try:
+            self.lift()
+            self.focus_set()
+        except Exception:
+            pass
 
     def _build_ui(self):
         msg = (

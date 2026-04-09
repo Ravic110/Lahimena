@@ -674,7 +674,7 @@ class ClientQuotation:
         win.configure(bg=MAIN_BG_COLOR)
         win.resizable(False, False)
         win.transient(self.parent)
-        win.grab_set()
+        win.after(0, lambda: [win.lift(), win.focus_set()])
 
         tk.Label(win, text="Désignation:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).grid(row=0, column=0, sticky="w", padx=10, pady=8)
         designation_var = tk.StringVar(value=str(item.get("designation", "")))
@@ -827,13 +827,14 @@ class ClientQuotation:
         except Exception:
             pass
 
-        try:
-            if os.name == "nt":
-                os.startfile(filename)
-            elif os.name == "posix":
-                subprocess.run(["xdg-open", filename], check=False)
-        except Exception as e:
-            logger.warning(f"Could not open quotation file automatically: {e}")
+        if os.path.exists(filename):
+            try:
+                if os.name == "nt":
+                    os.startfile(filename)
+                elif os.name == "posix":
+                    subprocess.run(["xdg-open", filename], check=False)
+            except Exception as e:
+                logger.warning(f"Could not open quotation file automatically: {e}")
 
     def _generate_invoice_from_quote(self):
         if not self.current_items:
