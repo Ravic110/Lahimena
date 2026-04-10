@@ -235,6 +235,7 @@ class MainContent:
             "client_list": self._show_client_page,
             "client_page": self._show_client_page,
             "client_hotel_cotation": self._show_client_hotel_cotation,
+            "client_collective_cotation": self._show_client_collective_cotation,
             "billing_quotes_hub_page": self._show_billing_quotes_hub_page,
             "cotation_hub_page": self._show_cotation_hub_page,
             "database_hub_page": self._show_database_hub_page,
@@ -328,6 +329,18 @@ class MainContent:
         client = getattr(self, "_nav_kwargs", {}).get("client", {})
         self._nav_kwargs = {}
         ClientHotelCotation(
+            self.main_scroll,
+            client=client,
+            on_back=lambda: self.update_content("welcome"),
+        )
+
+    def _show_client_collective_cotation(self):
+        """Show collective expense quotation table for a specific client."""
+        from gui.forms.client_collective_cotation import ClientCollectiveCotation
+
+        client = getattr(self, "_nav_kwargs", {}).get("client", {})
+        self._nav_kwargs = {}
+        ClientCollectiveCotation(
             self.main_scroll,
             client=client,
             on_back=lambda: self.update_content("welcome"),

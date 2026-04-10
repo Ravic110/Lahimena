@@ -13,6 +13,8 @@ import tkinter as tk
 import unicodedata
 from tkinter import messagebox, ttk
 
+import customtkinter as ctk
+
 from config import (
     ACCENT_TEXT_COLOR,
     BUTTON_BLUE,
@@ -24,10 +26,15 @@ from config import (
     LABEL_FONT,
     MAIN_BG_COLOR,
     MUTED_TEXT_COLOR,
+    PANEL_BG_COLOR,
     TEXT_COLOR,
     TITLE_FONT,
 )
-from utils.excel_handler import load_all_hotels
+from utils.excel_handler import (
+    load_all_hotels,
+    load_client_hotel_cotation,
+    save_client_hotel_cotation_to_excel,
+)
 from utils.validators import convert_currency, get_exchange_rates
 
 # ── Constantes ────────────────────────────────────────────────────────────────
@@ -51,6 +58,12 @@ _ROOM_TYPES = [
     ("tpl_count", "triple",    "TPL"),
     ("fml_count", "familiale", "FML"),
 ]
+
+# Couleurs hover pour les boutons CTk
+_HOVER_GREEN = "#0A6870"
+_HOVER_BLUE  = "#0B6080"
+_HOVER_RED   = "#A82020"
+_HOVER_GREY  = "#9EA7AA"
 
 
 # ── Utilitaires ───────────────────────────────────────────────────────────────
@@ -234,23 +247,25 @@ class ClientHotelCotation:
         if self.on_back:
             back_bar = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
             back_bar.pack(fill="x", padx=20, pady=(4, 0))
-            tk.Button(
+            ctk.CTkButton(
                 back_bar, text="⬅  Retour à l'accueil",
                 command=self.on_back,
-                bg=BUTTON_BLUE, fg="white", font=BUTTON_FONT,
-                padx=10, pady=4, relief="flat", cursor="hand2",
+                fg_color=BUTTON_BLUE, hover_color=_HOVER_BLUE, text_color="white",
+                font=BUTTON_FONT, corner_radius=8, cursor="hand2",
             ).pack(side="left")
 
         root = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         root.pack(fill="both", expand=True, padx=20, pady=(8, 20))
 
-        # Infos client
-        info_frame = tk.LabelFrame(
-            root, text="Informations client",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
-            padx=12, pady=8,
-        )
-        info_frame.pack(fill="x", pady=(0, 10))
+        # ── Carte Infos client ─────────────────────────────────────────────────
+        info_card = tk.Frame(root, bg=PANEL_BG_COLOR)
+        info_card.pack(fill="x", pady=(0, 10))
+        tk.Label(
+            info_card, text="Informations client",
+            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+        ).pack(anchor="w", padx=12, pady=(8, 2))
+        info_inner = tk.Frame(info_card, bg=PANEL_BG_COLOR)
+        info_inner.pack(fill="x", padx=12, pady=(0, 8))
 
         for col_i, (lbl_text, val_text) in enumerate([
             ("Participants :", pax or "—"),
@@ -258,59 +273,71 @@ class ClientHotelCotation:
             ("Rooming :", rooming),
         ]):
             tk.Label(
-                info_frame, text=lbl_text,
-                font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
+                info_inner, text=lbl_text,
+                font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
             ).grid(row=0, column=col_i * 2,
                    sticky="w", padx=(0 if col_i == 0 else 20, 4), pady=4)
             tk.Label(
-                info_frame, text=val_text,
-                font=ENTRY_FONT, fg=ACCENT_TEXT_COLOR, bg=MAIN_BG_COLOR,
+                info_inner, text=val_text,
+                font=ENTRY_FONT, fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR,
             ).grid(row=0, column=col_i * 2 + 1, sticky="w", pady=4)
 
-        # Barre d'actions
+        # ── Barre d'actions ────────────────────────────────────────────────────
         action_bar = tk.Frame(root, bg=MAIN_BG_COLOR)
-        action_bar.pack(fill="x", pady=(0, 6))
+        action_bar.pack(fill="x", pady=(0, 8))
 
-        tk.Button(
+        ctk.CTkButton(
             action_bar, text="＋  Ajouter une ligne",
             command=self._add_row_dialog,
-            bg=BUTTON_GREEN, fg="white", font=BUTTON_FONT,
-            padx=10, pady=5, relief="flat", cursor="hand2",
+            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN, text_color="white",
+            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
         ).pack(side="left", padx=(0, 6))
 
-        tk.Button(
+        ctk.CTkButton(
             action_bar, text="✏️  Modifier la ligne",
             command=self._edit_selected,
-            bg=BUTTON_BLUE, fg="white", font=BUTTON_FONT,
-            padx=10, pady=5, relief="flat", cursor="hand2",
+            fg_color=BUTTON_BLUE, hover_color=_HOVER_BLUE, text_color="white",
+            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
         ).pack(side="left", padx=(0, 6))
 
-        tk.Button(
+        ctk.CTkButton(
             action_bar, text="🗑️  Supprimer la ligne",
             command=self._delete_selected,
-            bg=BUTTON_RED, fg="white", font=BUTTON_FONT,
-            padx=10, pady=5, relief="flat", cursor="hand2",
+            fg_color=BUTTON_RED, hover_color=_HOVER_RED, text_color="white",
+            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
         ).pack(side="left")
 
-        # Tableau
-        table_frame = tk.LabelFrame(
-            root, text="Hébergements par ville",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
-            padx=10, pady=10,
-        )
-        table_frame.pack(fill="both", expand=True, pady=(0, 10))
+        ctk.CTkButton(
+            action_bar, text="💾  Sauvegarder",
+            command=self._save_to_excel,
+            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN, text_color="white",
+            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
+        ).pack(side="right")
+
+        # ── Carte Tableau ──────────────────────────────────────────────────────
+        table_card = tk.Frame(root, bg=PANEL_BG_COLOR)
+        table_card.pack(fill="both", expand=True, pady=(0, 10))
+        tk.Label(
+            table_card, text="Hébergements par ville",
+            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+        ).pack(anchor="w", padx=12, pady=(8, 2))
+        table_inner = tk.Frame(table_card, bg=PANEL_BG_COLOR)
+        table_inner.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
         style = ttk.Style()
         style.configure(
-            "Treeview",
+            "Hotel.Treeview",
             background=INPUT_BG_COLOR, foreground=TEXT_COLOR,
-            fieldbackground=INPUT_BG_COLOR, rowheight=28,
+            fieldbackground=INPUT_BG_COLOR, rowheight=30,
         )
-        style.configure("Treeview.Heading", font=LABEL_FONT)
-        style.map("Treeview", background=[("selected", BUTTON_BLUE)])
+        style.configure("Hotel.Treeview.Heading", font=LABEL_FONT)
+        style.map("Hotel.Treeview", background=[("selected", BUTTON_BLUE)])
 
         col_ids = [c[0] for c in self._COLS]
-        self._tree = ttk.Treeview(table_frame, columns=col_ids, show="headings", height=12)
+        self._tree = ttk.Treeview(
+            table_inner, columns=col_ids, show="headings",
+            height=12, style="Hotel.Treeview",
+        )
         for key, heading, width in self._COLS:
             self._tree.heading(key, text=heading)
             anchor = "e" if key in (
@@ -318,49 +345,62 @@ class ClientHotelCotation:
             ) else "w"
             self._tree.column(key, width=width, anchor=anchor, stretch=False)
 
-        vsb = ttk.Scrollbar(table_frame, orient="vertical",   command=self._tree.yview)
-        hsb = ttk.Scrollbar(table_frame, orient="horizontal", command=self._tree.xview)
+        vsb = ttk.Scrollbar(table_inner, orient="vertical",   command=self._tree.yview)
+        hsb = ttk.Scrollbar(table_inner, orient="horizontal", command=self._tree.xview)
         self._tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
         self._tree.grid(row=0, column=0, sticky="nsew")
         vsb.grid(row=0, column=1, sticky="ns")
         hsb.grid(row=1, column=0, sticky="ew")
-        table_frame.grid_rowconfigure(0, weight=1)
-        table_frame.grid_columnconfigure(0, weight=1)
+        table_inner.grid_rowconfigure(0, weight=1)
+        table_inner.grid_columnconfigure(0, weight=1)
         self._tree.bind("<Double-1>", lambda e: self._edit_selected())
 
-        # Totaux
-        totals_frame = tk.LabelFrame(
-            root, text="Totaux",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
-            padx=12, pady=8,
-        )
-        totals_frame.pack(fill="x")
+        # Tags pour les lignes alternées
+        self._tree.tag_configure("odd",  background="#E4F2F6")
+        self._tree.tag_configure("even", background=INPUT_BG_COLOR)
+
+        # ── Carte Totaux ───────────────────────────────────────────────────────
+        totals_card = tk.Frame(root, bg=PANEL_BG_COLOR)
+        totals_card.pack(fill="x")
+        tk.Label(
+            totals_card, text="Totaux",
+            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+        ).pack(anchor="w", padx=12, pady=(8, 2))
+        totals_inner = tk.Frame(totals_card, bg=PANEL_BG_COLOR)
+        totals_inner.pack(fill="x", padx=12, pady=(0, 8))
 
         tk.Label(
-            totals_frame, text="Total dépenses :",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
+            totals_inner, text="Total dépenses :",
+            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
         ).grid(row=0, column=0, sticky="w", padx=(0, 6), pady=4)
 
         self._lbl_dep = tk.Label(
-            totals_frame, text="0.00",
-            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=MAIN_BG_COLOR,
+            totals_inner, text="0.00",
+            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR,
         )
         self._lbl_dep.grid(row=0, column=1, sticky="w", padx=(0, 40), pady=4)
 
         tk.Label(
-            totals_frame, text="Total global (avec marges) :",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
+            totals_inner, text="Total global (avec marges) :",
+            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
         ).grid(row=0, column=2, sticky="w", padx=(0, 6), pady=4)
 
         self._lbl_glob = tk.Label(
-            totals_frame, text="0.00",
-            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=MAIN_BG_COLOR,
+            totals_inner, text="0.00",
+            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR,
         )
         self._lbl_glob.grid(row=0, column=3, sticky="w", pady=4)
 
     # ── Données initiales ──────────────────────────────────────────────────────
 
     def _populate_initial_rows(self):
+        # Priorité : données déjà sauvegardées en base
+        saved = load_client_hotel_cotation(self.client)
+        if saved:
+            self._rows = saved
+            return
+
+        # Sinon : générer depuis l'itinéraire du client
         client   = self.client
         raw_va   = client.get("ville_arrivee", "") or ""
         raw_itin = client.get("itineraire_circuit", "") or ""
@@ -376,10 +416,10 @@ class ClientHotelCotation:
                 seen.add(c)
                 all_cities.append(c)
 
-        pax          = str(client.get("nombre_participants") or
-                           client.get("nombre_adultes") or "")
-        hotel_group  = _client_group_key(client)
-        room_prices  = self._default_room_prices(client)
+        pax         = str(client.get("nombre_participants") or
+                          client.get("nombre_adultes") or "")
+        hotel_group = _client_group_key(client)
+        room_prices = self._default_room_prices(client)
 
         if all_cities:
             for city in all_cities:
@@ -475,6 +515,7 @@ class ClientHotelCotation:
             prix        = rd["prix_unitaire"]
             dep         = rd["depense"]
             total       = rd["total"]
+            tag = "odd" if i % 2 else "even"
             self._tree.insert("", "end", iid=str(i), values=(
                 rd["ville"],
                 rd["nuits"],
@@ -485,13 +526,37 @@ class ClientHotelCotation:
                 _fmt(dep)   if dep   else "",
                 rd["marge"] + " %" if rd["marge"] else "",
                 _fmt(total) if total else "",
-            ))
+            ), tags=(tag,))
 
     def _refresh_totals(self):
         total_dep  = sum(rd["depense"] for rd in self._rows)
         total_glob = sum(rd["total"]   for rd in self._rows)
         self._lbl_dep.configure(text=_fmt(total_dep))
         self._lbl_glob.configure(text=_fmt(total_glob))
+
+    # ── Sauvegarde Excel ───────────────────────────────────────────────────────
+
+    def _save_to_excel(self):
+        if not self._rows:
+            messagebox.showwarning("Aucune donnée", "Le tableau est vide. Rien à sauvegarder.")
+            return
+        result = save_client_hotel_cotation_to_excel(self.client, self._rows)
+        if result > 0:
+            messagebox.showinfo(
+                "Sauvegarde réussie",
+                f"{result} ligne(s) enregistrée(s) dans la base de données.",
+            )
+        elif result == -2:
+            messagebox.showerror(
+                "Fichier verrouillé",
+                "Le fichier Excel est ouvert ailleurs.\n"
+                "Fermez data.xlsx puis réessayez.",
+            )
+        else:
+            messagebox.showerror(
+                "Erreur",
+                "La sauvegarde a échoué. Consultez les logs pour plus de détails.",
+            )
 
     # ── Actions sur les lignes ─────────────────────────────────────────────────
 
@@ -564,10 +629,12 @@ class ClientHotelCotation:
         outer = tk.Frame(win, bg=MAIN_BG_COLOR)
         outer.pack(padx=24, pady=(20, 0))
 
-        def _lbl(parent, text, r, c=0, span=1):
+        SEC = PANEL_BG_COLOR  # fond des sections
+
+        def _lbl(parent, text, r, c=0, span=1, bg=None):
             tk.Label(
                 parent, text=text,
-                font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR, anchor="w",
+                font=LABEL_FONT, fg=TEXT_COLOR, bg=bg or SEC, anchor="w",
             ).grid(row=r, column=c, columnspan=span, sticky="w", padx=(0, 10), pady=5)
 
         def _entry(parent, var, r, c=1, w=30, justify="left"):
@@ -580,12 +647,18 @@ class ClientHotelCotation:
             e.grid(row=r, column=c, sticky="ew", pady=5)
             return e
 
+        def _make_section(title):
+            """Crée une carte de section avec titre et retourne le frame intérieur."""
+            card = tk.Frame(outer, bg=SEC)
+            card.pack(fill="x", pady=(0, 10))
+            tk.Label(card, text=title, font=LABEL_FONT, fg=TEXT_COLOR, bg=SEC,
+                     ).pack(anchor="w", padx=10, pady=(8, 2))
+            inner = tk.Frame(card, bg=SEC)
+            inner.pack(fill="x", padx=10, pady=(0, 8))
+            return inner
+
         # ── Section 1 : Lieu / Hôtel ───────────────────────────────────────
-        s1 = tk.LabelFrame(
-            outer, text="Lieu & Hôtel",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR, padx=10, pady=6,
-        )
-        s1.pack(fill="x", pady=(0, 8))
+        s1 = _make_section("Lieu & Hôtel")
 
         _lbl(s1, "Ville :", 0)
         _entry(s1, v_ville, 0, w=30)
@@ -601,10 +674,10 @@ class ClientHotelCotation:
         )
         combo_hotel.grid(row=2, column=1, sticky="ew", pady=5)
 
-        # Indicateur de devise (affiché quand l'hôtel a des prix non-MGA)
+        # Indicateur de devise
         lbl_devise = tk.Label(
             s1, text="",
-            font=ENTRY_FONT, fg=ACCENT_TEXT_COLOR, bg=MAIN_BG_COLOR, anchor="w",
+            font=ENTRY_FONT, fg=ACCENT_TEXT_COLOR, bg=SEC, anchor="w",
         )
         lbl_devise.grid(row=2, column=2, sticky="w", padx=(8, 0), pady=5)
 
@@ -619,11 +692,7 @@ class ClientHotelCotation:
         _entry(s1, v_pax, 4, w=6, justify="center")
 
         # ── Section 2 : Rooming — prix par type de chambre ─────────────────
-        s2 = tk.LabelFrame(
-            outer, text="Rooming list — Prix par type de chambre",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR, padx=10, pady=6,
-        )
-        s2.pack(fill="x", pady=(0, 8))
+        s2 = _make_section("Rooming list — Prix par type de chambre")
 
         # En-têtes du mini-tableau
         for c_i, (hdr, w) in enumerate([
@@ -631,7 +700,7 @@ class ClientHotelCotation:
         ]):
             tk.Label(
                 s2, text=hdr,
-                font=LABEL_FONT, fg=MUTED_TEXT_COLOR, bg=MAIN_BG_COLOR,
+                font=LABEL_FONT, fg=MUTED_TEXT_COLOR, bg=SEC,
                 width=w, anchor="center",
             ).grid(row=0, column=c_i, padx=4, pady=(0, 2))
 
@@ -658,7 +727,7 @@ class ClientHotelCotation:
 
             tk.Label(
                 s2, text=lbl,
-                font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
+                font=LABEL_FONT, fg=TEXT_COLOR, bg=SEC,
                 width=8, anchor="center",
             ).grid(row=grid_r, column=0, padx=4, pady=3)
 
@@ -680,7 +749,7 @@ class ClientHotelCotation:
 
             lbl_sub = tk.Label(
                 s2, text="0.00",
-                font=ENTRY_FONT, fg=MUTED_TEXT_COLOR, bg=MAIN_BG_COLOR,
+                font=ENTRY_FONT, fg=MUTED_TEXT_COLOR, bg=SEC,
                 width=14, anchor="e",
             )
             lbl_sub.grid(row=grid_r, column=3, padx=4, pady=3)
@@ -696,12 +765,12 @@ class ClientHotelCotation:
         )
         tk.Label(
             s2, text="Prix unitaire total :",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
+            font=LABEL_FONT, fg=TEXT_COLOR, bg=SEC,
         ).grid(row=sep_r + 1, column=2, sticky="e", padx=(0, 4), pady=4)
 
         lbl_prix_total = tk.Label(
             s2, text="0.00",
-            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=MAIN_BG_COLOR,
+            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=SEC,
             width=14, anchor="e",
         )
         lbl_prix_total.grid(row=sep_r + 1, column=3, padx=4, pady=4)
@@ -710,7 +779,7 @@ class ClientHotelCotation:
         s3 = tk.Frame(outer, bg=MAIN_BG_COLOR)
         s3.pack(fill="x", pady=(0, 8))
 
-        _lbl(s3, "Marge (%) :", 0)
+        _lbl(s3, "Marge (%) :", 0, bg=MAIN_BG_COLOR)
         _entry(s3, v_marge, 0, w=8, justify="center")
 
         lbl_prev = tk.Label(
@@ -743,7 +812,6 @@ class ClientHotelCotation:
             """Met à jour la liste déroulante des hôtels selon la ville saisie."""
             filtered = self._hotels_for_city(v_ville.get())
             combo_hotel["values"] = filtered
-            # Si l'hôtel sélectionné n'est plus dans la liste filtrée, on le vide
             if v_hotel.get() and v_hotel.get() not in filtered:
                 v_hotel.set("")
                 lbl_devise.configure(text="")
@@ -758,7 +826,6 @@ class ClientHotelCotation:
             group_lbl = v_group.get().strip()
             group_key = _GROUP_BY_LBL.get(group_lbl, "standard")
 
-            # Mise à jour indicateur de devise
             unite = self._hotel_currency(hotel_lbl) if hotel_lbl else "MGA"
             if unite not in ("MGA", "ARIARY", "AR", ""):
                 rate = self._rates.get(unite, None)
@@ -775,7 +842,6 @@ class ClientHotelCotation:
             if not prices:
                 return
 
-            # Mise à jour des prix par type (déjà convertis en MGA)
             for _, rk, _ in _ROOM_TYPES:
                 db_price = prices.get(rk)
                 if db_price:
@@ -822,18 +888,18 @@ class ClientHotelCotation:
             self._refresh_totals()
             win.destroy()
 
-        tk.Button(
+        ctk.CTkButton(
             btn_bar, text="✔  Valider",
             command=_save,
-            bg=BUTTON_GREEN, fg="white", font=BUTTON_FONT,
-            padx=12, pady=5, relief="flat", cursor="hand2",
+            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN, text_color="white",
+            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
         ).pack(side="left", padx=(0, 8))
 
-        tk.Button(
+        ctk.CTkButton(
             btn_bar, text="Annuler",
             command=win.destroy,
-            bg=INPUT_BG_COLOR, fg=TEXT_COLOR, font=BUTTON_FONT,
-            padx=12, pady=5, relief="flat", cursor="hand2",
+            fg_color="#9EA7AA", hover_color=_HOVER_GREY, text_color="white",
+            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
         ).pack(side="left")
 
         # Centrer la fenêtre

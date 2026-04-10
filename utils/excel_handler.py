@@ -2311,6 +2311,382 @@ def save_hotel_quotation_to_excel(quotation_data):
         return -1
 
 
+def _delete_rows_for_client(ws, id_col_idx: int, client_ref: str):
+    """Supprime toutes les lignes (hors en-tête) correspondant à client_ref."""
+    if not client_ref:
+        return
+    to_delete = []
+    for row_idx in range(2, ws.max_row + 1):
+        cell_val = str(ws.cell(row=row_idx, column=id_col_idx).value or "").strip()
+        if cell_val == client_ref:
+            to_delete.append(row_idx)
+    # Supprimer de bas en haut pour ne pas décaler les indices
+    for row_idx in reversed(to_delete):
+        ws.delete_rows(row_idx, 1)
+
+
+def load_client_hotel_cotation(client: dict) -> list:
+    """
+    Charge les lignes de cotation hôtel sauvegardées pour un client donné.
+
+    Returns:
+        list: row dicts compatibles avec ClientHotelCotation._rows, ou [] si rien.
+    """
+    if not OPENPYXL_AVAILABLE or not os.path.exists(CLIENT_EXCEL_PATH):
+        return []
+
+    client_ref = str(client.get("ref_client") or "").strip()
+    if not client_ref:
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH, data_only=True)
+        if COTATION_H_SHEET_NAME not in wb.sheetnames:
+            return []
+        ws = wb[COTATION_H_SHEET_NAME]
+        header_map = _get_header_map(ws, 1)  # {col_name: col_idx}
+
+        id_col = header_map.get("ID_Client")
+        if not id_col:
+            return []
+
+        _ROOM_MAP = [
+            ("single",    "SGL"),
+            ("double",    "DBL"),
+            ("twin",      "TWN"),
+            ("triple",    "TPL"),
+            ("familiale", "FML"),
+        ]
+
+        results = []
+        for row_idx in range(2, ws.max_row + 1):
+            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+                continue
+
+            def _get(col_name, default=""):
+                idx = header_map.get(col_name)
+                return ws.cell(row=row_idx, column=idx).value if idx else default
+
+            # Reconstruct room_prices
+            room_prices = {}
+            for rk, lbl in _ROOM_MAP:
+                nb_idx    = header_map.get(f"{lbl}_Nb")
+                prix_idx  = header_map.get(f"{lbl}_Prix_MGA")
+                count = _parse_num(ws.cell(row=row_idx, column=nb_idx).value if nb_idx else 0)
+                price = _parse_num(ws.cell(row=row_idx, column=prix_idx).value if prix_idx else 0)
+                room_prices[rk] = {"count": int(count), "price": float(price)}
+
+            prix_u = _parse_num(_get("Prix_Unitaire_MGA", 0))
+            nuits_raw = str(_get("Nuits", ""))
+            nuits_val = int(_parse_num(_get("Nuits", 0))) if _get("Nuits") else ""
+            marge_raw = _get("Marge_Pct", "")
+            marge_val = str(int(_parse_num(marge_raw))) if marge_raw not in (None, "") else ""
+
+            dep   = _parse_num(_get("Dépense_MGA", 0))
+            total = _parse_num(_get("Total_MGA", 0))
+
+            results.append({
+                "ville":         str(_get("Ville") or ""),
+                "nuits":         str(nuits_val) if nuits_val != "" else "",
+                "hotel":         str(_get("Hôtel") or ""),
+                "hotel_group":   str(_get("Catégorie_Chambre") or "standard"),
+                "room_prices":   room_prices,
+                "nb_pax":        str(int(_parse_num(_get("Nb_Pax", 0)))) if _get("Nb_Pax") else "",
+                "marge":         marge_val,
+                "prix_unitaire": prix_u,
+                "depense":       dep,
+                "total":         total,
+            })
+        return results
+    except Exception as e:
+        logger.error(f"Failed to load client hotel cotation: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_client_collective_cotation(client: dict) -> list:
+    """
+    Charge les lignes de cotation frais collectifs sauvegardées pour un client.
+
+    Returns:
+        list: row dicts compatibles avec ClientCollectiveCotation._rows, ou [].
+    """
+    if not OPENPYXL_AVAILABLE or not os.path.exists(CLIENT_EXCEL_PATH):
+        return []
+
+    client_ref = str(client.get("ref_client") or "").strip()
+    if not client_ref:
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH, data_only=True)
+        if COTATION_FRAIS_COL_SHEET_NAME not in wb.sheetnames:
+            return []
+        ws = wb[COTATION_FRAIS_COL_SHEET_NAME]
+        header_map = _get_header_map(ws, 1)
+
+        id_col = header_map.get("ID_Client")
+        if not id_col:
+            return []
+
+        results = []
+        for row_idx in range(2, ws.max_row + 1):
+            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+                continue
+
+            def _get(col_name, default=""):
+                idx = header_map.get(col_name)
+                return ws.cell(row=row_idx, column=idx).value if idx else default
+
+            prix_raw = _get("Prix_Unitaire", 0)
+            qty_raw  = _get("Quantité", 0)
+            marge_raw = _get("Marge_Pct", "")
+            marge_val = str(int(_parse_num(marge_raw))) if marge_raw not in (None, "") else ""
+            prix_val  = _parse_num(prix_raw)
+            qty_val   = int(_parse_num(qty_raw)) if qty_raw not in (None, "") else 0
+
+            results.append({
+                "prestataire":   str(_get("Prestataire") or ""),
+                "designation":   str(_get("Désignation") or ""),
+                "forfait":       str(_get("Forfait") or ""),
+                "quantite":      str(qty_val) if qty_val else "",
+                "prix_unitaire": str(prix_val) if prix_val else "",
+                "marge":         marge_val,
+                "depense":       _parse_num(_get("Dépense", 0)),
+                "total":         _parse_num(_get("Total", 0)),
+            })
+        return results
+    except Exception as e:
+        logger.error(f"Failed to load client collective cotation: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_client_hotel_cotation_to_excel(client: dict, rows: list) -> int:
+    """
+    Save client hotel cotation rows (one row per ville) into COTATION_H sheet.
+
+    Args:
+        client (dict): Client info dict (ref_client, numero_dossier, nom, prenom, …)
+        rows (list): List of row dicts from ClientHotelCotation._rows
+
+    Returns:
+        int: Number of rows saved, or -1 on failure.
+    """
+    if not OPENPYXL_AVAILABLE:
+        logger.warning("openpyxl not available. Cannot save hotel cotation.")
+        return -1
+    if not rows:
+        return 0
+
+    headers = [
+        "Date", "ID_Client", "Numero_Dossier", "Nom_Client", "Prénom_Client",
+        "Ville", "Nuits", "Hôtel", "Catégorie_Chambre",
+        "SGL_Nb", "SGL_Prix_MGA",
+        "DBL_Nb", "DBL_Prix_MGA",
+        "TWN_Nb", "TWN_Prix_MGA",
+        "TPL_Nb", "TPL_Prix_MGA",
+        "FML_Nb", "FML_Prix_MGA",
+        "Nb_Pax", "Prix_Unitaire_MGA", "Dépense_MGA", "Marge_Pct", "Total_MGA",
+    ]
+
+    wb = None
+    try:
+        if not os.path.exists(CLIENT_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = COTATION_H_SHEET_NAME
+        else:
+            wb = load_workbook(CLIENT_EXCEL_PATH)
+            if COTATION_H_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(COTATION_H_SHEET_NAME)
+            else:
+                ws = wb[COTATION_H_SHEET_NAME]
+
+        # En-têtes si vide
+        if ws.max_row == 1 and ws["A1"].value is None:
+            for col, h in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col, value=h)
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        header_map = _ensure_headers(ws, headers)
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Supprimer les anciennes lignes de ce client avant de réécrire
+        client_ref = str(client.get("ref_client") or "").strip()
+        id_col_idx = header_map.get("ID_Client")
+        if id_col_idx and client_ref:
+            _delete_rows_for_client(ws, id_col_idx, client_ref)
+
+        _ROOM_MAP = [
+            ("single",    "SGL"),
+            ("double",    "DBL"),
+            ("twin",      "TWN"),
+            ("triple",    "TPL"),
+            ("familiale", "FML"),
+        ]
+
+        saved = 0
+        for rd in rows:
+            next_row = ws.max_row + 1
+            rp = rd.get("room_prices", {})
+
+            row_values = {
+                "Date":              now_str,
+                "ID_Client":         str(client.get("ref_client") or ""),
+                "Numero_Dossier":    str(client.get("numero_dossier") or ""),
+                "Nom_Client":        str(client.get("nom") or ""),
+                "Prénom_Client":     str(client.get("prenom") or ""),
+                "Ville":             str(rd.get("ville") or ""),
+                "Nuits":             _parse_num(rd.get("nuits", 0)),
+                "Hôtel":             str(rd.get("hotel") or ""),
+                "Catégorie_Chambre": str(rd.get("hotel_group") or ""),
+                "Nb_Pax":            _parse_num(rd.get("nb_pax", 0)),
+                "Prix_Unitaire_MGA": _parse_num(rd.get("prix_unitaire", 0)),
+                "Dépense_MGA":       _parse_num(rd.get("depense", 0)),
+                "Marge_Pct":         _parse_num(rd.get("marge", 0)),
+                "Total_MGA":         _parse_num(rd.get("total", 0)),
+            }
+            # Prix et quantité par type de chambre
+            for rk, lbl in _ROOM_MAP:
+                entry = rp.get(rk, {})
+                row_values[f"{lbl}_Nb"]       = _parse_num(entry.get("count", 0))
+                row_values[f"{lbl}_Prix_MGA"] = _parse_num(entry.get("price", 0))
+            for h, val in row_values.items():
+                col_idx = header_map.get(h)
+                if col_idx:
+                    ws.cell(row=next_row, column=col_idx, value=val)
+            saved += 1
+
+        wb.save(CLIENT_EXCEL_PATH)
+        invalidate_client_cache()
+        logger.info(f"Client hotel cotation: {saved} row(s) saved to {COTATION_H_SHEET_NAME}")
+        return saved
+    except PermissionError as e:
+        logger.error(f"Excel locked: {e}", exc_info=True)
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save client hotel cotation: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_client_collective_cotation_to_excel(client: dict, rows: list) -> int:
+    """
+    Save client collective expense cotation rows into COTATION_FRAIS_COL sheet.
+
+    Args:
+        client (dict): Client info dict
+        rows (list): List of row dicts from ClientCollectiveCotation._rows
+
+    Returns:
+        int: Number of rows saved, or -1 on failure.
+    """
+    if not OPENPYXL_AVAILABLE:
+        logger.warning("openpyxl not available. Cannot save collective cotation.")
+        return -1
+    if not rows:
+        return 0
+
+    headers = [
+        "Date", "ID_Client", "Numero_Dossier", "Nom_Client", "Prénom_Client",
+        "Prestataire", "Forfait", "Désignation",
+        "Quantité", "Prix_Unitaire", "Dépense", "Marge_Pct", "Total",
+    ]
+
+    wb = None
+    try:
+        if not os.path.exists(CLIENT_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = COTATION_FRAIS_COL_SHEET_NAME
+        else:
+            wb = load_workbook(CLIENT_EXCEL_PATH)
+            if COTATION_FRAIS_COL_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(COTATION_FRAIS_COL_SHEET_NAME)
+            else:
+                ws = wb[COTATION_FRAIS_COL_SHEET_NAME]
+
+        # En-têtes si vide
+        if ws.max_row == 1 and ws["A1"].value is None:
+            for col, h in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col, value=h)
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        header_map = _ensure_headers(ws, headers)
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Supprimer les anciennes lignes de ce client avant de réécrire
+        client_ref = str(client.get("ref_client") or "").strip()
+        id_col_idx = header_map.get("ID_Client")
+        if id_col_idx and client_ref:
+            _delete_rows_for_client(ws, id_col_idx, client_ref)
+
+        saved = 0
+        for rd in rows:
+            next_row = ws.max_row + 1
+            row_values = {
+                "Date":           now_str,
+                "ID_Client":      str(client.get("ref_client") or ""),
+                "Numero_Dossier": str(client.get("numero_dossier") or ""),
+                "Nom_Client":     str(client.get("nom") or ""),
+                "Prénom_Client":  str(client.get("prenom") or ""),
+                "Prestataire":    str(rd.get("prestataire") or ""),
+                "Forfait":        str(rd.get("forfait") or ""),
+                "Désignation":    str(rd.get("designation") or ""),
+                "Quantité":       _parse_num(rd.get("quantite", 0)),
+                "Prix_Unitaire":  _parse_num(rd.get("prix_unitaire", 0)),
+                "Dépense":        _parse_num(rd.get("depense", 0)),
+                "Marge_Pct":      _parse_num(rd.get("marge", 0)),
+                "Total":          _parse_num(rd.get("total", 0)),
+            }
+            for h, val in row_values.items():
+                col_idx = header_map.get(h)
+                if col_idx:
+                    ws.cell(row=next_row, column=col_idx, value=val)
+            saved += 1
+
+        wb.save(CLIENT_EXCEL_PATH)
+        invalidate_client_cache()
+        logger.info(
+            f"Client collective cotation: {saved} row(s) saved to {COTATION_FRAIS_COL_SHEET_NAME}"
+        )
+        return saved
+    except PermissionError as e:
+        logger.error(f"Excel locked: {e}", exc_info=True)
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save client collective cotation: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
 def load_all_hotel_quotations():
     """
     Load all hotel quotations from COTATION_H sheet

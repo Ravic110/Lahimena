@@ -544,6 +544,7 @@ class HomePage:
                 self._on_change_statut,
                 self._on_modify_client,
                 self._on_hotel_cotation,
+                self._on_collective_cotation,
             )
 
     def _on_change_statut(self, client):
@@ -552,6 +553,10 @@ class HomePage:
     def _on_hotel_cotation(self, client):
         if self.navigate_callback:
             self.navigate_callback("client_hotel_cotation", client=client)
+
+    def _on_collective_cotation(self, client):
+        if self.navigate_callback:
+            self.navigate_callback("client_collective_cotation", client=client)
 
     def _on_modify_client(self, client):
         if self.navigate_callback:
@@ -613,12 +618,14 @@ class HomePage:
 
 class _ClientActionModal(tk.Toplevel):
 
-    def __init__(self, parent, client, on_change_statut, on_modify, on_hotel_cotation=None):
+    def __init__(self, parent, client, on_change_statut, on_modify,
+                 on_hotel_cotation=None, on_collective_cotation=None):
         super().__init__(parent)
         self.client = client
         self.on_change_statut = on_change_statut
         self.on_modify = on_modify
         self.on_hotel_cotation = on_hotel_cotation
+        self.on_collective_cotation = on_collective_cotation
         nom = client.get("nom", "")
         statut = client.get("statut") or "En cours"
         self.title(f"Actions — {nom}")
@@ -677,6 +684,14 @@ class _ClientActionModal(tk.Toplevel):
             bg=BUTTON_BLUE, fg="white",
             relief="flat", padx=18, pady=10, cursor="hand2",
             command=self._action_hotel_cotation,
+        ).pack(fill="x", pady=(0, 8))
+
+        tk.Button(
+            btn_frame, text="📋  Frais collectifs",
+            font=("Poppins", 11, "bold"),
+            bg="#546E7A", fg="white",
+            relief="flat", padx=18, pady=10, cursor="hand2",
+            command=self._action_collective_cotation,
         ).pack(fill="x")
 
         self.update_idletasks()
@@ -704,6 +719,15 @@ class _ClientActionModal(tk.Toplevel):
             return
         client = self.client
         cb = self.on_hotel_cotation
+        parent = self.master
+        self.destroy()
+        parent.after(10, lambda: cb(client))
+
+    def _action_collective_cotation(self):
+        if not self.on_collective_cotation:
+            return
+        client = self.client
+        cb = self.on_collective_cotation
         parent = self.master
         self.destroy()
         parent.after(10, lambda: cb(client))
