@@ -10,6 +10,8 @@ Le prix unitaire est lu depuis la base FRAIS_COLLECTIFS (data-hotel.xlsx).
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+import customtkinter as ctk
+
 from config import (
     ACCENT_TEXT_COLOR,
     BUTTON_BLUE,
@@ -21,6 +23,7 @@ from config import (
     LABEL_FONT,
     MAIN_BG_COLOR,
     MUTED_TEXT_COLOR,
+    PANEL_BG_COLOR,
     TEXT_COLOR,
     TITLE_FONT,
 )
@@ -32,6 +35,11 @@ from utils.excel_handler import (
     load_client_collective_cotation,
     save_client_collective_cotation_to_excel,
 )
+
+_HOVER_GREEN = "#0A6870"
+_HOVER_BLUE  = "#0B6080"
+_HOVER_RED   = "#A82020"
+_HOVER_GREY  = "#9EA7AA"
 
 
 # ── Utilitaires ───────────────────────────────────────────────────────────────
@@ -88,11 +96,9 @@ class ClientCollectiveCotation:
         self.on_back = on_back
         self._rows: list = []
 
-        # Charger les données de la base frais collectifs
         self._prestataires: list = get_collective_expense_prestataires()
 
         self._build_ui()
-        # Charger les lignes déjà sauvegardées pour ce client
         saved = load_client_collective_cotation(self.client)
         if saved:
             self._rows = saved
@@ -129,89 +135,96 @@ class ClientCollectiveCotation:
         if self.on_back:
             back_bar = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
             back_bar.pack(fill="x", padx=20, pady=(4, 0))
-            tk.Button(
+            ctk.CTkButton(
                 back_bar, text="⬅  Retour à l'accueil",
                 command=self.on_back,
-                bg=BUTTON_BLUE, fg="white", font=BUTTON_FONT,
-                padx=10, pady=4, relief="flat", cursor="hand2",
+                fg_color=BUTTON_BLUE, hover_color=_HOVER_BLUE, text_color="white",
+                font=BUTTON_FONT, corner_radius=8, cursor="hand2",
             ).pack(side="left")
 
         root = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
         root.pack(fill="both", expand=True, padx=20, pady=(8, 20))
 
-        # Infos client
-        info_frame = tk.LabelFrame(
-            root, text="Informations client",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
-            padx=12, pady=8,
-        )
-        info_frame.pack(fill="x", pady=(0, 10))
+        # ── Carte Infos client ─────────────────────────────────────────────────
+        info_card = tk.Frame(root, bg=PANEL_BG_COLOR)
+        info_card.pack(fill="x", pady=(0, 10))
+        tk.Label(
+            info_card, text="Informations client",
+            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+        ).pack(anchor="w", padx=12, pady=(8, 2))
+        info_inner = tk.Frame(info_card, bg=PANEL_BG_COLOR)
+        info_inner.pack(fill="x", padx=12, pady=(0, 8))
 
         for col_i, (lbl_text, val_text) in enumerate([
             ("Participants :", pax or "—"),
             ("Durée séjour :", f"{sejour} j" if sejour else "—"),
         ]):
             tk.Label(
-                info_frame, text=lbl_text,
-                font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
+                info_inner, text=lbl_text,
+                font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
             ).grid(row=0, column=col_i * 2,
                    sticky="w", padx=(0 if col_i == 0 else 20, 4), pady=4)
             tk.Label(
-                info_frame, text=val_text,
-                font=ENTRY_FONT, fg=ACCENT_TEXT_COLOR, bg=MAIN_BG_COLOR,
+                info_inner, text=val_text,
+                font=ENTRY_FONT, fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR,
             ).grid(row=0, column=col_i * 2 + 1, sticky="w", pady=4)
 
-        # Barre d'actions
+        # ── Barre d'actions ────────────────────────────────────────────────────
         action_bar = tk.Frame(root, bg=MAIN_BG_COLOR)
-        action_bar.pack(fill="x", pady=(0, 6))
+        action_bar.pack(fill="x", pady=(0, 8))
 
-        tk.Button(
+        ctk.CTkButton(
             action_bar, text="＋  Ajouter une ligne",
             command=self._add_row_dialog,
-            bg=BUTTON_GREEN, fg="white", font=BUTTON_FONT,
-            padx=10, pady=5, relief="flat", cursor="hand2",
+            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN, text_color="white",
+            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
         ).pack(side="left", padx=(0, 6))
 
-        tk.Button(
+        ctk.CTkButton(
             action_bar, text="✏️  Modifier la ligne",
             command=self._edit_selected,
-            bg=BUTTON_BLUE, fg="white", font=BUTTON_FONT,
-            padx=10, pady=5, relief="flat", cursor="hand2",
+            fg_color=BUTTON_BLUE, hover_color=_HOVER_BLUE, text_color="white",
+            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
         ).pack(side="left", padx=(0, 6))
 
-        tk.Button(
+        ctk.CTkButton(
             action_bar, text="🗑️  Supprimer la ligne",
             command=self._delete_selected,
-            bg=BUTTON_RED, fg="white", font=BUTTON_FONT,
-            padx=10, pady=5, relief="flat", cursor="hand2",
+            fg_color=BUTTON_RED, hover_color=_HOVER_RED, text_color="white",
+            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
         ).pack(side="left")
 
-        tk.Button(
+        ctk.CTkButton(
             action_bar, text="💾  Sauvegarder",
             command=self._save_to_excel,
-            bg=BUTTON_GREEN, fg="white", font=BUTTON_FONT,
-            padx=10, pady=5, relief="flat", cursor="hand2",
+            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN, text_color="white",
+            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
         ).pack(side="right")
 
-        # Tableau
-        table_frame = tk.LabelFrame(
-            root, text="Lignes de frais collectifs",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
-            padx=10, pady=10,
-        )
-        table_frame.pack(fill="both", expand=True, pady=(0, 10))
+        # ── Carte Tableau ──────────────────────────────────────────────────────
+        table_card = tk.Frame(root, bg=PANEL_BG_COLOR)
+        table_card.pack(fill="both", expand=True, pady=(0, 10))
+        tk.Label(
+            table_card, text="Lignes de frais collectifs",
+            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+        ).pack(anchor="w", padx=12, pady=(8, 2))
+        table_inner = tk.Frame(table_card, bg=PANEL_BG_COLOR)
+        table_inner.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
         style = ttk.Style()
         style.configure(
-            "Treeview",
+            "Coll.Treeview",
             background=INPUT_BG_COLOR, foreground=TEXT_COLOR,
-            fieldbackground=INPUT_BG_COLOR, rowheight=28,
+            fieldbackground=INPUT_BG_COLOR, rowheight=30,
         )
-        style.configure("Treeview.Heading", font=LABEL_FONT)
-        style.map("Treeview", background=[("selected", BUTTON_BLUE)])
+        style.configure("Coll.Treeview.Heading", font=LABEL_FONT)
+        style.map("Coll.Treeview", background=[("selected", BUTTON_BLUE)])
 
         col_ids = [c[0] for c in self._COLS]
-        self._tree = ttk.Treeview(table_frame, columns=col_ids, show="headings", height=12)
+        self._tree = ttk.Treeview(
+            table_inner, columns=col_ids, show="headings",
+            height=12, style="Coll.Treeview",
+        )
         for key, heading, width in self._COLS:
             self._tree.heading(key, text=heading)
             anchor = "e" if key in (
@@ -219,43 +232,49 @@ class ClientCollectiveCotation:
             ) else "w"
             self._tree.column(key, width=width, anchor=anchor, stretch=False)
 
-        vsb = ttk.Scrollbar(table_frame, orient="vertical",   command=self._tree.yview)
-        hsb = ttk.Scrollbar(table_frame, orient="horizontal", command=self._tree.xview)
+        vsb = ttk.Scrollbar(table_inner, orient="vertical",   command=self._tree.yview)
+        hsb = ttk.Scrollbar(table_inner, orient="horizontal", command=self._tree.xview)
         self._tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
         self._tree.grid(row=0, column=0, sticky="nsew")
         vsb.grid(row=0, column=1, sticky="ns")
         hsb.grid(row=1, column=0, sticky="ew")
-        table_frame.grid_rowconfigure(0, weight=1)
-        table_frame.grid_columnconfigure(0, weight=1)
+        table_inner.grid_rowconfigure(0, weight=1)
+        table_inner.grid_columnconfigure(0, weight=1)
         self._tree.bind("<Double-1>", lambda e: self._edit_selected())
 
-        # Totaux
-        totals_frame = tk.LabelFrame(
-            root, text="Totaux",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
-            padx=12, pady=8,
-        )
-        totals_frame.pack(fill="x")
+        # Tags pour les lignes alternées
+        self._tree.tag_configure("odd",  background="#E4F2F6")
+        self._tree.tag_configure("even", background=INPUT_BG_COLOR)
+
+        # ── Carte Totaux ───────────────────────────────────────────────────────
+        totals_card = tk.Frame(root, bg=PANEL_BG_COLOR)
+        totals_card.pack(fill="x")
+        tk.Label(
+            totals_card, text="Totaux",
+            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+        ).pack(anchor="w", padx=12, pady=(8, 2))
+        totals_inner = tk.Frame(totals_card, bg=PANEL_BG_COLOR)
+        totals_inner.pack(fill="x", padx=12, pady=(0, 8))
 
         tk.Label(
-            totals_frame, text="Total dépenses :",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
+            totals_inner, text="Total dépenses :",
+            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
         ).grid(row=0, column=0, sticky="w", padx=(0, 6), pady=4)
 
         self._lbl_dep = tk.Label(
-            totals_frame, text="0.00",
-            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=MAIN_BG_COLOR,
+            totals_inner, text="0.00",
+            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR,
         )
         self._lbl_dep.grid(row=0, column=1, sticky="w", padx=(0, 40), pady=4)
 
         tk.Label(
-            totals_frame, text="Total global (avec marges) :",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
+            totals_inner, text="Total global (avec marges) :",
+            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
         ).grid(row=0, column=2, sticky="w", padx=(0, 6), pady=4)
 
         self._lbl_glob = tk.Label(
-            totals_frame, text="0.00",
-            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=MAIN_BG_COLOR,
+            totals_inner, text="0.00",
+            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR,
         )
         self._lbl_glob.grid(row=0, column=3, sticky="w", pady=4)
 
@@ -267,6 +286,7 @@ class ClientCollectiveCotation:
             dep   = rd["depense"]
             total = rd["total"]
             prix  = _to_float(rd["prix_unitaire"])
+            tag = "odd" if i % 2 else "even"
             self._tree.insert("", "end", iid=str(i), values=(
                 rd["prestataire"],
                 rd["forfait"],
@@ -276,7 +296,7 @@ class ClientCollectiveCotation:
                 _fmt(dep)   if dep   else "",
                 rd["marge"] + " %" if rd["marge"] else "",
                 _fmt(total) if total else "",
-            ))
+            ), tags=(tag,))
 
     def _refresh_totals(self):
         self._lbl_dep.configure(text=_fmt(sum(r["depense"] for r in self._rows)))
@@ -342,20 +362,31 @@ class ClientCollectiveCotation:
         win.after(0, lambda: [win.lift(), win.focus_set()])
 
         # Variables
-        v_presta = tk.StringVar(value=row["prestataire"])
-        v_desig  = tk.StringVar(value=row["designation"])
+        v_presta  = tk.StringVar(value=row["prestataire"])
+        v_desig   = tk.StringVar(value=row["designation"])
         v_forfait = tk.StringVar(value=row["forfait"])
-        v_qty    = tk.StringVar(value=row["quantite"])
-        v_prix   = tk.StringVar(value=row["prix_unitaire"])
-        v_marge  = tk.StringVar(value=row["marge"])
+        v_qty     = tk.StringVar(value=row["quantite"])
+        v_prix    = tk.StringVar(value=row["prix_unitaire"])
+        v_marge   = tk.StringVar(value=row["marge"])
 
         outer = tk.Frame(win, bg=MAIN_BG_COLOR)
         outer.pack(padx=24, pady=(20, 0))
 
-        def _lbl(parent, text, r, c=0):
+        SEC = PANEL_BG_COLOR
+
+        def _make_section(title):
+            card = tk.Frame(outer, bg=SEC)
+            card.pack(fill="x", pady=(0, 10))
+            tk.Label(card, text=title, font=LABEL_FONT, fg=TEXT_COLOR, bg=SEC,
+                     ).pack(anchor="w", padx=10, pady=(8, 2))
+            inner = tk.Frame(card, bg=SEC)
+            inner.pack(fill="x", padx=10, pady=(0, 8))
+            return inner
+
+        def _lbl(parent, text, r, c=0, bg=None):
             tk.Label(
                 parent, text=text,
-                font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR, anchor="w",
+                font=LABEL_FONT, fg=TEXT_COLOR, bg=bg or SEC, anchor="w",
             ).grid(row=r, column=c, sticky="w", padx=(0, 10), pady=5)
 
         def _entry(parent, var, r, c=1, w=32, justify="left", readonly=False):
@@ -370,11 +401,7 @@ class ClientCollectiveCotation:
             return e
 
         # ── Section 1 : Prestataire / Désignation ─────────────────────────
-        s1 = tk.LabelFrame(
-            outer, text="Service",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR, padx=10, pady=6,
-        )
-        s1.pack(fill="x", pady=(0, 8))
+        s1 = _make_section("Service")
 
         _lbl(s1, "Prestataire :", 0)
         combo_presta = ttk.Combobox(
@@ -394,11 +421,7 @@ class ClientCollectiveCotation:
         _entry(s1, v_forfait, 2, readonly=True)
 
         # ── Section 2 : Quantité / Prix / Marge ───────────────────────────
-        s2 = tk.LabelFrame(
-            outer, text="Tarification",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR, padx=10, pady=6,
-        )
-        s2.pack(fill="x", pady=(0, 8))
+        s2 = _make_section("Tarification")
 
         _lbl(s2, "Quantité :", 0)
         _entry(s2, v_qty, 0, w=10, justify="center")
@@ -408,7 +431,7 @@ class ClientCollectiveCotation:
 
         tk.Label(
             s2, text="(auto-rempli depuis la base, modifiable)",
-            font=ENTRY_FONT, fg=MUTED_TEXT_COLOR, bg=MAIN_BG_COLOR,
+            font=ENTRY_FONT, fg=MUTED_TEXT_COLOR, bg=SEC,
         ).grid(row=1, column=2, sticky="w", padx=(8, 0))
 
         _lbl(s2, "Marge (%) :", 2)
@@ -417,7 +440,7 @@ class ClientCollectiveCotation:
         # Preview
         lbl_prev = tk.Label(
             s2, text="Dépense : —   |   Total : —",
-            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=MAIN_BG_COLOR,
+            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=SEC,
         )
         lbl_prev.grid(row=3, column=0, columnspan=3, sticky="w", pady=(4, 0))
 
@@ -458,7 +481,6 @@ class ClientCollectiveCotation:
         combo_presta.bind("<<ComboboxSelected>>", _on_prestataire)
         combo_desig.bind("<<ComboboxSelected>>",  _on_designation)
 
-        # Init si le prestataire est déjà renseigné (mode édition)
         if row["prestataire"]:
             combo_desig["values"] = get_collective_expense_designations(row["prestataire"])
 
@@ -485,18 +507,18 @@ class ClientCollectiveCotation:
             self._refresh_totals()
             win.destroy()
 
-        tk.Button(
+        ctk.CTkButton(
             btn_bar, text="✔  Valider",
             command=_save,
-            bg=BUTTON_GREEN, fg="white", font=BUTTON_FONT,
-            padx=12, pady=5, relief="flat", cursor="hand2",
+            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN, text_color="white",
+            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
         ).pack(side="left", padx=(0, 8))
 
-        tk.Button(
+        ctk.CTkButton(
             btn_bar, text="Annuler",
             command=win.destroy,
-            bg=INPUT_BG_COLOR, fg=TEXT_COLOR, font=BUTTON_FONT,
-            padx=12, pady=5, relief="flat", cursor="hand2",
+            fg_color="#9EA7AA", hover_color=_HOVER_GREY, text_color="white",
+            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
         ).pack(side="left")
 
         # Centrer

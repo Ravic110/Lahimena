@@ -282,9 +282,38 @@ class ClientHotelCotation:
                 font=ENTRY_FONT, fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR,
             ).grid(row=0, column=col_i * 2 + 1, sticky="w", pady=4)
 
-        # ── Barre d'actions ────────────────────────────────────────────────────
-        action_bar = tk.Frame(root, bg=MAIN_BG_COLOR)
-        action_bar.pack(fill="x", pady=(0, 8))
+        # ── Système d'onglets (comme itineraire_card) ─────────────────────────
+        from gui.ui_style import create_card as _create_card
+
+        _active_panel = [None]
+        _panels       = [None, None]   # [hotel_panel, rest_panel]
+
+        def _switch_tab(tab_name):
+            if _active_panel[0]:
+                _active_panel[0].pack_forget()
+            idx = {"Hébergement par ville": 0, "Restauration": 1}.get(tab_name, -1)
+            if idx >= 0 and _panels[idx] is not None:
+                _panels[idx].pack(fill="both", expand=True)
+                _active_panel[0] = _panels[idx]
+
+        cotation_card = _create_card(
+            root,
+            title=None,
+            tabs=[("Hébergement par ville", True), ("Restauration", False)],
+            show_controls=False,
+            expand=True,
+            on_tab_click=_switch_tab,
+        )
+
+        # ── Panneau : Hébergement par ville ───────────────────────────────────
+        hotel_panel = tk.Frame(cotation_card, bg=PANEL_BG_COLOR)
+        _panels[0]       = hotel_panel
+        _active_panel[0] = hotel_panel
+        hotel_panel.pack(fill="both", expand=True)
+
+        # Barre d'actions hôtel
+        action_bar = tk.Frame(hotel_panel, bg=PANEL_BG_COLOR)
+        action_bar.pack(fill="x", pady=(0, 6))
 
         ctk.CTkButton(
             action_bar, text="＋  Ajouter une ligne",
@@ -314,16 +343,7 @@ class ClientHotelCotation:
             font=BUTTON_FONT, corner_radius=8, cursor="hand2",
         ).pack(side="right")
 
-        # ── Carte Tableau ──────────────────────────────────────────────────────
-        table_card = tk.Frame(root, bg=PANEL_BG_COLOR)
-        table_card.pack(fill="both", expand=True, pady=(0, 10))
-        tk.Label(
-            table_card, text="Hébergements par ville",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
-        ).pack(anchor="w", padx=12, pady=(8, 2))
-        table_inner = tk.Frame(table_card, bg=PANEL_BG_COLOR)
-        table_inner.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-
+        # Treeview hôtel
         style = ttk.Style()
         style.configure(
             "Hotel.Treeview",
@@ -334,9 +354,12 @@ class ClientHotelCotation:
         style.map("Hotel.Treeview", background=[("selected", BUTTON_BLUE)])
 
         col_ids = [c[0] for c in self._COLS]
+        tree_outer = tk.Frame(hotel_panel, bg=PANEL_BG_COLOR)
+        tree_outer.pack(fill="both", expand=True, pady=(0, 6))
+
         self._tree = ttk.Treeview(
-            table_inner, columns=col_ids, show="headings",
-            height=12, style="Hotel.Treeview",
+            tree_outer, columns=col_ids, show="headings",
+            height=10, style="Hotel.Treeview",
         )
         for key, heading, width in self._COLS:
             self._tree.heading(key, text=heading)
@@ -345,29 +368,21 @@ class ClientHotelCotation:
             ) else "w"
             self._tree.column(key, width=width, anchor=anchor, stretch=False)
 
-        vsb = ttk.Scrollbar(table_inner, orient="vertical",   command=self._tree.yview)
-        hsb = ttk.Scrollbar(table_inner, orient="horizontal", command=self._tree.xview)
+        vsb = ttk.Scrollbar(tree_outer, orient="vertical",   command=self._tree.yview)
+        hsb = ttk.Scrollbar(tree_outer, orient="horizontal", command=self._tree.xview)
         self._tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
         self._tree.grid(row=0, column=0, sticky="nsew")
         vsb.grid(row=0, column=1, sticky="ns")
         hsb.grid(row=1, column=0, sticky="ew")
-        table_inner.grid_rowconfigure(0, weight=1)
-        table_inner.grid_columnconfigure(0, weight=1)
+        tree_outer.grid_rowconfigure(0, weight=1)
+        tree_outer.grid_columnconfigure(0, weight=1)
         self._tree.bind("<Double-1>", lambda e: self._edit_selected())
-
-        # Tags pour les lignes alternées
         self._tree.tag_configure("odd",  background="#E4F2F6")
         self._tree.tag_configure("even", background=INPUT_BG_COLOR)
 
-        # ── Carte Totaux ───────────────────────────────────────────────────────
-        totals_card = tk.Frame(root, bg=PANEL_BG_COLOR)
-        totals_card.pack(fill="x")
-        tk.Label(
-            totals_card, text="Totaux",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
-        ).pack(anchor="w", padx=12, pady=(8, 2))
-        totals_inner = tk.Frame(totals_card, bg=PANEL_BG_COLOR)
-        totals_inner.pack(fill="x", padx=12, pady=(0, 8))
+        # Totaux hôtel
+        totals_inner = tk.Frame(hotel_panel, bg=PANEL_BG_COLOR)
+        totals_inner.pack(fill="x", pady=(4, 6))
 
         tk.Label(
             totals_inner, text="Total dépenses :",
@@ -390,6 +405,14 @@ class ClientHotelCotation:
             font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR,
         )
         self._lbl_glob.grid(row=0, column=3, sticky="w", pady=4)
+
+        # ── Panneau : Restauration ─────────────────────────────────────────────
+        rest_panel = tk.Frame(cotation_card, bg=PANEL_BG_COLOR)
+        _panels[1] = rest_panel
+        # Non empaqueté initialement (masqué)
+
+        from gui.forms.client_restauration_cotation import ClientRestaurationCotation
+        ClientRestaurationCotation(rest_panel, client=self.client, embedded=True)
 
     # ── Données initiales ──────────────────────────────────────────────────────
 
@@ -908,3 +931,4 @@ class ClientHotelCotation:
         ph = self.parent.winfo_rooty() + self.parent.winfo_height() // 2
         w, h = win.winfo_reqwidth(), win.winfo_reqheight()
         win.geometry(f"{w}x{h}+{pw - w // 2}+{ph - h // 2}")
+

@@ -24,6 +24,7 @@ from config import (
     CLIENT_INFOS_SHEET_NAME,
     CLIENT_SHEET_NAME,
     COTATION_FRAIS_COL_SHEET_NAME,
+    COTATION_REST_SHEET_NAME,
     AVION_SHEET_NAME,
     AVION_SOURCE_SHEET_NAME,
     COTATION_H_SHEET_NAME,
@@ -2678,6 +2679,198 @@ def save_client_collective_cotation_to_excel(client: dict, rows: list) -> int:
         return -2
     except Exception as e:
         logger.error(f"Failed to save client collective cotation: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_client_restauration_cotation(client: dict) -> list:
+    """
+    Charge les lignes de cotation restauration sauvegardées pour un client donné.
+
+    Returns:
+        list: row dicts compatibles avec ClientRestaurationCotation._rows, ou [].
+    """
+    if not OPENPYXL_AVAILABLE or not os.path.exists(CLIENT_EXCEL_PATH):
+        return []
+
+    client_ref = str(client.get("ref_client") or "").strip()
+    if not client_ref:
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH, data_only=True)
+        if COTATION_REST_SHEET_NAME not in wb.sheetnames:
+            return []
+        ws = wb[COTATION_REST_SHEET_NAME]
+        header_map = _get_header_map(ws, 1)
+
+        id_col = header_map.get("ID_Client")
+        if not id_col:
+            return []
+
+        _MEAL_KEYS = [
+            ("petit_dejeuner", "PDJ"),
+            ("dejeuner",       "DJ"),
+            ("diner",          "DR"),
+            ("repas_guide",    "REPAS_GUIDE"),
+            ("repas_chauffeur","REPAS_CHAUFFEUR"),
+        ]
+
+        results = []
+        for row_idx in range(2, ws.max_row + 1):
+            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+                continue
+
+            def _get(col_name, default=""):
+                idx = header_map.get(col_name)
+                return ws.cell(row=row_idx, column=idx).value if idx else default
+
+            meal_prices = {}
+            for mk, lbl in _MEAL_KEYS:
+                nb_idx    = header_map.get(f"{lbl}_Nb")
+                prix_idx  = header_map.get(f"{lbl}_Prix")
+                grat_idx  = header_map.get(f"{lbl}_Gratuit")
+                count   = int(_parse_num(ws.cell(row=row_idx, column=nb_idx).value if nb_idx else 0))
+                price   = float(_parse_num(ws.cell(row=row_idx, column=prix_idx).value if prix_idx else 0))
+                gratuit = bool(ws.cell(row=row_idx, column=grat_idx).value if grat_idx else False)
+                meal_prices[mk] = {"count": count, "price": price, "gratuit": gratuit}
+
+            nuits_raw = _get("Nuits", "")
+            nuits_val = str(int(_parse_num(nuits_raw))) if nuits_raw not in (None, "") else ""
+
+            results.append({
+                "ville":         str(_get("Ville") or ""),
+                "nuits":         nuits_val,
+                "hotel":         str(_get("Hôtel") or ""),
+                "nb_pax":        str(int(_parse_num(_get("Nb_Pax", 0)))) if _get("Nb_Pax") else "",
+                "forfait":       str(_get("Forfait") or ""),
+                "meal_prices":   meal_prices,
+                "prix_unitaire": float(_parse_num(_get("Prix_Unitaire", 0))),
+                "total":         float(_parse_num(_get("Total", 0))),
+            })
+        return results
+    except Exception as e:
+        logger.error(f"Failed to load client restauration cotation: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_client_restauration_cotation_to_excel(client: dict, rows: list) -> int:
+    """
+    Sauvegarde les lignes de cotation restauration dans la feuille COTATION_REST.
+
+    Returns:
+        int: Nombre de lignes sauvegardées, -1 en cas d'erreur, -2 si fichier verrouillé.
+    """
+    if not OPENPYXL_AVAILABLE:
+        logger.warning("openpyxl not available. Cannot save restauration cotation.")
+        return -1
+    if not rows:
+        return 0
+
+    _MEAL_KEYS = [
+        ("petit_dejeuner", "PDJ"),
+        ("dejeuner",       "DJ"),
+        ("diner",          "DR"),
+        ("repas_guide",    "REPAS_GUIDE"),
+        ("repas_chauffeur","REPAS_CHAUFFEUR"),
+    ]
+
+    headers = ["Date", "ID_Client", "Numero_Dossier", "Nom_Client", "Prénom_Client",
+               "Ville", "Nuits", "Hôtel", "Nb_Pax", "Forfait"]
+    for _, lbl in _MEAL_KEYS:
+        headers += [f"{lbl}_Nb", f"{lbl}_Prix", f"{lbl}_Gratuit"]
+    headers += ["Prix_Unitaire", "Total"]
+
+    wb = None
+    try:
+        if not os.path.exists(CLIENT_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = COTATION_REST_SHEET_NAME
+        else:
+            wb = load_workbook(CLIENT_EXCEL_PATH)
+            if COTATION_REST_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(COTATION_REST_SHEET_NAME)
+            else:
+                ws = wb[COTATION_REST_SHEET_NAME]
+
+        # En-têtes (toujours réécrits pour refléter le nouveau schéma)
+        for c_i, h in enumerate(headers, 1):
+            ws.cell(1, c_i, h)
+
+        header_map = {ws.cell(1, c).value: c for c in range(1, ws.max_column + 1)
+                      if ws.cell(1, c).value}
+
+        # Supprimer les lignes existantes du client
+        client_ref = str(client.get("ref_client") or "").strip()
+        id_col = header_map.get("ID_Client")
+        to_delete = []
+        if id_col:
+            for r in range(2, ws.max_row + 1):
+                if str(ws.cell(r, id_col).value or "").strip() == client_ref:
+                    to_delete.append(r)
+        for r in reversed(to_delete):
+            ws.delete_rows(r, 1)
+
+        # Insérer les nouvelles lignes
+        next_row = ws.max_row + 1 if ws.max_row >= 2 else 2
+        now_str  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        nom      = str(client.get("nom", "")).strip()
+        prenom   = str(client.get("prenom", "")).strip()
+        dossier  = str(client.get("numero_dossier", "")).strip()
+
+        saved = 0
+        for row in rows:
+            r = next_row + saved
+
+            def _set(col_name, value, _r=r):
+                col = header_map.get(col_name)
+                if col:
+                    ws.cell(_r, col, value)
+
+            ws.cell(r, header_map.get("Date",           1), now_str)
+            ws.cell(r, header_map.get("ID_Client",      2), client_ref)
+            ws.cell(r, header_map.get("Numero_Dossier", 3), dossier)
+            ws.cell(r, header_map.get("Nom_Client",     4), nom)
+            ws.cell(r, header_map.get("Prénom_Client",  5), prenom)
+            _set("Ville",   row.get("ville", ""))
+            _set("Nuits",   row.get("nuits", ""))
+            _set("Hôtel",   row.get("hotel", ""))
+            _set("Nb_Pax",  row.get("nb_pax", ""))
+            _set("Forfait", row.get("forfait", ""))
+
+            mp = row.get("meal_prices", {})
+            for mk, lbl in _MEAL_KEYS:
+                entry = mp.get(mk, {})
+                _set(f"{lbl}_Nb",      entry.get("count", 0))
+                _set(f"{lbl}_Prix",    entry.get("price", 0))
+                _set(f"{lbl}_Gratuit", 1 if entry.get("gratuit") else 0)
+
+            _set("Prix_Unitaire", row.get("prix_unitaire", 0))
+            _set("Total",         row.get("total", 0))
+            saved += 1
+
+        wb.save(CLIENT_EXCEL_PATH)
+        invalidate_client_cache()
+        logger.info(f"Client restauration cotation: {saved} row(s) saved to {COTATION_REST_SHEET_NAME}")
+        return saved
+    except PermissionError as e:
+        logger.error(f"Excel locked: {e}", exc_info=True)
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save client restauration cotation: {e}", exc_info=True)
         return -1
     finally:
         if wb is not None:
