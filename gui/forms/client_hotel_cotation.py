@@ -414,6 +414,7 @@ class ClientHotelCotation:
         from gui.forms.client_restauration_cotation import ClientRestaurationCotation
         ClientRestaurationCotation(rest_panel, client=self.client, embedded=True)
 
+
     # ── Données initiales ──────────────────────────────────────────────────────
 
     def _populate_initial_rows(self):

@@ -14,6 +14,7 @@ except ImportError:
 import os
 import re
 import shutil
+import unicodedata
 import zipfile
 from datetime import datetime, time, timedelta
 from time import monotonic
@@ -25,6 +26,7 @@ from config import (
     CLIENT_SHEET_NAME,
     COTATION_FRAIS_COL_SHEET_NAME,
     COTATION_REST_SHEET_NAME,
+    COTATION_TRANSPORT_SHEET_NAME,
     AVION_SHEET_NAME,
     AVION_SOURCE_SHEET_NAME,
     COTATION_H_SHEET_NAME,
@@ -2880,6 +2882,179 @@ def save_client_restauration_cotation_to_excel(client: dict, rows: list) -> int:
                 pass
 
 
+def load_client_transport_cotation(client: dict) -> list:
+    """
+    Charge les lignes de cotation transport sauvegardées pour un client donné.
+
+    Returns:
+        list: row dicts compatibles avec ClientTransportCotation._rows, ou [].
+    """
+    if not OPENPYXL_AVAILABLE or not os.path.exists(CLIENT_EXCEL_PATH):
+        return []
+
+    client_ref = str(client.get("ref_client") or "").strip()
+    if not client_ref:
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH, data_only=True)
+        if COTATION_TRANSPORT_SHEET_NAME not in wb.sheetnames:
+            return []
+        ws = wb[COTATION_TRANSPORT_SHEET_NAME]
+        header_map = _get_header_map(ws, 1)
+
+        id_col = header_map.get("ID_Client")
+        if not id_col:
+            return []
+
+        results = []
+        for row_idx in range(2, ws.max_row + 1):
+            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+                continue
+
+            def _get(col_name, default=""):
+                idx = header_map.get(col_name)
+                return ws.cell(row=row_idx, column=idx).value if idx else default
+
+            def _int_str(col):
+                v = _get(col)
+                return str(int(_parse_num(v))) if v not in (None, "") else ""
+
+            results.append({
+                "depart":       str(_get("Depart") or ""),
+                "arrivee":      str(_get("Arrivee") or ""),
+                "km_distance":  _int_str("KM_Distance"),
+                "prestataire":  str(_get("Prestataire") or ""),
+                "type_voiture": str(_get("Type_Voiture") or ""),
+                "nb_places":    _int_str("Nb_Places"),
+                "nb_vehicules": _int_str("Nb_Vehicules") or "1",
+                "nb_jours":     _int_str("Nb_Jours"),
+                "prix_jour":    float(_parse_num(_get("Prix_Jour", 0))),
+                "km":           _int_str("KM"),
+                "consommation": float(_parse_num(_get("Consommation", 0))),
+                "energie":      str(_get("Energie") or ""),
+                "carburant":    float(_parse_num(_get("Carburant", 0))),
+                "total":        float(_parse_num(_get("Total", 0))),
+            })
+        return results
+    except Exception as e:
+        logger.error(f"Failed to load client transport cotation: {e}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_client_transport_cotation_to_excel(client: dict, rows: list) -> int:
+    """
+    Sauvegarde les lignes de cotation transport dans la feuille COTATION_TRANSPORT.
+
+    Returns:
+        int: Nombre de lignes sauvegardées, -1 en cas d'erreur, -2 si fichier verrouillé.
+    """
+    if not OPENPYXL_AVAILABLE:
+        logger.warning("openpyxl not available. Cannot save transport cotation.")
+        return -1
+    if not rows:
+        return 0
+
+    headers = [
+        "Date", "ID_Client", "Numero_Dossier", "Nom_Client", "Prénom_Client",
+        "Depart", "Arrivee", "KM_Distance",
+        "Prestataire", "Type_Voiture", "Nb_Places", "Nb_Vehicules", "Nb_Jours",
+        "Prix_Jour", "KM", "Consommation", "Energie", "Carburant", "Total",
+    ]
+
+    wb = None
+    try:
+        if not os.path.exists(CLIENT_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = COTATION_TRANSPORT_SHEET_NAME
+        else:
+            wb = load_workbook(CLIENT_EXCEL_PATH)
+            if COTATION_TRANSPORT_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(COTATION_TRANSPORT_SHEET_NAME)
+            else:
+                ws = wb[COTATION_TRANSPORT_SHEET_NAME]
+
+        # En-têtes (toujours réécrits)
+        for c_i, h in enumerate(headers, 1):
+            ws.cell(1, c_i, h)
+
+        header_map = {ws.cell(1, c).value: c for c in range(1, ws.max_column + 1)
+                      if ws.cell(1, c).value}
+
+        # Supprimer les lignes existantes du client
+        client_ref = str(client.get("ref_client") or "").strip()
+        id_col = header_map.get("ID_Client")
+        to_delete = []
+        if id_col:
+            for r in range(2, ws.max_row + 1):
+                if str(ws.cell(r, id_col).value or "").strip() == client_ref:
+                    to_delete.append(r)
+        for r in reversed(to_delete):
+            ws.delete_rows(r, 1)
+
+        # Insérer les nouvelles lignes
+        next_row = ws.max_row + 1 if ws.max_row >= 2 else 2
+        now_str  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        nom      = str(client.get("nom", "")).strip()
+        prenom   = str(client.get("prenom", "")).strip()
+        dossier  = str(client.get("numero_dossier", "")).strip()
+
+        saved = 0
+        for row in rows:
+            r = next_row + saved
+
+            def _set(col_name, value, _r=r):
+                col = header_map.get(col_name)
+                if col:
+                    ws.cell(_r, col, value)
+
+            ws.cell(r, header_map.get("Date",           1), now_str)
+            ws.cell(r, header_map.get("ID_Client",      2), client_ref)
+            ws.cell(r, header_map.get("Numero_Dossier", 3), dossier)
+            ws.cell(r, header_map.get("Nom_Client",     4), nom)
+            ws.cell(r, header_map.get("Prénom_Client",  5), prenom)
+            _set("Depart",       row.get("depart", ""))
+            _set("Arrivee",      row.get("arrivee", ""))
+            _set("KM_Distance",  row.get("km_distance", ""))
+            _set("Prestataire",  row.get("prestataire", ""))
+            _set("Type_Voiture", row.get("type_voiture", ""))
+            _set("Nb_Places",    row.get("nb_places", ""))
+            _set("Nb_Vehicules", row.get("nb_vehicules", 1))
+            _set("Nb_Jours",     row.get("nb_jours", ""))
+            _set("Prix_Jour",    row.get("prix_jour", 0))
+            _set("KM",           row.get("km", ""))
+            _set("Consommation", row.get("consommation", 0))
+            _set("Energie",      row.get("energie", ""))
+            _set("Carburant",    row.get("carburant", 0))
+            _set("Total",        row.get("total", 0))
+            saved += 1
+
+        wb.save(CLIENT_EXCEL_PATH)
+        invalidate_client_cache()
+        logger.info(f"Client transport cotation: {saved} row(s) saved to {COTATION_TRANSPORT_SHEET_NAME}")
+        return saved
+    except PermissionError as e:
+        logger.error(f"Excel locked: {e}", exc_info=True)
+        return -2
+    except Exception as e:
+        logger.error(f"Failed to save client transport cotation: {e}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
 def load_all_hotel_quotations():
     """
     Load all hotel quotations from COTATION_H sheet
@@ -5223,6 +5398,231 @@ def get_transport_vehicle_data(prestataire, type_voiture):
     }
 
 
+# ── Normalisation centralisée des repères / villes ────────────────────────────
+
+# Alias métier connus (clé = forme normalisée sans accents ni casse)
+_CITY_ALIASES: dict = {
+    "tuler":          "Toliary",
+    "tulear":         "Toliary",
+    "toliara":        "Toliary",
+    "ranohira isalo": "Ranohira",
+}
+
+# Regex : supprime les suffixes de durée saisis dans les noms de ville
+# ex.  "(1 jours)", "(2 jour)", "(3 jours)", "(1jours)", ...
+_RE_DURATION_SUFFIX = re.compile(
+    r"\(\s*\d+\s*jou?rs?\s*\)", re.IGNORECASE
+)
+
+
+def _city_key(name: str) -> str:
+    """Clé de recherche interne : minuscules, sans accents, sans ponctuation."""
+    if not name:
+        return ""
+    text = unicodedata.normalize("NFKD", str(name))
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def normalize_city_name(raw) -> str:
+    """
+    Normalise un nom de ville pour usage métier.
+
+    Règles appliquées dans l'ordre :
+    1. Supprime les suffixes de durée : "(1 jours)", "(2 jour)", etc.
+    2. Alias métier sur la chaîne brute (gère "Ranohira (Isalo)" et
+       "RANOHIRA (ISALO)" car _city_key normalise casse + parenthèses).
+    3. Retire les annotations parasites résiduelles entre parenthèses.
+    4. Alias de nouveau sur la chaîne nettoyée (cas résiduels).
+    5. Nettoie les espaces.
+
+    Retourne la forme d'affichage propre (casse conservée sauf alias).
+    """
+    if not raw:
+        return ""
+    s = str(raw).strip()
+    # 1. Supprime les suffixes de durée
+    s = _RE_DURATION_SUFFIX.sub("", s).strip()
+    # 2. Alias sur la chaîne brute — _city_key traite les parenthèses comme espaces
+    #    donc "RANOHIRA (ISALO)" → _city_key → "ranohira isalo" → alias "Ranohira"
+    alias = _CITY_ALIASES.get(_city_key(s))
+    if alias:
+        return alias
+    # 3. Retire les annotations parasites restantes entre parenthèses
+    s = re.sub(r"\([^)]*\)", "", s).strip()
+    s = re.sub(r"\s+", " ", s).strip()
+    # 4. Alias de nouveau après nettoyage (ex. résidu sans annotation)
+    alias = _CITY_ALIASES.get(_city_key(s))
+    if alias:
+        return alias
+    return s
+
+
+def _rebuild_km_mada_lookup(rows: list) -> dict:
+    """
+    Construit un index {clé_normalisée → meilleure_ligne} depuis les rows KM_MADA.
+
+    Règle de priorité (spec §2) :
+    1. Préférer les lignes avec km > 0.
+    2. Parmi elles, préférer la plus grande valeur de km.
+    3. Sinon retomber sur la première ligne disponible.
+    """
+    lookup: dict = {}
+    for row in rows:
+        repere_raw = str(row.get("repere") or "").strip()
+        if not repere_raw:
+            continue
+        # Clé via le repère brut normalisé (sans alias — les alias sont appliqués à la recherche)
+        key = _city_key(repere_raw)
+        if not key:
+            continue
+        km = _parse_num(row.get("km", 0))
+        existing = lookup.get(key)
+        if existing is None:
+            lookup[key] = row
+        else:
+            existing_km = _parse_num(existing.get("km", 0))
+            if km > 0 and (existing_km <= 0 or km > existing_km):
+                lookup[key] = row
+    return lookup
+
+
+def get_km_mada_km_for_repere(repere) -> float:
+    """
+    Retourne le km KM_MADA pour un repère/ville donné.
+
+    Applique normalize_city_name avant la recherche (gère suffixes et alias).
+    Utilise le lookup robuste (doublons → plus grand km positif).
+    """
+    if not repere:
+        return 0
+    clean   = normalize_city_name(str(repere))
+    key     = _city_key(clean)
+    if not key:
+        return 0
+    _load_km_mada_rows()   # garantit que le cache est à jour
+    cached_row = _KM_MADA_CACHE["lookup"].get(key)
+    if cached_row:
+        return _parse_num(cached_row.get("km", 0))
+    return 0
+
+
+def get_km_mada_duration_for_repere(repere) -> float:
+    """Retourne la durée KM_MADA pour un repère/ville donné (normalisation incluse)."""
+    if not repere:
+        return 0.0
+    clean = normalize_city_name(str(repere))
+    key   = _city_key(clean)
+    if not key:
+        return 0.0
+    _load_km_mada_rows()
+    cached_row = _KM_MADA_CACHE["lookup"].get(key)
+    if cached_row:
+        return _parse_duration_hours(cached_row.get("duree", 0))
+    return 0.0
+
+
+def get_segment_distance(depart, arrivee) -> float:
+    """
+    Calcule la distance d'un segment de trajet.
+
+    distance = abs(KM(arrivee) - KM(depart))
+
+    Si seule l'une des deux villes est dans KM_MADA, retourne son km brut.
+    Si aucune n'est connue, retourne 0.
+    """
+    km_dep = get_km_mada_km_for_repere(depart)
+    km_arr = get_km_mada_km_for_repere(arrivee)
+    if km_arr and km_dep:
+        return abs(km_arr - km_dep)
+    return km_arr or km_dep
+
+
+def migrate_normalize_infos_clients() -> dict:
+    """
+    Nettoie les données existantes dans INFOS_CLIENTS.
+
+    Colonnes ciblées : Ville Départ, Ville Arrivée, Itinéraire Circuit.
+
+    Pour chaque cellule non vide :
+    - applique normalize_city_name sur chaque segment/ville;
+    - réécrit la valeur normalisée si elle a changé;
+    - journalise les cellules modifiées.
+
+    Retourne {"modified": int, "errors": list}.
+    """
+    if not OPENPYXL_AVAILABLE or not os.path.exists(CLIENT_EXCEL_PATH):
+        return {"modified": 0, "errors": ["Fichier non trouvé ou openpyxl absent"]}
+
+    def _normalize_city_list(raw: str) -> str:
+        """Normalise chaque ville dans une chaîne multi-ville (séparateurs : , ; > / | \\n -)."""
+        if not raw or not raw.strip():
+            return raw
+        parts = re.split(r"[,;>/|\n]+|(?<!\w)-(?!\w)", raw)
+        cleaned = []
+        for p in parts:
+            p = p.strip(" -\t")
+            if not p:
+                continue
+            cleaned.append(normalize_city_name(p))
+        return ", ".join(cleaned)
+
+    target_cols = {
+        CLIENT_INFOS_SHEET_NAME: ["Ville Départ", "Ville Arrivée", "Itinéraire Circuit"],
+    }
+
+    wb = None
+    modified = 0
+    errors = []
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH)
+        for sheet_name, cols in target_cols.items():
+            if sheet_name not in wb.sheetnames:
+                continue
+            ws = wb[sheet_name]
+            header_map = _get_header_map(ws, 1)
+            col_indices = {c: header_map.get(c) for c in cols if header_map.get(c)}
+            if not col_indices:
+                continue
+            for row_idx in range(2, ws.max_row + 1):
+                for col_name, col_idx in col_indices.items():
+                    cell = ws.cell(row=row_idx, column=col_idx)
+                    raw = str(cell.value or "").strip()
+                    if not raw:
+                        continue
+                    cleaned = _normalize_city_list(raw)
+                    if cleaned != raw:
+                        cell.value = cleaned
+                        modified += 1
+                        logger.info(
+                            f"migrate_infos_clients: row {row_idx} col '{col_name}': "
+                            f"'{raw}' → '{cleaned}'"
+                        )
+        if modified:
+            wb.save(CLIENT_EXCEL_PATH)
+            invalidate_client_cache()
+            logger.info(f"migrate_normalize_infos_clients: {modified} cellule(s) normalisée(s).")
+        return {"modified": modified, "errors": errors}
+    except PermissionError as e:
+        msg = f"Fichier verrouillé : {e}"
+        errors.append(msg)
+        logger.error(msg)
+        return {"modified": 0, "errors": errors}
+    except Exception as e:
+        msg = f"Erreur migration : {e}"
+        errors.append(msg)
+        logger.error(msg, exc_info=True)
+        return {"modified": 0, "errors": errors}
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
 def _load_km_mada_rows():
     if not OPENPYXL_AVAILABLE:
         return []
@@ -5312,11 +5712,7 @@ def _load_km_mada_rows():
                 }
             )
 
-        lookup = {}
-        for row in rows:
-            repere = str(row.get("repere") or "").strip().lower()
-            if repere:
-                lookup[repere] = row
+        lookup = _rebuild_km_mada_lookup(rows)
         _KM_MADA_CACHE["path"] = HOTEL_EXCEL_PATH
         _KM_MADA_CACHE["mtime"] = mtime
         _KM_MADA_CACHE["loaded_at"] = now
@@ -5355,34 +5751,8 @@ def get_km_mada_reperes():
     return sorted(values)
 
 
-def get_km_mada_km_for_repere(repere):
-    lookup = str(repere or "").strip().lower()
-    if not lookup:
-        return 0
-
-    rows = _load_km_mada_rows()
-    cached_row = _KM_MADA_CACHE["lookup"].get(lookup)
-    if cached_row:
-        return _parse_num(cached_row.get("km", 0))
-    for row in rows:
-        if str(row.get("repere") or "").strip().lower() == lookup:
-            return _parse_num(row.get("km", 0))
-    return 0
-
-
-def get_km_mada_duration_for_repere(repere):
-    lookup = str(repere or "").strip().lower()
-    if not lookup:
-        return 0.0
-
-    rows = _load_km_mada_rows()
-    cached_row = _KM_MADA_CACHE["lookup"].get(lookup)
-    if cached_row:
-        return _parse_duration_hours(cached_row.get("duree", 0))
-    for row in rows:
-        if str(row.get("repere") or "").strip().lower() == lookup:
-            return _parse_duration_hours(row.get("duree", 0))
-    return 0.0
+# get_km_mada_km_for_repere and get_km_mada_duration_for_repere are defined
+# above (before _load_km_mada_rows) with normalization and robust lookup.
 
 
 def get_parametrage_value_by_name(parameter_name):

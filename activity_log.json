@@ -1561,5 +1561,221 @@
     "label": "Navigation",
     "category": "nav",
     "details": "Page : client_hotel_cotation"
+  },
+  {
+    "timestamp": "2026-04-14 11:06:03",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-14 11:06:39",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_hotel_cotation"
+  },
+  {
+    "timestamp": "2026-04-14 11:06:53",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-14 11:19:56",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
+  },
+  {
+    "timestamp": "2026-04-14 11:20:11",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : Cotations"
+  },
+  {
+    "timestamp": "2026-04-14 11:20:16",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : Transport"
+  },
+  {
+    "timestamp": "2026-04-14 11:20:36",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : home"
+  },
+  {
+    "timestamp": "2026-04-14 11:47:56",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-14 11:48:15",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_hotel_cotation"
+  },
+  {
+    "timestamp": "2026-04-14 11:55:04",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-14 11:56:15",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_transport_cotation"
+  },
+  {
+    "timestamp": "2026-04-14 12:22:20",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-14 12:22:31",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_transport_cotation"
+  },
+  {
+    "timestamp": "2026-04-14 12:50:39",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-14 12:50:46",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_transport_cotation"
+  },
+  {
+    "timestamp": "2026-04-14 13:00:22",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-14 13:00:28",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_transport_cotation"
+  },
+  {
+    "timestamp": "2026-04-14 13:00:38",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-14 13:00:42",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_transport_cotation"
+  },
+  {
+    "timestamp": "2026-04-14 13:10:53",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-14 13:10:58",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_transport_cotation"
+  },
+  {
+    "timestamp": "2026-04-14 13:14:18",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-14 14:08:22",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-14 14:08:28",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_transport_cotation"
   }
 ]
