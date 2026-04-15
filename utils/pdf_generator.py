@@ -630,6 +630,135 @@ def generate_client_quotation_pdf(
         raise
 
 
+def generate_air_ticket_cotation_pdf(client: dict, rows: list, output_dir: str = None) -> str:
+    """
+    Génère un devis PDF de cotation avion client.
+
+    Args:
+        client: dict avec au moins nom, prenom, ref_client, numero_dossier.
+        rows:   liste de dicts cotation avion (_make_row format).
+        output_dir: dossier de sortie (défaut: DEVIS_FOLDER).
+
+    Returns:
+        Chemin absolu du fichier PDF généré.
+    """
+    if not REPORTLAB_AVAILABLE:
+        raise ImportError("ReportLab requis pour la génération PDF.")
+
+    import re
+
+    out_dir = output_dir or DEVIS_FOLDER
+    os.makedirs(out_dir, exist_ok=True)
+
+    nom    = str(client.get("nom", "") or "").strip()
+    prenom = str(client.get("prenom", "") or "").strip()
+    dossier = str(client.get("numero_dossier", "") or "").strip()
+    ref     = str(client.get("ref_client", "") or "").strip()
+    safe    = re.sub(r"[^\w\-]", "_", f"{ref}_{nom}_{prenom}")
+    filename = os.path.join(out_dir, f"devis_avion_{safe}.pdf")
+
+    try:
+        pdf = QuotationPDF(filename)
+
+        pdf.add_header(COMPANY_NAME, COMPANY_TAGLINE, logo_path=LOGO_PATH)
+        pdf.add_quotation_info(
+            quote_number=dossier or ref,
+            quote_date=datetime.now().strftime("%d/%m/%Y"),
+            client_name=f"{nom} {prenom}".strip(),
+            client_email=str(client.get("email", "") or ""),
+        )
+
+        pdf.add_section_title("Cotation billets d'avion")
+
+        # Tableau des vols
+        col_headers = [
+            "Date vol", "N° vol", "Trajet", "Compagnie", "Classe",
+            "Adultes", "Enfants", "Tarif adulte", "Tarif enfant",
+            "Sous-total", "Marge %", "Total (Ar)",
+        ]
+
+        def _f(v):
+            try:
+                return f"{float(v):,.0f}"
+            except Exception:
+                return str(v or "")
+
+        data_rows = [col_headers]
+        for r in rows:
+            trajet = f"{r.get('ville_depart', '')} → {r.get('ville_arrivee', '')}"
+            data_rows.append([
+                r.get("date_vol", ""),
+                r.get("numero_vol", ""),
+                f"{r.get('type_trajet', '')} — {trajet}",
+                r.get("compagnie", ""),
+                r.get("classe", "Éco"),
+                r.get("nb_adultes", ""),
+                r.get("nb_enfants", ""),
+                _f(r.get("tarif_adulte", 0)),
+                _f(r.get("tarif_enfant", 0)),
+                _f(r.get("sous_total", 0)),
+                f"{r.get('marge_pct', '0')} %",
+                _f(r.get("total", 0)),
+            ])
+
+        grand_total = sum(float(r.get("total") or 0) for r in rows)
+        total_adultes = sum(float(r.get("montant_adultes") or 0) for r in rows)
+        total_enfants = sum(float(r.get("montant_enfants") or 0) for r in rows)
+
+        # Ligne totaux
+        data_rows.append([
+            "", "", "", "", "TOTAUX",
+            "", "", _f(total_adultes), _f(total_enfants),
+            "", "", _f(grand_total),
+        ])
+
+        col_widths = [55, 50, 130, 75, 55, 40, 40, 65, 65, 65, 45, 70]
+
+        table = Table(data_rows, colWidths=[w * 0.75 for w in col_widths])
+        table.setStyle(TableStyle([
+            ("BACKGROUND",  (0, 0), (-1, 0),  colors.HexColor("#0F7D8A")),
+            ("TEXTCOLOR",   (0, 0), (-1, 0),  colors.white),
+            ("FONTNAME",    (0, 0), (-1, 0),  "Helvetica-Bold"),
+            ("FONTSIZE",    (0, 0), (-1, 0),  7),
+            ("FONTSIZE",    (0, 1), (-1, -1), 7),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#EAF4F7")]),
+            ("BACKGROUND",  (0, -1), (-1, -1), colors.HexColor("#DCEFF3")),
+            ("FONTNAME",    (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("GRID",        (0, 0), (-1, -1),  0.3, colors.HexColor("#AABBCC")),
+            ("ALIGN",       (5, 1), (-1, -1),  "RIGHT"),
+            ("VALIGN",      (0, 0), (-1, -1),  "MIDDLE"),
+            ("TOPPADDING",  (0, 0), (-1, -1),  3),
+            ("BOTTOMPADDING",(0, 0), (-1, -1), 3),
+        ]))
+
+        from reportlab.platypus import Spacer
+        pdf.elements.append(table)
+        pdf.elements.append(Spacer(1, 0.4 * cm))
+
+        # Récapitulatif
+        pdf.add_totals_table_with_breakdown(
+            subtotal=grand_total,
+            margin_amount=0,
+            tva_amount=0,
+            total=grand_total,
+            currency="Ar",
+        )
+
+        pdf.add_terms(
+            "Tarifs indicatifs — sujets à modification selon disponibilités.\n"
+            "Validité du devis : 7 jours."
+        )
+        pdf.add_footer(PDF_FOOTER_TEXT)
+
+        filepath = pdf.generate()
+        logger.info(f"Air ticket cotation PDF created: {filepath}")
+        return filepath
+
+    except Exception as exc:
+        logger.error(f"Error generating air ticket cotation PDF: {exc}", exc_info=True)
+        raise
+
+
 def generate_invoice_pdf(
     invoice_number,
     invoice_date,

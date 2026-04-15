@@ -27,6 +27,7 @@ from config import (
     COTATION_FRAIS_COL_SHEET_NAME,
     COTATION_REST_SHEET_NAME,
     COTATION_TRANSPORT_SHEET_NAME,
+    COTATION_AVION_SHEET_NAME,
     AVION_SHEET_NAME,
     AVION_SOURCE_SHEET_NAME,
     COTATION_H_SHEET_NAME,
@@ -4717,6 +4718,24 @@ def get_avion_arrival_cities(filters=None):
     return sorted(values)
 
 
+def get_avion_compagnies():
+    """Retourne la liste triée des compagnies aériennes de la BD avion."""
+    data = load_avion_source_data()
+    values = set()
+    for row in data:
+        fields = row.get("fields", {})
+        comp = (
+            fields.get("compagnie")
+            or fields.get("airline")
+            or fields.get("compagnie aerienne")
+            or ""
+        )
+        comp = str(comp).strip()
+        if comp:
+            values.add(comp)
+    return sorted(values)
+
+
 def get_avion_headers():
     """Load header list from AVION sheet in data.xlsx."""
     if not OPENPYXL_AVAILABLE:
@@ -6877,6 +6896,165 @@ def load_financial_state_snapshot():
     except Exception as e:
         logger.error(f"Failed to load financial state snapshot: {e}", exc_info=True)
         return {}
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+# ── Cotation avion client ──────────────────────────────────────────────────────
+
+def load_client_air_ticket_cotation(client: dict) -> list:
+    """
+    Charge les lignes de cotation avion sauvegardées pour un client donné.
+
+    Returns:
+        list: row dicts compatibles avec ClientAirTicketCotation._rows, ou [].
+    """
+    if not OPENPYXL_AVAILABLE or not os.path.exists(CLIENT_EXCEL_PATH):
+        return []
+
+    client_ref = str(client.get("ref_client") or "").strip()
+    if not client_ref:
+        return []
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH, data_only=True)
+        if COTATION_AVION_SHEET_NAME not in wb.sheetnames:
+            return []
+
+        ws = wb[COTATION_AVION_SHEET_NAME]
+        header_map = _get_header_map(ws, 1)
+        id_col = header_map.get("ID_Client")
+        if not id_col:
+            return []
+
+        results = []
+        for row_idx in range(2, ws.max_row + 1):
+            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+                continue
+
+            def _get(col_name, default="", _r=row_idx):
+                idx = header_map.get(col_name)
+                return ws.cell(row=_r, column=idx).value if idx else default
+
+            results.append({
+                "date_vol":        str(_get("Date_Vol") or ""),
+                "numero_vol":      str(_get("Numero_Vol") or ""),
+                "type_trajet":     str(_get("Type_Trajet") or ""),
+                "compagnie":       str(_get("Compagnie") or ""),
+                "ville_depart":    str(_get("Ville_Depart") or ""),
+                "ville_arrivee":   str(_get("Ville_Arrivee") or ""),
+                "classe":          str(_get("Classe") or "Économique"),
+                "nb_adultes":      str(int(_parse_num(_get("Nb_Adultes", 0)))) if _get("Nb_Adultes") not in (None, "") else "",
+                "nb_enfants":      str(int(_parse_num(_get("Nb_Enfants", 0)))) if _get("Nb_Enfants") not in (None, "") else "",
+                "tarif_adulte":    str(_parse_num(_get("Tarif_Adulte", 0))) if _get("Tarif_Adulte") not in (None, "") else "",
+                "tarif_enfant":    str(_parse_num(_get("Tarif_Enfant", 0))) if _get("Tarif_Enfant") not in (None, "") else "",
+                "montant_adultes": float(_parse_num(_get("Montant_Adultes", 0))),
+                "montant_enfants": float(_parse_num(_get("Montant_Enfants", 0))),
+                "sous_total":      float(_parse_num(_get("Sous_Total", 0))),
+                "marge_pct":       str(_parse_num(_get("Marge_Pct", 0))) if _get("Marge_Pct") not in (None, "") else "",
+                "total":           float(_parse_num(_get("Total", 0))),
+                "total_manuel":    bool(_parse_num(_get("Total_Manuel", 0))),
+            })
+        return results
+    except Exception as exc:
+        logger.error(f"Failed to load client air ticket cotation: {exc}", exc_info=True)
+        return []
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_client_air_ticket_cotation_to_excel(client: dict, rows: list) -> int:
+    """
+    Sauvegarde les lignes de cotation avion dans la feuille COTATION_AVION.
+
+    Returns:
+        int: Nombre de lignes sauvegardées, -1 erreur, -2 fichier verrouillé.
+    """
+    if not OPENPYXL_AVAILABLE:
+        logger.warning("openpyxl not available. Cannot save air ticket client cotation.")
+        return -1
+    if not rows:
+        return 0
+
+    headers = [
+        "Date", "ID_Client", "Numero_Dossier", "Nom_Client", "Prénom_Client",
+        "Date_Vol", "Numero_Vol", "Type_Trajet", "Compagnie",
+        "Ville_Depart", "Ville_Arrivee", "Classe",
+        "Nb_Adultes", "Nb_Enfants", "Tarif_Adulte", "Tarif_Enfant",
+        "Montant_Adultes", "Montant_Enfants", "Sous_Total", "Marge_Pct",
+        "Total", "Total_Manuel",
+    ]
+
+    wb = None
+    try:
+        if not os.path.exists(CLIENT_EXCEL_PATH):
+            wb = Workbook()
+            ws = wb.active
+            ws.title = COTATION_AVION_SHEET_NAME
+        else:
+            wb = load_workbook(CLIENT_EXCEL_PATH)
+            if COTATION_AVION_SHEET_NAME not in wb.sheetnames:
+                ws = wb.create_sheet(COTATION_AVION_SHEET_NAME)
+            else:
+                ws = wb[COTATION_AVION_SHEET_NAME]
+
+        header_map = _ensure_headers(ws, headers)
+        client_ref = str(client.get("ref_client") or "").strip()
+        id_col_idx = header_map.get("ID_Client")
+        if id_col_idx and client_ref:
+            _delete_rows_for_client(ws, id_col_idx, client_ref)
+
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for rd in rows:
+            next_row = ws.max_row + 1
+            row_values = {
+                "Date":           now_str,
+                "ID_Client":      client_ref,
+                "Numero_Dossier": str(client.get("numero_dossier") or ""),
+                "Nom_Client":     str(client.get("nom") or ""),
+                "Prénom_Client":  str(client.get("prenom") or ""),
+                "Date_Vol":       str(rd.get("date_vol") or ""),
+                "Numero_Vol":     str(rd.get("numero_vol") or ""),
+                "Type_Trajet":    str(rd.get("type_trajet") or ""),
+                "Compagnie":      str(rd.get("compagnie") or ""),
+                "Ville_Depart":   str(rd.get("ville_depart") or ""),
+                "Ville_Arrivee":  str(rd.get("ville_arrivee") or ""),
+                "Classe":         str(rd.get("classe") or "Économique"),
+                "Nb_Adultes":     _parse_num(rd.get("nb_adultes", 0)),
+                "Nb_Enfants":     _parse_num(rd.get("nb_enfants", 0)),
+                "Tarif_Adulte":   _parse_num(rd.get("tarif_adulte", 0)),
+                "Tarif_Enfant":   _parse_num(rd.get("tarif_enfant", 0)),
+                "Montant_Adultes":_parse_num(rd.get("montant_adultes", 0)),
+                "Montant_Enfants":_parse_num(rd.get("montant_enfants", 0)),
+                "Sous_Total":     _parse_num(rd.get("sous_total", 0)),
+                "Marge_Pct":      _parse_num(rd.get("marge_pct", 0)),
+                "Total":          _parse_num(rd.get("total", 0)),
+                "Total_Manuel":   1 if rd.get("total_manuel") else 0,
+            }
+            for header, value in row_values.items():
+                col = header_map.get(header)
+                if col:
+                    ws.cell(row=next_row, column=col, value=value)
+
+        wb.save(CLIENT_EXCEL_PATH)
+        invalidate_client_cache()
+        logger.info(f"Client air ticket cotation: {len(rows)} row(s) saved to {COTATION_AVION_SHEET_NAME}")
+        return len(rows)
+    except PermissionError as exc:
+        logger.error(f"Excel locked: {exc}", exc_info=True)
+        return -2
+    except Exception as exc:
+        logger.error(f"Failed to save client air ticket cotation: {exc}", exc_info=True)
+        return -1
     finally:
         if wb is not None:
             try:

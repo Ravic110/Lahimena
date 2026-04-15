@@ -1777,5 +1777,212 @@
     "label": "Navigation",
     "category": "nav",
     "details": "Page : client_transport_cotation"
+  },
+  {
+    "timestamp": "2026-04-15 16:36:13",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-15 16:36:34",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : Cotations"
+  },
+  {
+    "timestamp": "2026-04-15 16:36:36",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : Billets avion"
+  },
+  {
+    "timestamp": "2026-04-15 17:26:46",
+    "username": "dadavic",
+    "role": "",
+    "action": "login_failed",
+    "label": "Tentative de connexion échouée",
+    "category": "auth",
+    "details": "Tentative échouée pour : dadavic"
+  },
+  {
+    "timestamp": "2026-04-15 17:27:10",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-15 17:27:22",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_transport_cotation"
+  },
+  {
+    "timestamp": "2026-04-15 17:28:02",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-15 18:03:22",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-15 18:03:38",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_air_ticket_cotation"
+  },
+  {
+    "timestamp": "2026-04-15 18:10:16",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-15 18:10:22",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_air_ticket_cotation"
+  },
+  {
+    "timestamp": "2026-04-15 18:10:30",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-15 18:10:34",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_air_ticket_cotation"
+  },
+  {
+    "timestamp": "2026-04-15 18:11:58",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-15 18:12:03",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_air_ticket_cotation"
+  },
+  {
+    "timestamp": "2026-04-15 18:14:37",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-15 18:14:42",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_air_ticket_cotation"
+  },
+  {
+    "timestamp": "2026-04-15 18:16:40",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-15 18:16:49",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_air_ticket_cotation"
+  },
+  {
+    "timestamp": "2026-04-15 18:22:39",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-15 18:22:48",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_air_ticket_cotation"
+  },
+  {
+    "timestamp": "2026-04-15 18:43:02",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-15 18:43:10",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_air_ticket_cotation"
   }
 ]

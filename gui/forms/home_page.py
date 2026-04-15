@@ -546,6 +546,7 @@ class HomePage:
                 self._on_hotel_cotation,
                 self._on_collective_cotation,
                 self._on_transport_cotation,
+                self._on_air_ticket_cotation,
             )
 
     def _on_change_statut(self, client):
@@ -562,6 +563,10 @@ class HomePage:
     def _on_transport_cotation(self, client):
         if self.navigate_callback:
             self.navigate_callback("client_transport_cotation", client=client)
+
+    def _on_air_ticket_cotation(self, client):
+        if self.navigate_callback:
+            self.navigate_callback("client_air_ticket_cotation", client=client)
 
     def _on_modify_client(self, client):
         if self.navigate_callback:
@@ -625,7 +630,7 @@ class _ClientActionModal(tk.Toplevel):
 
     def __init__(self, parent, client, on_change_statut, on_modify,
                  on_hotel_cotation=None, on_collective_cotation=None,
-                 on_transport_cotation=None):
+                 on_transport_cotation=None, on_air_ticket_cotation=None):
         super().__init__(parent)
         self.client = client
         self.on_change_statut = on_change_statut
@@ -633,6 +638,7 @@ class _ClientActionModal(tk.Toplevel):
         self.on_hotel_cotation = on_hotel_cotation
         self.on_collective_cotation = on_collective_cotation
         self.on_transport_cotation = on_transport_cotation
+        self.on_air_ticket_cotation = on_air_ticket_cotation
         nom = client.get("nom", "")
         statut = client.get("statut") or "En cours"
         self.title(f"Actions — {nom}")
@@ -707,6 +713,14 @@ class _ClientActionModal(tk.Toplevel):
             bg="#37474F", fg="white",
             relief="flat", padx=18, pady=10, cursor="hand2",
             command=self._action_transport_cotation,
+        ).pack(fill="x", pady=(0, 8))
+
+        tk.Button(
+            btn_frame, text="✈️  Cotation avion",
+            font=("Poppins", 11, "bold"),
+            bg="#455A64", fg="white",
+            relief="flat", padx=18, pady=10, cursor="hand2",
+            command=self._action_air_ticket_cotation,
         ).pack(fill="x")
 
         self.update_idletasks()
@@ -752,6 +766,15 @@ class _ClientActionModal(tk.Toplevel):
             return
         client = self.client
         cb = self.on_transport_cotation
+        parent = self.master
+        self.destroy()
+        parent.after(10, lambda: cb(client))
+
+    def _action_air_ticket_cotation(self):
+        if not self.on_air_ticket_cotation:
+            return
+        client = self.client
+        cb = self.on_air_ticket_cotation
         parent = self.master
         self.destroy()
         parent.after(10, lambda: cb(client))
