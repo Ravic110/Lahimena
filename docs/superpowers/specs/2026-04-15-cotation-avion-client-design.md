@@ -109,6 +109,7 @@ Ce mode sert a la generation initiale et/ou a la regeneration d'une base de lign
 Chaque ligne de cotation avion contient les champs suivants :
 
 - `type_trajet` : `aller` ou `retour`
+- `compagnie`
 - `ville_depart`
 - `ville_arrivee`
 - `nb_adultes`
@@ -128,6 +129,7 @@ Chaque ligne de cotation avion contient les champs suivants :
 
 Pour une cotation initiale non encore sauvegardee :
 
+- `compagnie` est pre-remplie depuis la fiche client si l'information existe, sinon reste vide
 - `ville_depart` est pre-remplie depuis la fiche client
 - `ville_arrivee` est pre-remplie depuis la fiche client
 - `nb_adultes` est pre-rempli depuis la fiche client
@@ -202,7 +204,7 @@ La sauvegarde suit le modele des autres cotations client :
 Les donnees minimales a stocker doivent inclure :
 
 - metadata client : date, identifiant client, numero dossier, nom, prenom
-- contenu metier ligne : type trajet, villes, pax, tarifs, montants, sous-total, marge %, total, total_manuel
+- contenu metier ligne : type trajet, compagnie, villes, pax, tarifs, montants, sous-total, marge %, total, total_manuel
 
 ### Chargement
 
