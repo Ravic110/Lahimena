@@ -108,6 +108,8 @@ class ClientCollectiveCotation:
     # ── Interface ──────────────────────────────────────────────────────────────
 
     def _build_ui(self):
+        from gui.ui_style import card_frame, setup_treeview_style
+
         client  = self.client
         nom     = client.get("nom", "")
         prenom  = client.get("prenom", "")
@@ -115,114 +117,79 @@ class ClientCollectiveCotation:
         pax     = str(client.get("nombre_participants") or
                       client.get("nombre_adultes") or "")
         sejour  = str(client.get("duree_sejour") or "")
-
-        # Titre
-        tk.Label(
-            self.parent,
-            text="COTATION FRAIS COLLECTIFS",
-            font=TITLE_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
-        ).pack(pady=(20, 4))
-
         client_name = f"{prenom} {nom}".strip() or "—"
-        tk.Label(
-            self.parent,
-            text="Client : " + client_name +
-                 (f"   |   Dossier : {dossier}" if dossier else ""),
-            font=ENTRY_FONT, fg=MUTED_TEXT_COLOR, bg=MAIN_BG_COLOR,
-        ).pack(pady=(0, 2))
-
-        # Bouton retour
-        if self.on_back:
-            back_bar = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
-            back_bar.pack(fill="x", padx=20, pady=(4, 0))
-            ctk.CTkButton(
-                back_bar, text="⬅  Retour à l'accueil",
-                command=self.on_back,
-                fg_color=BUTTON_BLUE, hover_color=_HOVER_BLUE, text_color="white",
-                font=BUTTON_FONT, corner_radius=8, cursor="hand2",
-            ).pack(side="left")
 
         root = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
-        root.pack(fill="both", expand=True, padx=20, pady=(8, 20))
+        root.pack(fill="both", expand=True, padx=16, pady=12)
 
-        # ── Carte Infos client ─────────────────────────────────────────────────
-        info_card = tk.Frame(root, bg=PANEL_BG_COLOR)
-        info_card.pack(fill="x", pady=(0, 10))
+        # ── En-tête ────────────────────────────────────────────────────────
+        _, hdr = card_frame(root, pady=(0, 8))
+        hdr_top = tk.Frame(hdr, bg=PANEL_BG_COLOR)
+        hdr_top.pack(fill="x")
+
+        if self.on_back:
+            ctk.CTkButton(
+                hdr_top, text="← Retour",
+                command=self.on_back,
+                fg_color=BUTTON_BLUE, hover_color=_HOVER_BLUE,
+                text_color="white", font=("Poppins", 10, "bold"),
+                corner_radius=8, cursor="hand2", width=100, height=30,
+            ).pack(side="left", padx=(0, 12))
+
         tk.Label(
-            info_card, text="Informations client",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
-        ).pack(anchor="w", padx=12, pady=(8, 2))
-        info_inner = tk.Frame(info_card, bg=PANEL_BG_COLOR)
-        info_inner.pack(fill="x", padx=12, pady=(0, 8))
-
-        for col_i, (lbl_text, val_text) in enumerate([
-            ("Participants :", pax or "—"),
-            ("Durée séjour :", f"{sejour} j" if sejour else "—"),
-        ]):
-            tk.Label(
-                info_inner, text=lbl_text,
-                font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
-            ).grid(row=0, column=col_i * 2,
-                   sticky="w", padx=(0 if col_i == 0 else 20, 4), pady=4)
-            tk.Label(
-                info_inner, text=val_text,
-                font=ENTRY_FONT, fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR,
-            ).grid(row=0, column=col_i * 2 + 1, sticky="w", pady=4)
-
-        # ── Barre d'actions ────────────────────────────────────────────────────
-        action_bar = tk.Frame(root, bg=MAIN_BG_COLOR)
-        action_bar.pack(fill="x", pady=(0, 8))
-
-        ctk.CTkButton(
-            action_bar, text="＋  Ajouter une ligne",
-            command=self._add_row_dialog,
-            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN, text_color="white",
-            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
-        ).pack(side="left", padx=(0, 6))
-
-        ctk.CTkButton(
-            action_bar, text="✏️  Modifier la ligne",
-            command=self._edit_selected,
-            fg_color=BUTTON_BLUE, hover_color=_HOVER_BLUE, text_color="white",
-            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
-        ).pack(side="left", padx=(0, 6))
-
-        ctk.CTkButton(
-            action_bar, text="🗑️  Supprimer la ligne",
-            command=self._delete_selected,
-            fg_color=BUTTON_RED, hover_color=_HOVER_RED, text_color="white",
-            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
+            hdr_top, text="Cotation Frais Collectifs",
+            font=TITLE_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
         ).pack(side="left")
 
+        info_right = tk.Frame(hdr_top, bg=PANEL_BG_COLOR)
+        info_right.pack(side="right")
+        for lbl, val in [("Client", client_name), ("Dossier", dossier or "—")]:
+            tk.Label(info_right, text=f"{lbl} : ", font=LABEL_FONT,
+                     fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left")
+            tk.Label(info_right, text=val, font=LABEL_FONT,
+                     fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left", padx=(0, 16))
+
+        info_row = tk.Frame(hdr, bg=PANEL_BG_COLOR)
+        info_row.pack(fill="x", pady=(6, 0))
+        for lbl, val in [("Participants", pax or "—"),
+                          ("Durée séjour", f"{sejour} j" if sejour else "—")]:
+            tk.Label(info_row, text=f"{lbl} : ", font=LABEL_FONT,
+                     fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left")
+            tk.Label(info_row, text=val, font=ENTRY_FONT,
+                     fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left", padx=(0, 24))
+
+        # ── Barre d'actions ────────────────────────────────────────────────
+        _, action = card_frame(root, pady=(0, 8))
+        action_row = tk.Frame(action, bg=PANEL_BG_COLOR)
+        action_row.pack(fill="x")
+
+        for text, cmd, color, hover in [
+            ("＋ Ajouter une ligne",   self._add_row_dialog,  BUTTON_GREEN, _HOVER_GREEN),
+            ("✏️ Modifier la ligne",   self._edit_selected,   BUTTON_BLUE,  _HOVER_BLUE),
+            ("🗑️ Supprimer la ligne", self._delete_selected,  BUTTON_RED,   _HOVER_RED),
+        ]:
+            ctk.CTkButton(
+                action_row, text=text, command=cmd,
+                fg_color=color, hover_color=hover,
+                text_color="white", font=BUTTON_FONT,
+                corner_radius=8, cursor="hand2", height=32,
+            ).pack(side="left", padx=(0, 6))
+
         ctk.CTkButton(
-            action_bar, text="💾  Sauvegarder",
+            action_row, text="💾 Sauvegarder",
             command=self._save_to_excel,
-            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN, text_color="white",
-            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
+            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN,
+            text_color="white", font=BUTTON_FONT,
+            corner_radius=8, cursor="hand2", height=32,
         ).pack(side="right")
 
-        # ── Carte Tableau ──────────────────────────────────────────────────────
-        table_card = tk.Frame(root, bg=PANEL_BG_COLOR)
-        table_card.pack(fill="both", expand=True, pady=(0, 10))
-        tk.Label(
-            table_card, text="Lignes de frais collectifs",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
-        ).pack(anchor="w", padx=12, pady=(8, 2))
-        table_inner = tk.Frame(table_card, bg=PANEL_BG_COLOR)
-        table_inner.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-
-        style = ttk.Style()
-        style.configure(
-            "Coll.Treeview",
-            background=INPUT_BG_COLOR, foreground=TEXT_COLOR,
-            fieldbackground=INPUT_BG_COLOR, rowheight=30,
-        )
-        style.configure("Coll.Treeview.Heading", font=LABEL_FONT)
-        style.map("Coll.Treeview", background=[("selected", BUTTON_BLUE)])
+        # ── Treeview ───────────────────────────────────────────────────────
+        setup_treeview_style("Coll.Treeview")
+        _, tree_inner = card_frame(root, expand=True, pady=(0, 8))
 
         col_ids = [c[0] for c in self._COLS]
         self._tree = ttk.Treeview(
-            table_inner, columns=col_ids, show="headings",
+            tree_inner, columns=col_ids, show="headings",
             height=12, style="Coll.Treeview",
         )
         for key, heading, width in self._COLS:
@@ -232,51 +199,35 @@ class ClientCollectiveCotation:
             ) else "w"
             self._tree.column(key, width=width, anchor=anchor, stretch=False)
 
-        vsb = ttk.Scrollbar(table_inner, orient="vertical",   command=self._tree.yview)
-        hsb = ttk.Scrollbar(table_inner, orient="horizontal", command=self._tree.xview)
+        vsb = ctk.CTkScrollbar(tree_inner, orientation="vertical",   command=self._tree.yview)
+        hsb = ctk.CTkScrollbar(tree_inner, orientation="horizontal",  command=self._tree.xview)
         self._tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-        self._tree.grid(row=0, column=0, sticky="nsew")
-        vsb.grid(row=0, column=1, sticky="ns")
-        hsb.grid(row=1, column=0, sticky="ew")
-        table_inner.grid_rowconfigure(0, weight=1)
-        table_inner.grid_columnconfigure(0, weight=1)
-        self._tree.bind("<Double-1>", lambda e: self._edit_selected())
+        self._tree.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+        hsb.pack(side="bottom", fill="x")
 
-        # Tags pour les lignes alternées
+        self._tree.bind("<Double-1>", lambda e: self._edit_selected())
         self._tree.tag_configure("odd",  background="#E4F2F6")
         self._tree.tag_configure("even", background=INPUT_BG_COLOR)
 
-        # ── Carte Totaux ───────────────────────────────────────────────────────
-        totals_card = tk.Frame(root, bg=PANEL_BG_COLOR)
-        totals_card.pack(fill="x")
-        tk.Label(
-            totals_card, text="Totaux",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
-        ).pack(anchor="w", padx=12, pady=(8, 2))
-        totals_inner = tk.Frame(totals_card, bg=PANEL_BG_COLOR)
-        totals_inner.pack(fill="x", padx=12, pady=(0, 8))
+        # ── Totaux ─────────────────────────────────────────────────────────
+        _, totals = card_frame(root, pady=(0, 4))
+        totals_row = tk.Frame(totals, bg=PANEL_BG_COLOR)
+        totals_row.pack(fill="x")
 
-        tk.Label(
-            totals_inner, text="Total dépenses :",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
-        ).grid(row=0, column=0, sticky="w", padx=(0, 6), pady=4)
+        def _total_item(parent, label):
+            tk.Label(parent, text=label, font=LABEL_FONT,
+                     fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left")
+            lbl = tk.Label(parent, text="0.00", font=("Poppins", 12, "bold"),
+                           fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR)
+            lbl.pack(side="left", padx=(2, 0))
+            tk.Label(parent, text=" Ar  ", font=("Poppins", 10),
+                     fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left")
+            return lbl
 
-        self._lbl_dep = tk.Label(
-            totals_inner, text="0.00",
-            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR,
-        )
-        self._lbl_dep.grid(row=0, column=1, sticky="w", padx=(0, 40), pady=4)
-
-        tk.Label(
-            totals_inner, text="Total global (avec marges) :",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
-        ).grid(row=0, column=2, sticky="w", padx=(0, 6), pady=4)
-
-        self._lbl_glob = tk.Label(
-            totals_inner, text="0.00",
-            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR,
-        )
-        self._lbl_glob.grid(row=0, column=3, sticky="w", pady=4)
+        self._lbl_dep  = _total_item(totals_row, "Total dépenses : ")
+        tk.Frame(totals_row, width=1, bg="#C9DDE3").pack(side="left", fill="y", padx=8)
+        self._lbl_glob = _total_item(totals_row, "Total global (avec marges) : ")
 
     # ── Tableau ────────────────────────────────────────────────────────────────
 

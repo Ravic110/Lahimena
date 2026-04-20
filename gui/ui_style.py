@@ -288,3 +288,78 @@ def muted_label(parent, text):
         fg=MUTED_TEXT_COLOR,
         bg=PANEL_BG_COLOR,
     )
+
+
+_CARD_BORDER = "#C9DDE3"
+_CARD_RADIUS = 12
+
+
+def card_frame(parent, expand=False, padx=0, pady=(0, 8)):
+    """
+    Retourne un (card, inner) :
+    - card  : ctk.CTkFrame avec coins arrondis et bordure subtile, déjà packé
+    - inner : tk.Frame transparent à l'intérieur, à utiliser comme parent des widgets
+    """
+    if CTK_AVAILABLE:
+        card = ctk.CTkFrame(
+            parent,
+            fg_color=PANEL_BG_COLOR,
+            corner_radius=_CARD_RADIUS,
+            border_width=1,
+            border_color=_CARD_BORDER,
+        )
+    else:
+        card = tk.Frame(
+            parent, bg=PANEL_BG_COLOR,
+            highlightbackground=_CARD_BORDER,
+            highlightthickness=1, bd=0,
+        )
+    card.pack(fill="both" if expand else "x", expand=expand, padx=padx, pady=pady)
+
+    inner = tk.Frame(card, bg=PANEL_BG_COLOR)
+    inner.pack(fill="both", expand=True, padx=10, pady=8)
+    return card, inner
+
+
+def setup_treeview_style(style_name: str):
+    """
+    Configure un style TTK moderne pour un Treeview de cotation.
+    Utilise `style_name` comme nom (ex. 'Transport.Treeview').
+    """
+    try:
+        style = ttk.Style()
+        style.theme_use("clam")
+    except Exception:
+        style = ttk.Style()
+
+    heading = f"{style_name}.Heading"
+
+    style.configure(
+        style_name,
+        background=INPUT_BG_COLOR,
+        foreground=TEXT_COLOR,
+        fieldbackground=INPUT_BG_COLOR,
+        rowheight=30,
+        font=("Poppins", 10),
+        borderwidth=0,
+        relief="flat",
+    )
+    style.configure(
+        heading,
+        background="#0F7D8A",
+        foreground="white",
+        font=("Poppins", 10, "bold"),
+        relief="flat",
+        borderwidth=0,
+        padding=(4, 6),
+    )
+    style.map(
+        style_name,
+        background=[("selected", "#0F7D8A")],
+        foreground=[("selected", "white")],
+    )
+    style.map(
+        heading,
+        background=[("active", "#0A6870")],
+        relief=[("active", "flat")],
+    )

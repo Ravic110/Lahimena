@@ -232,100 +232,93 @@ class ClientAirTicketCotation:
     # ── Construction UI ────────────────────────────────────────────────────────
 
     def _build_ui(self):
+        from gui.ui_style import card_frame, setup_treeview_style
+
         for w in self.parent.winfo_children():
             w.destroy()
 
-        shell = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
-        shell.pack(fill="both", expand=True, padx=16, pady=16)
-        self._shell = shell
+        root = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
+        root.pack(fill="both", expand=True, padx=16, pady=12)
+        self._shell = root
 
-        # En-tête
-        hdr = tk.Frame(shell, bg=MAIN_BG_COLOR)
-        hdr.pack(fill="x", pady=(0, 12))
+        nom     = (self.client.get("prenom", "") + " " + self.client.get("nom", "")).strip()
+        dossier = self.client.get("numero_dossier", "")
+
+        # ── En-tête ────────────────────────────────────────────────────────
+        _, hdr = card_frame(root, pady=(0, 8))
+        hdr_top = tk.Frame(hdr, bg=PANEL_BG_COLOR)
+        hdr_top.pack(fill="x")
 
         ctk.CTkButton(
-            hdr, text="← Retour", width=90, height=30,
+            hdr_top, text="← Retour", width=90, height=30,
             fg_color=BUTTON_BLUE, hover_color=_HOVER_BLUE,
             text_color="white", font=("Poppins", 10, "bold"),
             corner_radius=6, cursor="hand2",
             command=self._go_back,
+        ).pack(side="left", padx=(0, 12))
+
+        tk.Label(
+            hdr_top, text="Cotation Avion",
+            font=TITLE_FONT, bg=PANEL_BG_COLOR, fg=TEXT_COLOR,
         ).pack(side="left")
 
-        nom = (self.client.get("nom", "") + " " + self.client.get("prenom", "")).strip()
-        tk.Label(
-            hdr, text=f"Cotation Avion — {nom}",
-            font=TITLE_FONT, bg=MAIN_BG_COLOR, fg=TEXT_COLOR,
-        ).pack(side="left", padx=16)
+        info_right = tk.Frame(hdr_top, bg=PANEL_BG_COLOR)
+        info_right.pack(side="right")
+        for lbl, val in [("Client", nom or "—"), ("Dossier", dossier or "—")]:
+            tk.Label(info_right, text=f"{lbl} : ", font=LABEL_FONT,
+                     fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left")
+            tk.Label(info_right, text=val, font=LABEL_FONT,
+                     fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left", padx=(0, 16))
 
-        # Barre d'actions
-        action_bar = tk.Frame(shell, bg=MAIN_BG_COLOR)
-        action_bar.pack(fill="x", pady=(0, 8))
+        # ── Barre d'actions ────────────────────────────────────────────────
+        _, action = card_frame(root, pady=(0, 8))
+        action_row = tk.Frame(action, bg=PANEL_BG_COLOR)
+        action_row.pack(fill="x")
 
-        tk.Label(action_bar, text="Mode :", font=LABEL_FONT,
-                 bg=MAIN_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left", padx=(0, 4))
+        tk.Label(action_row, text="Mode :", font=LABEL_FONT,
+                 bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left", padx=(0, 4))
 
         ttk.Combobox(
-            action_bar, textvariable=self.trip_mode_var,
+            action_row, textvariable=self.trip_mode_var,
             values=["aller simple", "aller-retour"],
             state="readonly", width=16,
         ).pack(side="left", padx=(0, 6))
 
-        ctk.CTkButton(
-            action_bar, text="Régénérer", command=self._regenerate_rows,
-            fg_color=BUTTON_BLUE, hover_color=_HOVER_BLUE,
-            text_color="white", font=BUTTON_FONT,
-            corner_radius=8, cursor="hand2", width=110,
-        ).pack(side="left", padx=(0, 6))
+        for text, cmd, color, hover, width in [
+            ("Régénérer",    self._regenerate_rows,   BUTTON_BLUE,   _HOVER_BLUE,   110),
+            ("+ Ajouter",    self._open_add_dialog,   BUTTON_GREEN,  _HOVER_GREEN,  100),
+            ("✎ Modifier",   self._open_edit_dialog,  BUTTON_BLUE,   _HOVER_BLUE,   100),
+            ("Supprimer",    self._delete_selected,   BUTTON_RED,    _HOVER_RED,    100),
+            ("📄 Devis PDF", self._export_pdf,        BUTTON_ORANGE, _HOVER_ORANGE, 120),
+        ]:
+            ctk.CTkButton(
+                action_row, text=text, command=cmd,
+                fg_color=color, hover_color=hover,
+                text_color="white", font=BUTTON_FONT,
+                corner_radius=8, cursor="hand2", width=width, height=32,
+            ).pack(side="left", padx=(0, 6))
 
         ctk.CTkButton(
-            action_bar, text="+ Ajouter", command=self._open_add_dialog,
+            action_row, text="💾 Sauvegarder", command=self._save_to_excel,
             fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN,
             text_color="white", font=BUTTON_FONT,
-            corner_radius=8, cursor="hand2", width=100,
-        ).pack(side="left", padx=(0, 6))
-
-        ctk.CTkButton(
-            action_bar, text="✎ Modifier", command=self._open_edit_dialog,
-            fg_color=BUTTON_BLUE, hover_color=_HOVER_BLUE,
-            text_color="white", font=BUTTON_FONT,
-            corner_radius=8, cursor="hand2", width=100,
-        ).pack(side="left", padx=(0, 6))
-
-        ctk.CTkButton(
-            action_bar, text="Supprimer", command=self._delete_selected,
-            fg_color=BUTTON_RED, hover_color=_HOVER_RED,
-            text_color="white", font=BUTTON_FONT,
-            corner_radius=8, cursor="hand2", width=100,
-        ).pack(side="left", padx=(0, 6))
-
-        ctk.CTkButton(
-            action_bar, text="📄 Devis PDF", command=self._export_pdf,
-            fg_color=BUTTON_ORANGE, hover_color=_HOVER_ORANGE,
-            text_color="white", font=BUTTON_FONT,
-            corner_radius=8, cursor="hand2", width=120,
-        ).pack(side="left", padx=(0, 6))
-
-        ctk.CTkButton(
-            action_bar, text="💾 Sauvegarder", command=self._save_to_excel,
-            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN,
-            text_color="white", font=BUTTON_FONT,
-            corner_radius=8, cursor="hand2", width=140,
+            corner_radius=8, cursor="hand2", width=140, height=32,
         ).pack(side="right")
 
-        # Tableau
-        tree_frame = tk.Frame(shell, bg=MAIN_BG_COLOR)
-        tree_frame.pack(fill="both", expand=True)
+        # ── Treeview ───────────────────────────────────────────────────────
+        setup_treeview_style("Avion.Treeview")
+        _, tree_inner = card_frame(root, expand=True, pady=(0, 8))
 
         cols = [c[0] for c in self._COLS]
-        self._tree = ttk.Treeview(tree_frame, columns=cols, show="headings",
-                                  selectmode="browse", height=14)
+        self._tree = ttk.Treeview(tree_inner, columns=cols, show="headings",
+                                  selectmode="browse", height=14, style="Avion.Treeview")
 
         for col_id, col_label, col_width in self._COLS:
             self._tree.heading(col_id, text=col_label)
             self._tree.column(col_id, width=col_width, minwidth=40, anchor="center")
 
-        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self._tree.yview)
-        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self._tree.xview)
+        vsb = ctk.CTkScrollbar(tree_inner, orientation="vertical",   command=self._tree.yview)
+        hsb = ctk.CTkScrollbar(tree_inner, orientation="horizontal",  command=self._tree.xview)
         self._tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
         self._tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
@@ -335,13 +328,14 @@ class ClientAirTicketCotation:
         self._tree.tag_configure("odd",  background="#DCEFF3")
         self._tree.bind("<Double-1>", lambda _e: self._open_edit_dialog())
 
-        # Pied de page
-        footer = tk.Frame(shell, bg=PANEL_BG_COLOR, pady=6)
-        footer.pack(fill="x", pady=(8, 0))
+        # ── Pied de page ───────────────────────────────────────────────────
+        _, footer = card_frame(root, pady=(0, 4))
+        footer_row = tk.Frame(footer, bg=PANEL_BG_COLOR)
+        footer_row.pack(fill="x")
 
         def _total_label(parent, title, var):
             tk.Label(parent, text=title, font=LABEL_FONT,
-                     bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left", padx=(16, 2))
+                     bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left", padx=(0, 2))
             lbl = ctk.CTkLabel(parent, textvariable=var, font=("Poppins", 11, "bold"),
                                text_color=TEXT_COLOR)
             lbl.pack(side="left", padx=(0, 4))
@@ -352,17 +346,17 @@ class ClientAirTicketCotation:
         self._var_total_enfants = tk.StringVar(value="0,00")
         self._var_grand_total   = tk.StringVar(value="0,00")
 
-        _total_label(footer, "Adultes :", self._var_total_adultes)
-        tk.Label(footer, text="|", bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left")
-        _total_label(footer, "Enfants :", self._var_total_enfants)
-        tk.Label(footer, text="|", bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left")
+        _total_label(footer_row, "Adultes :", self._var_total_adultes)
+        tk.Label(footer_row, text="|", bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left", padx=4)
+        _total_label(footer_row, "Enfants :", self._var_total_enfants)
+        tk.Label(footer_row, text="|", bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left", padx=4)
 
-        tk.Label(footer, text="TOTAL GÉNÉRAL :", font=("Poppins", 12, "bold"),
-                 bg=PANEL_BG_COLOR, fg=TEXT_COLOR).pack(side="left", padx=(16, 2))
-        lbl_grand = ctk.CTkLabel(footer, textvariable=self._var_grand_total,
+        tk.Label(footer_row, text="TOTAL GÉNÉRAL :", font=("Poppins", 12, "bold"),
+                 bg=PANEL_BG_COLOR, fg=TEXT_COLOR).pack(side="left", padx=(8, 2))
+        lbl_grand = ctk.CTkLabel(footer_row, textvariable=self._var_grand_total,
                                  font=("Poppins", 14, "bold"), text_color=ACCENT_TEXT_COLOR)
         lbl_grand.pack(side="left", padx=(0, 4))
-        tk.Label(footer, text="Ar", font=("Poppins", 11),
+        tk.Label(footer_row, text="Ar", font=("Poppins", 11),
                  bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left")
 
     # ── Données ────────────────────────────────────────────────────────────────

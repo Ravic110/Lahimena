@@ -1984,5 +1984,140 @@
     "label": "Navigation",
     "category": "nav",
     "details": "Page : client_air_ticket_cotation"
+  },
+  {
+    "timestamp": "2026-04-16 17:58:22",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-16 17:58:28",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_hotel_cotation"
+  },
+  {
+    "timestamp": "2026-04-16 17:58:37",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-16 17:58:43",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_hotel_cotation"
+  },
+  {
+    "timestamp": "2026-04-16 17:58:55",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-16 17:59:03",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_collective_cotation"
+  },
+  {
+    "timestamp": "2026-04-16 17:59:17",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-16 17:59:23",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_transport_cotation"
+  },
+  {
+    "timestamp": "2026-04-16 17:59:31",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-16 17:59:36",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_air_ticket_cotation"
+  },
+  {
+    "timestamp": "2026-04-20 09:21:19",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-20 09:21:29",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
+  },
+  {
+    "timestamp": "2026-04-20 09:24:10",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "create_client",
+    "label": "Création d'un client",
+    "category": "client",
+    "details": "Client créé : MARIA (LHM-R2604001)"
+  },
+  {
+    "timestamp": "2026-04-20 09:24:21",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : home"
+  },
+  {
+    "timestamp": "2026-04-20 09:24:32",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_hotel_cotation"
   }
 ]
