@@ -28,6 +28,8 @@ from config import (
     COTATION_REST_SHEET_NAME,
     COTATION_TRANSPORT_SHEET_NAME,
     COTATION_AVION_SHEET_NAME,
+    CLIENT_ACTIVE_INVOICE_SHEET_NAME,
+    CLIENT_ACTIVE_QUOTE_SHEET_NAME,
     AVION_SHEET_NAME,
     AVION_SOURCE_SHEET_NAME,
     COTATION_H_SHEET_NAME,
@@ -62,6 +64,40 @@ _KM_MADA_CACHE = {
 }
 _THROTTLED_ERROR_STATE = {}
 _THROTTLED_ERROR_WINDOW_SECONDS = 30.0
+
+CLIENT_ACTIVE_QUOTE_HEADERS = [
+    "Date",
+    "ID_Client",
+    "Numero_Dossier",
+    "Nom_Client",
+    "Devise",
+    "Categorie",
+    "Designation",
+    "Quantite",
+    "Unite",
+    "Cout_Unitaire",
+    "Cout_Total",
+    "Marge_Pct",
+    "Marge_Montant",
+    "Prix_Vente_Unitaire",
+    "Prix_Vente_Total",
+    "Marge_Modifiable",
+    "Source_Module",
+]
+
+CLIENT_ACTIVE_INVOICE_HEADERS = [
+    "Date",
+    "ID_Client",
+    "Numero_Dossier",
+    "Nom_Client",
+    "Devise",
+    "Categorie",
+    "Designation",
+    "Quantite",
+    "Unite",
+    "Prix_Unitaire",
+    "Prix_Total",
+]
 
 
 def _log_error_throttled(key, message, exc_info=True):
@@ -2327,6 +2363,299 @@ def _delete_rows_for_client(ws, id_col_idx: int, client_ref: str):
     # Supprimer de bas en haut pour ne pas décaler les indices
     for row_idx in reversed(to_delete):
         ws.delete_rows(row_idx, 1)
+
+
+def _ensure_client_billing_sheet(wb, sheet_name, headers):
+    if sheet_name not in wb.sheetnames:
+        ws = wb.create_sheet(sheet_name)
+    else:
+        ws = wb[sheet_name]
+
+    if ws.max_row == 1 and ws["A1"].value is None:
+        for col, header in enumerate(headers, start=1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill(
+                start_color="4472C4", end_color="4472C4", fill_type="solid"
+            )
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+    else:
+        _ensure_headers(ws, headers)
+    return ws
+
+
+def save_active_client_quote_to_excel(client: dict, quote_document: dict) -> int:
+    """Persist the one active quote document for a client."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    lines = quote_document.get("lines", [])
+    wb = None
+    try:
+        wb = (
+            load_workbook(CLIENT_EXCEL_PATH)
+            if os.path.exists(CLIENT_EXCEL_PATH)
+            else Workbook()
+        )
+        ws = _ensure_client_billing_sheet(
+            wb, CLIENT_ACTIVE_QUOTE_SHEET_NAME, CLIENT_ACTIVE_QUOTE_HEADERS
+        )
+        header_map = _get_header_map(ws, 1)
+        client_ref = str(
+            client.get("ref_client") or quote_document.get("client_id") or ""
+        ).strip()
+        id_col_idx = header_map.get("ID_Client")
+        if id_col_idx and client_ref:
+            _delete_rows_for_client(ws, id_col_idx, client_ref)
+
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        saved = 0
+        for line in lines:
+            row_idx = ws.max_row + 1
+            values = {
+                "Date": now_str,
+                "ID_Client": client_ref,
+                "Numero_Dossier": quote_document.get(
+                    "numero_dossier", client.get("numero_dossier", "")
+                ),
+                "Nom_Client": quote_document.get(
+                    "client_name",
+                    f"{client.get('prenom', '')} {client.get('nom', '')}".strip(),
+                ),
+                "Devise": quote_document.get("currency", line.get("currency", "Ariary")),
+                "Categorie": line.get("category", ""),
+                "Designation": line.get("designation", ""),
+                "Quantite": _parse_num(line.get("quantity", 1)),
+                "Unite": line.get("unit", "unité"),
+                "Cout_Unitaire": _parse_num(line.get("cost_unit", 0)),
+                "Cout_Total": _parse_num(line.get("cost_total", 0)),
+                "Marge_Pct": _parse_num(line.get("margin_pct", 0)),
+                "Marge_Montant": _parse_num(line.get("margin_amount", 0)),
+                "Prix_Vente_Unitaire": _parse_num(line.get("unit_price", 0)),
+                "Prix_Vente_Total": _parse_num(line.get("total_price", 0)),
+                "Marge_Modifiable": 1 if line.get("margin_editable", True) else 0,
+                "Source_Module": line.get("source_module", ""),
+            }
+            for header, value in values.items():
+                col = header_map.get(header)
+                if col:
+                    ws.cell(row=row_idx, column=col, value=value)
+            saved += 1
+
+        wb.save(CLIENT_EXCEL_PATH)
+        invalidate_client_cache()
+        return saved
+    except PermissionError:
+        return -2
+    except Exception as exc:
+        logger.error(f"Failed to save active client quote: {exc}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_active_client_quote_from_excel(client: dict) -> dict:
+    """Load the one active quote document for a client."""
+    if not OPENPYXL_AVAILABLE or not os.path.exists(CLIENT_EXCEL_PATH):
+        return {}
+
+    client_ref = str(client.get("ref_client") or "").strip()
+    if not client_ref:
+        return {}
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH, data_only=True)
+        if CLIENT_ACTIVE_QUOTE_SHEET_NAME not in wb.sheetnames:
+            return {}
+        ws = wb[CLIENT_ACTIVE_QUOTE_SHEET_NAME]
+        header_map = _get_header_map(ws, 1)
+        id_col = header_map.get("ID_Client")
+        if not id_col:
+            return {}
+
+        lines = []
+        document = {}
+        for row_idx in range(2, ws.max_row + 1):
+            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+                continue
+
+            def _get(header, default=""):
+                col = header_map.get(header)
+                return ws.cell(row=row_idx, column=col).value if col else default
+
+            if not document:
+                document = {
+                    "client_id": str(_get("ID_Client") or ""),
+                    "client_name": str(_get("Nom_Client") or ""),
+                    "numero_dossier": str(_get("Numero_Dossier") or ""),
+                    "currency": str(_get("Devise") or "Ariary"),
+                }
+            lines.append(
+                {
+                    "category": str(_get("Categorie") or ""),
+                    "designation": str(_get("Designation") or ""),
+                    "quantity": int(_parse_num(_get("Quantite", 1))) or 1,
+                    "unit": str(_get("Unite") or "unité"),
+                    "cost_unit": float(_parse_num(_get("Cout_Unitaire", 0))),
+                    "cost_total": float(_parse_num(_get("Cout_Total", 0))),
+                    "margin_pct": float(_parse_num(_get("Marge_Pct", 0))),
+                    "margin_amount": float(_parse_num(_get("Marge_Montant", 0))),
+                    "unit_price": float(_parse_num(_get("Prix_Vente_Unitaire", 0))),
+                    "total_price": float(_parse_num(_get("Prix_Vente_Total", 0))),
+                    "margin_editable": bool(_parse_num(_get("Marge_Modifiable", 0))),
+                    "source_module": str(_get("Source_Module") or ""),
+                    "currency": str(_get("Devise") or "Ariary"),
+                }
+            )
+        if not document:
+            return {}
+        document["lines"] = lines
+        return document
+    except Exception as exc:
+        logger.error(f"Failed to load active client quote: {exc}", exc_info=True)
+        return {}
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def save_active_client_invoice_to_excel(client: dict, invoice_document: dict) -> int:
+    """Persist the one active invoice document for a client."""
+    if not OPENPYXL_AVAILABLE:
+        return -1
+
+    lines = invoice_document.get("lines", [])
+    wb = None
+    try:
+        wb = (
+            load_workbook(CLIENT_EXCEL_PATH)
+            if os.path.exists(CLIENT_EXCEL_PATH)
+            else Workbook()
+        )
+        ws = _ensure_client_billing_sheet(
+            wb, CLIENT_ACTIVE_INVOICE_SHEET_NAME, CLIENT_ACTIVE_INVOICE_HEADERS
+        )
+        header_map = _get_header_map(ws, 1)
+        client_ref = str(
+            client.get("ref_client") or invoice_document.get("client_id") or ""
+        ).strip()
+        id_col_idx = header_map.get("ID_Client")
+        if id_col_idx and client_ref:
+            _delete_rows_for_client(ws, id_col_idx, client_ref)
+
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        saved = 0
+        for line in lines:
+            row_idx = ws.max_row + 1
+            values = {
+                "Date": now_str,
+                "ID_Client": client_ref,
+                "Numero_Dossier": invoice_document.get(
+                    "numero_dossier", client.get("numero_dossier", "")
+                ),
+                "Nom_Client": invoice_document.get(
+                    "client_name",
+                    f"{client.get('prenom', '')} {client.get('nom', '')}".strip(),
+                ),
+                "Devise": invoice_document.get("currency", line.get("currency", "Ariary")),
+                "Categorie": line.get("category", ""),
+                "Designation": line.get("designation", ""),
+                "Quantite": _parse_num(line.get("quantity", 1)),
+                "Unite": line.get("unit", "unité"),
+                "Prix_Unitaire": _parse_num(line.get("unit_price", 0)),
+                "Prix_Total": _parse_num(line.get("total_price", 0)),
+            }
+            for header, value in values.items():
+                col = header_map.get(header)
+                if col:
+                    ws.cell(row=row_idx, column=col, value=value)
+            saved += 1
+
+        wb.save(CLIENT_EXCEL_PATH)
+        invalidate_client_cache()
+        return saved
+    except PermissionError:
+        return -2
+    except Exception as exc:
+        logger.error(f"Failed to save active client invoice: {exc}", exc_info=True)
+        return -1
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
+
+
+def load_active_client_invoice_from_excel(client: dict) -> dict:
+    """Load the one active invoice document for a client."""
+    if not OPENPYXL_AVAILABLE or not os.path.exists(CLIENT_EXCEL_PATH):
+        return {}
+
+    client_ref = str(client.get("ref_client") or "").strip()
+    if not client_ref:
+        return {}
+
+    wb = None
+    try:
+        wb = load_workbook(CLIENT_EXCEL_PATH, data_only=True)
+        if CLIENT_ACTIVE_INVOICE_SHEET_NAME not in wb.sheetnames:
+            return {}
+        ws = wb[CLIENT_ACTIVE_INVOICE_SHEET_NAME]
+        header_map = _get_header_map(ws, 1)
+        id_col = header_map.get("ID_Client")
+        if not id_col:
+            return {}
+
+        lines = []
+        document = {}
+        for row_idx in range(2, ws.max_row + 1):
+            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+                continue
+
+            def _get(header, default=""):
+                col = header_map.get(header)
+                return ws.cell(row=row_idx, column=col).value if col else default
+
+            if not document:
+                document = {
+                    "client_id": str(_get("ID_Client") or ""),
+                    "client_name": str(_get("Nom_Client") or ""),
+                    "numero_dossier": str(_get("Numero_Dossier") or ""),
+                    "currency": str(_get("Devise") or "Ariary"),
+                }
+            lines.append(
+                {
+                    "category": str(_get("Categorie") or ""),
+                    "designation": str(_get("Designation") or ""),
+                    "quantity": int(_parse_num(_get("Quantite", 1))) or 1,
+                    "unit": str(_get("Unite") or "unité"),
+                    "unit_price": float(_parse_num(_get("Prix_Unitaire", 0))),
+                    "total_price": float(_parse_num(_get("Prix_Total", 0))),
+                    "currency": str(_get("Devise") or "Ariary"),
+                }
+            )
+        if not document:
+            return {}
+        document["lines"] = lines
+        return document
+    except Exception as exc:
+        logger.error(f"Failed to load active client invoice: {exc}", exc_info=True)
+        return {}
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception:
+                pass
 
 
 def load_client_hotel_cotation(client: dict) -> list:

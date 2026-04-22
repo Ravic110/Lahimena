@@ -340,3 +340,134 @@ class TestClientAirTicketCotationPersistence:
         assert len(loaded) == 1
         assert loaded[0]["compagnie"] == "Tsaradia"
         assert loaded[0]["ville_arrivee"] == "Sainte Marie"
+
+
+class TestClientBillingDocumentPersistence:
+    """Persist and reload the active client quote/invoice documents."""
+
+    def _client(self):
+        return {
+            "ref_client": "CLI001",
+            "numero_dossier": "DOS001",
+            "nom": "Rakoto",
+            "prenom": "Aina",
+        }
+
+    def _quote_document(self):
+        return {
+            "client_id": "CLI001",
+            "client_name": "Aina Rakoto",
+            "numero_dossier": "DOS001",
+            "currency": "Ariary",
+            "lines": [
+                {
+                    "category": "Hébergement",
+                    "designation": "Colbert - Antananarivo",
+                    "quantity": 2,
+                    "unit": "nuit",
+                    "cost_unit": 100.0,
+                    "cost_total": 200.0,
+                    "margin_pct": 15.0,
+                    "margin_amount": 30.0,
+                    "unit_price": 115.0,
+                    "total_price": 230.0,
+                    "margin_editable": True,
+                    "source_module": "hotel",
+                    "currency": "Ariary",
+                },
+                {
+                    "category": "Restauration",
+                    "designation": "Colbert - Demi-pension",
+                    "quantity": 2,
+                    "unit": "nuit",
+                    "cost_unit": 50.0,
+                    "cost_total": 100.0,
+                    "margin_pct": 0.0,
+                    "margin_amount": 0.0,
+                    "unit_price": 50.0,
+                    "total_price": 100.0,
+                    "margin_editable": False,
+                    "source_module": "restauration",
+                    "currency": "Ariary",
+                },
+            ],
+        }
+
+    def _invoice_document(self):
+        return {
+            "client_id": "CLI001",
+            "client_name": "Aina Rakoto",
+            "numero_dossier": "DOS001",
+            "currency": "Ariary",
+            "lines": [
+                {
+                    "category": "Hébergement",
+                    "designation": "Hébergement",
+                    "quantity": 1,
+                    "unit": "unité",
+                    "unit_price": 230.0,
+                    "total_price": 230.0,
+                    "currency": "Ariary",
+                },
+                {
+                    "category": "Restauration",
+                    "designation": "Restauration",
+                    "quantity": 1,
+                    "unit": "unité",
+                    "unit_price": 100.0,
+                    "total_price": 100.0,
+                    "currency": "Ariary",
+                },
+            ],
+        }
+
+    def test_quote_round_trip(self, tmp_path, monkeypatch):
+        from utils.excel_handler import (
+            load_active_client_quote_from_excel,
+            save_active_client_quote_to_excel,
+        )
+
+        excel_path = str(tmp_path / "client-billing.xlsx")
+        monkeypatch.setattr("utils.excel_handler.CLIENT_EXCEL_PATH", excel_path)
+
+        saved = save_active_client_quote_to_excel(self._client(), self._quote_document())
+        loaded = load_active_client_quote_from_excel(self._client())
+
+        assert saved == 2
+        assert loaded["client_id"] == "CLI001"
+        assert len(loaded["lines"]) == 2
+        assert loaded["lines"][1]["margin_editable"] is False
+        assert loaded["lines"][0]["total_price"] == 230.0
+
+    def test_invoice_round_trip_replaces_existing_document(self, tmp_path, monkeypatch):
+        from utils.excel_handler import (
+            load_active_client_invoice_from_excel,
+            save_active_client_invoice_to_excel,
+        )
+
+        excel_path = str(tmp_path / "client-billing.xlsx")
+        monkeypatch.setattr("utils.excel_handler.CLIENT_EXCEL_PATH", excel_path)
+
+        first = self._invoice_document()
+        replacement = {
+            **first,
+            "lines": [
+                {
+                    "category": "Transport",
+                    "designation": "Transport",
+                    "quantity": 1,
+                    "unit": "unité",
+                    "unit_price": 450.0,
+                    "total_price": 450.0,
+                    "currency": "Ariary",
+                }
+            ],
+        }
+
+        assert save_active_client_invoice_to_excel(self._client(), first) == 2
+        assert save_active_client_invoice_to_excel(self._client(), replacement) == 1
+
+        loaded = load_active_client_invoice_from_excel(self._client())
+        assert len(loaded["lines"]) == 1
+        assert loaded["lines"][0]["category"] == "Transport"
+        assert loaded["lines"][0]["total_price"] == 450.0

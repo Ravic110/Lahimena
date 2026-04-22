@@ -238,6 +238,8 @@ class MainContent:
             "client_collective_cotation": self._show_client_collective_cotation,
             "client_transport_cotation": self._show_client_transport_cotation,
             "client_air_ticket_cotation": self._show_client_air_ticket_cotation,
+            "client_quote_detail": self._show_client_quote_detail,
+            "client_invoice_detail": self._show_client_invoice_detail,
             "billing_quotes_hub_page": self._show_billing_quotes_hub_page,
             "cotation_hub_page": self._show_cotation_hub_page,
             "database_hub_page": self._show_database_hub_page,
@@ -367,6 +369,31 @@ class MainContent:
         client = getattr(self, "_nav_kwargs", {}).get("client", {})
         self._nav_kwargs = {}
         ClientAirTicketCotation(
+            self.main_scroll,
+            client=client,
+            on_back=lambda: self.update_content("welcome"),
+        )
+
+    def _show_client_quote_detail(self):
+        """Show active client quote page for a specific client."""
+        from gui.forms.client_quote_page import ClientQuotePage
+
+        client = getattr(self, "_nav_kwargs", {}).get("client", {})
+        self._nav_kwargs = {}
+        ClientQuotePage(
+            self.main_scroll,
+            client=client,
+            on_back=lambda: self.update_content("welcome"),
+            on_open_invoice=lambda: self.update_content("client_invoice_detail", client=client),
+        )
+
+    def _show_client_invoice_detail(self):
+        """Show active client invoice page for a specific client."""
+        from gui.forms.client_invoice_page import ClientInvoicePage
+
+        client = getattr(self, "_nav_kwargs", {}).get("client", {})
+        self._nav_kwargs = {}
+        ClientInvoicePage(
             self.main_scroll,
             client=client,
             on_back=lambda: self.update_content("welcome"),

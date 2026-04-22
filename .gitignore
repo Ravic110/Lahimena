@@ -173,5 +173,6 @@ data.xlsx
 data-hotel.xlsx
 
 # Superpowers (specs et fichiers internes Claude)
+.superpowers
 docs/superpowers/
 .worktrees/
