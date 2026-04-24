@@ -2,9 +2,12 @@
 Test suite for utils.validators module
 """
 
+import tkinter as tk
+
 import pytest
 
 from gui.date_picker_utils import (
+    apply_modal_grab,
     get_calendar_day_headers,
     get_calendar_weeks,
     get_calendar_year_options,
@@ -192,3 +195,26 @@ class TestCalendarDialogHelpers:
             2027,
             2028,
         ]
+
+    def test_apply_modal_grab_waits_for_visibility_before_grab(self):
+        calls = []
+
+        class FakeWindow:
+            def wait_visibility(self):
+                calls.append("wait_visibility")
+
+            def grab_set(self):
+                calls.append("grab_set")
+
+        assert apply_modal_grab(FakeWindow()) is True
+        assert calls == ["wait_visibility", "grab_set"]
+
+    def test_apply_modal_grab_handles_tclerror(self):
+        class FakeWindow:
+            def wait_visibility(self):
+                return None
+
+            def grab_set(self):
+                raise tk.TclError("window not viewable")
+
+        assert apply_modal_grab(FakeWindow()) is False

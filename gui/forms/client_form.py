@@ -53,6 +53,7 @@ from gui.ui_style import (
 )
 from gui.date_picker_utils import (
     CALENDAR_MONTHS_FR,
+    apply_modal_grab,
     get_calendar_day_headers,
     get_calendar_weeks,
     get_calendar_year_options,
@@ -83,8 +84,6 @@ class CalendarDialog(tk.Toplevel):
 
         # Center window
         self.transient(parent)
-        self.grab_set()
-        self.after(0, self._safe_focus)
 
         self.selected_date = None
         self.current_month = datetime.now().month
@@ -98,6 +97,7 @@ class CalendarDialog(tk.Toplevel):
         self.year_combo = None
 
         self._create_widgets()
+        self.after(0, self._activate_dialog)
 
     def _safe_focus(self):
         try:
@@ -105,6 +105,11 @@ class CalendarDialog(tk.Toplevel):
             self.focus_set()
         except Exception:
             pass
+
+    def _activate_dialog(self):
+        """Apply modal behavior only after the dialog becomes viewable."""
+        apply_modal_grab(self)
+        self._safe_focus()
 
     def _create_widgets(self):
         """Create calendar widgets"""
@@ -150,6 +155,7 @@ class CalendarDialog(tk.Toplevel):
             "◀",
             variant="blue",
             command=self._prev_month,
+            width=24,
         )
         prev_button.grid(row=0, column=0, padx=(0, 8), sticky="w")
 
@@ -158,7 +164,7 @@ class CalendarDialog(tk.Toplevel):
             textvariable=self.month_var,
             values=list(CALENDAR_MONTHS_FR),
             state="readonly",
-            width=14,
+            width=18,
             font=ENTRY_FONT,
         )
         self.month_combo.grid(row=0, column=1, padx=(0, 8), sticky="ew")
@@ -169,7 +175,7 @@ class CalendarDialog(tk.Toplevel):
             textvariable=self.year_var,
             values=[str(year) for year in self.year_options],
             state="readonly",
-            width=8,
+            width=12,
             font=ENTRY_FONT,
         )
         self.year_combo.grid(row=0, column=2, padx=(0, 8), sticky="ew")
@@ -180,6 +186,7 @@ class CalendarDialog(tk.Toplevel):
             "▶",
             variant="blue",
             command=self._next_month,
+            width=24,
         )
         next_button.grid(row=0, column=3, sticky="e")
 
@@ -194,6 +201,7 @@ class CalendarDialog(tk.Toplevel):
             "Aujourd'hui",
             variant="primary",
             command=self._select_today,
+            width=90,
         )
         today_button.pack(side="left")
 
@@ -202,6 +210,7 @@ class CalendarDialog(tk.Toplevel):
             "Annuler",
             variant="danger",
             command=self.destroy,
+            width=90,
         )
         cancel_button.pack(side="right")
 

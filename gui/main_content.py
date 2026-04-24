@@ -224,7 +224,11 @@ class MainContent:
 
         # Clear current content
         for widget in self.main_scroll.winfo_children():
-            widget.destroy()
+            try:
+                widget.destroy()
+            except Exception:
+                # Handle CustomTkinter widget destruction issues
+                pass
 
         if content_type in ("welcome", "home"):
             self._show_welcome()

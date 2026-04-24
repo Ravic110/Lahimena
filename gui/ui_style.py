@@ -229,7 +229,7 @@ def styled_label(parent, text):
     )
 
 
-def action_button(parent, text, variant="primary", command=None):
+def action_button(parent, text, variant="primary", command=None, height=None, width=None):
     """Create a styled button.
 
     Variants acceptés :
@@ -264,7 +264,8 @@ def action_button(parent, text, variant="primary", command=None):
             text_color="white",
             font=BUTTON_FONT,
             corner_radius=14,
-            height=30,
+            height=height or 30,
+            width=width or 100,
         )
     return tk.Button(
         parent,
@@ -274,7 +275,7 @@ def action_button(parent, text, variant="primary", command=None):
         fg="white",
         font=BUTTON_FONT,
         relief="flat",
-        padx=10,
+        padx=width or 10,
         pady=4,
     )
 

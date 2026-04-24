@@ -2776,5 +2776,221 @@
     "label": "Navigation",
     "category": "nav",
     "details": "Page : client_quote_detail"
+  },
+  {
+    "timestamp": "2026-04-24 09:50:14",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-24 09:50:26",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
+  },
+  {
+    "timestamp": "2026-04-24 11:29:21",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-24 11:29:29",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
+  },
+  {
+    "timestamp": "2026-04-24 11:36:09",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-24 11:36:17",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
+  },
+  {
+    "timestamp": "2026-04-24 11:39:04",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-24 11:39:11",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
+  },
+  {
+    "timestamp": "2026-04-24 15:41:29",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-24 15:41:41",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
+  },
+  {
+    "timestamp": "2026-04-24 15:51:27",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-24 15:51:33",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
+  },
+  {
+    "timestamp": "2026-04-24 15:58:35",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-24 15:58:42",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
+  },
+  {
+    "timestamp": "2026-04-24 16:01:17",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : État financier"
+  },
+  {
+    "timestamp": "2026-04-24 16:01:19",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : home"
+  },
+  {
+    "timestamp": "2026-04-24 16:01:20",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : home"
+  },
+  {
+    "timestamp": "2026-04-24 16:02:58",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-24 16:03:06",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
+  },
+  {
+    "timestamp": "2026-04-24 16:03:23",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : home"
+  },
+  {
+    "timestamp": "2026-04-24 16:07:33",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-24 16:07:39",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
+  },
+  {
+    "timestamp": "2026-04-24 16:07:56",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : home"
+  },
+  {
+    "timestamp": "2026-04-24 16:08:01",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_page"
   }
 ]
