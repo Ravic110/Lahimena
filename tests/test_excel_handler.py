@@ -471,3 +471,52 @@ class TestClientBillingDocumentPersistence:
         assert len(loaded["lines"]) == 1
         assert loaded["lines"][0]["category"] == "Transport"
         assert loaded["lines"][0]["total_price"] == 450.0
+
+    def test_invoice_round_trip_preserves_detailed_designations(self, tmp_path, monkeypatch):
+        from utils.excel_handler import (
+            load_active_client_invoice_from_excel,
+            save_active_client_invoice_to_excel,
+        )
+
+        excel_path = str(tmp_path / "client-billing.xlsx")
+        monkeypatch.setattr("utils.excel_handler.CLIENT_EXCEL_PATH", excel_path)
+
+        document = {
+            "client_id": "CLI001",
+            "client_name": "Aina Rakoto",
+            "numero_dossier": "DOS001",
+            "currency": "Ariary",
+            "lines": [
+                {
+                    "category": "Hébergement",
+                    "designation": "Colbert - Antananarivo",
+                    "quantity": 2,
+                    "unit": "nuit",
+                    "unit_price": 115.0,
+                    "total_price": 230.0,
+                    "currency": "Ariary",
+                },
+                {
+                    "category": "Transport",
+                    "designation": "Tsiribihina Tours - Antananarivo -> Morondava - 4x4",
+                    "quantity": 1,
+                    "unit": "trajet",
+                    "unit_price": 300.0,
+                    "total_price": 300.0,
+                    "currency": "Ariary",
+                },
+            ],
+        }
+
+        assert save_active_client_invoice_to_excel(self._client(), document) == 2
+
+        loaded = load_active_client_invoice_from_excel(self._client())
+
+        assert len(loaded["lines"]) == 2
+        assert loaded["lines"][0]["designation"] == "Colbert - Antananarivo"
+        assert loaded["lines"][0]["quantity"] == 2
+        assert (
+            loaded["lines"][1]["designation"]
+            == "Tsiribihina Tours - Antananarivo -> Morondava - 4x4"
+        )
+        assert loaded["lines"][1]["quantity"] == 1

@@ -5,7 +5,7 @@ Main entry point for the application
 """
 
 import sys
-import tkinter as _tk
+import tkinter as   _tk
 from tkinter import messagebox, ttk
 
 import customtkinter as ctk

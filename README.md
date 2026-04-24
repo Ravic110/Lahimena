@@ -1,8 +1,23 @@
 # Lahimena Tours — Application de gestion touristique
 
-Application desktop de gestion complète pour agence de voyage, développée avec Python / CustomTkinter.
+![Python](https://img.shields.io/badge/python-3.10+-blue)
+![License](https://img.shields.io/badge/license-proprietary-red)
+![Status](https://img.shields.io/badge/status-production-brightgreen)
 
-## Fonctionnalités principales
+Application desktop de gestion complète pour agence de voyage, développée avec **Python** et **CustomTkinter** pour une interface moderne et ergonomique.
+
+## 🎯 Objectif
+
+Fournir une solution tout-en-un pour les agences de voyage en Afrique de l'Ouest, avec :
+- Gestion intégrée des clients et voyages
+- Cotations automatisées (hôtels, transports, visites)
+- Facturation et PDF
+- Comptabilité via module TsaraKonta
+- Contrôle d'accès multi-rôles avec audit d'activité
+
+---
+
+## ✨ Fonctionnalités principales
 
 ### Gestion clients & voyages
 - Formulaire de demande client (type, séjour, participants, hébergement, restauration)
@@ -205,3 +220,209 @@ pytest -q
 | `admin` | Accès complet + gestion des comptes utilisateurs |
 | `agent` | Clients, cotations, factures |
 | `comptable` | Module financier (TsaraKonta) uniquement |
+
+---
+
+## Configuration
+
+### Variables d'environnement
+
+Créez un fichier `.env` à la racine du projet :
+
+```bash
+# Paramètres de l'application
+APP_DEBUG=False
+APP_THEME=dark  # light ou dark
+
+# Base de données (optionnel - sinon JSON)
+# DB_TYPE=sqlite
+# DB_PATH=./data/app.db
+
+# Logs
+LOG_LEVEL=INFO
+LOG_DIR=./logs
+```
+
+### Fichiers de configuration clés
+
+| Fichier | Description |
+|---------|---|
+| `config.py` | Constantes applicatives, thèmes, chemins |
+| `users.json` | Comptes utilisateurs (ne pas commiter) |
+| `activity_log.json` | Journal d'activité courant (ne pas commiter) |
+| `pyproject.toml` | Configuration setuptools et dépendances |
+
+---
+
+## Démarrage rapide
+
+### Installation en développement
+
+```bash
+# 1. Cloner le repo et naviguer
+cd Lahimena
+
+# 2. Créer un environnement virtuel
+python -m venv .env
+source .env/bin/activate  # Linux/Mac
+# ou
+.env\Scripts\activate      # Windows
+
+# 3. Installer les dépendances
+pip install -e .
+
+# 4. (Optionnel) Installer les dépendances financières
+pip install -e .[financial]
+
+# 5. Lancer l'application
+python main.py
+```
+
+### Compte par défaut (première connexion)
+
+Les comptes par défaut ne sont créés qu'au premier lancement :
+
+```
+Identifiant : admin
+Mot de passe : DefaultPassword123!
+```
+
+**⚠️ Changez ce mot de passe immédiatement après la première connexion.**
+
+---
+
+## Development
+
+### Structure de code
+
+- **`gui/forms/`** : Écrans de l'interface utilisateur
+- **`models/`** : Modèles de données (clients, hôtels)
+- **`utils/`** : Services partagés (auth, excel, validation)
+- **`finances/`** : Module TsaraKonta (autonome)
+- **`tests/`** : Suite de tests pytest
+
+### Exécuter les tests
+
+```bash
+# Tous les tests
+pytest
+
+# Avec verbose
+pytest -v
+
+# Test spécifique
+pytest tests/test_validators.py -v
+
+# Couverture de code
+pytest --cov=. --cov-report=html
+```
+
+### Linting & formatage
+
+```bash
+# Vérifier les styles (optionnel)
+flake8 . --max-line-length=100
+
+# Formater avec black (optionnel)
+black . --line-length=100
+```
+
+---
+
+## Troubleshooting
+
+### Problème : `ModuleNotFoundError: No module named 'customtkinter'`
+
+**Solution :**
+```bash
+pip install --upgrade customtkinter
+```
+
+### Problème : Application ne démarre pas sous macOS
+
+**Solution :**
+```bash
+python -m main
+# ou via le Makefile
+make run
+```
+
+### Problème : Fichiers Excel ne se chargent pas
+
+**Vérifier :**
+1. Le fichier est fermé (pas ouvert dans Excel)
+2. Permissions d'accès OK sur le fichier
+3. Format .xlsx valide (pas .xls ancien format)
+
+### Problème : Tests échouent avec `ImportError`
+
+**Solution :**
+```bash
+# Réinstaller les dépendances de test
+pip install -r requirements-test.txt
+pytest --cache-clear
+```
+
+---
+
+## Contribution
+
+### Avant de commencer
+
+1. Créer une branche feature :
+   ```bash
+   git checkout -b feature/ma-fonctionnalite
+   ```
+
+2. Respecter le style Python (PEP 8)
+
+3. Ajouter des tests pour les nouvelles fonctionnalités
+
+4. Mettre à jour le README si nécessaire
+
+### Workflow
+
+```bash
+# 1. Faire les modifications
+# 2. Ajouter les tests
+pytest tests/
+
+# 3. Vérifier la couverture
+pytest --cov=.
+
+# 4. Commiter avec messages clairs
+git add .
+git commit -m "feat: ajouter nouvelle cotation"
+
+# 5. Push et créer une Pull Request
+git push origin feature/ma-fonctionnalite
+```
+
+---
+
+## Licence
+
+Ce projet est propriétaire. Tous droits réservés © 2026 Lahimena Tours.
+
+---
+
+## Support & Contact
+
+- 📧 Email : [contact@lahimena.mg](mailto:contact@lahimena.mg)
+- 🌐 Site : [www.lahimena.mg](https://www.lahimena.mg)
+- 📞 Support : +261 XX XXX XXXX
+
+---
+
+## Historique des versions
+
+### v2.0.0 (Actuel - 2026-04)
+- Module financier TsaraKonta intégré
+- Nouvel UI avec CustomTkinter
+- Gestion d'accès par rôles
+- Journal d'activité avec statistiques
+
+### v1.0.0 (2025-Q4)
+- Initialisation du projet
+- Formulaire client & cotations de base
+- Gestion des utilisateurs

@@ -10,6 +10,7 @@ from utils.client_billing import (
     apply_margin_to_quote_line,
     build_client_quote,
     convert_quote_to_invoice,
+    invoice_requires_detail_refresh,
 )
 
 
@@ -133,7 +134,7 @@ def test_apply_margin_to_quote_line_keeps_restauration_at_zero():
     assert updated["unit_price"] == 50
 
 
-def test_convert_quote_to_invoice_groups_lines_by_category():
+def test_convert_quote_to_invoice_preserves_detailed_lines():
     quote = {
         "client_id": "CLI001",
         "client_name": "Aina Rakoto",
@@ -142,21 +143,21 @@ def test_convert_quote_to_invoice_groups_lines_by_category():
         "lines": [
             {
                 "category": CATEGORY_HOTEL,
-                "designation": "Hotel A",
+                "designation": "Colbert - Antananarivo",
                 "quantity": 2,
+                "unit": "nuit",
+                "unit_price": 115,
                 "total_price": 230,
+                "currency": "Ariary",
             },
             {
-                "category": CATEGORY_HOTEL,
-                "designation": "Hotel B",
+                "category": CATEGORY_TRANSPORT,
+                "designation": "Antananarivo -> Morondava - 4x4",
                 "quantity": 1,
-                "total_price": 115,
-            },
-            {
-                "category": CATEGORY_RESTAURATION,
-                "designation": "Restauration",
-                "quantity": 1,
-                "total_price": 100,
+                "unit": "trajet",
+                "unit_price": 300,
+                "total_price": 300,
+                "currency": "Ariary",
             },
         ],
     }
@@ -164,12 +165,94 @@ def test_convert_quote_to_invoice_groups_lines_by_category():
     invoice = convert_quote_to_invoice(quote)
 
     assert invoice["line_count"] == 2
-    assert invoice["total_price"] == 445
+    assert invoice["total_price"] == 530
+    assert invoice["lines"][0]["designation"] == "Colbert - Antananarivo"
+    assert invoice["lines"][0]["quantity"] == 2
+    assert invoice["lines"][0]["unit_price"] == 115
+    assert invoice["lines"][1]["designation"] == "Antananarivo -> Morondava - 4x4"
+    assert invoice["lines"][1]["quantity"] == 1
+    assert invoice["lines"][1]["unit_price"] == 300
 
-    hotel_line = next(
-        line for line in invoice["lines"] if line["category"] == CATEGORY_HOTEL
-    )
-    assert hotel_line["designation"] == CATEGORY_HOTEL
-    assert hotel_line["quantity"] == 1
-    assert hotel_line["unit_price"] == 345
-    assert "margin_pct" not in hotel_line
+
+def test_convert_quote_to_invoice_falls_back_to_category_for_empty_designation():
+    quote = {
+        "client_id": "CLI001",
+        "client_name": "Aina Rakoto",
+        "numero_dossier": "DOS001",
+        "currency": "Ariary",
+        "lines": [
+            {
+                "category": CATEGORY_HOTEL,
+                "designation": "",
+                "quantity": 1,
+                "unit_price": 230,
+                "total_price": 230,
+            }
+        ],
+    }
+
+    invoice = convert_quote_to_invoice(quote)
+
+    assert invoice["line_count"] == 1
+    assert invoice["lines"][0]["designation"] == CATEGORY_HOTEL
+
+
+def test_invoice_requires_detail_refresh_for_legacy_grouped_invoice():
+    invoice = {
+        "lines": [
+            {
+                "category": CATEGORY_HOTEL,
+                "designation": CATEGORY_HOTEL,
+                "quantity": 1,
+                "unit_price": 345,
+                "total_price": 345,
+            }
+        ]
+    }
+    quote = {
+        "lines": [
+            {
+                "category": CATEGORY_HOTEL,
+                "designation": "Colbert - Antananarivo",
+                "quantity": 2,
+                "unit_price": 115,
+                "total_price": 230,
+            },
+            {
+                "category": CATEGORY_HOTEL,
+                "designation": "Carlton - Antananarivo",
+                "quantity": 1,
+                "unit_price": 115,
+                "total_price": 115,
+            },
+        ]
+    }
+
+    assert invoice_requires_detail_refresh(invoice, quote) is True
+
+
+def test_invoice_requires_detail_refresh_ignores_already_detailed_invoice():
+    invoice = {
+        "lines": [
+            {
+                "category": CATEGORY_HOTEL,
+                "designation": "Colbert - Antananarivo",
+                "quantity": 2,
+                "unit_price": 115,
+                "total_price": 230,
+            }
+        ]
+    }
+    quote = {
+        "lines": [
+            {
+                "category": CATEGORY_HOTEL,
+                "designation": "Colbert - Antananarivo",
+                "quantity": 2,
+                "unit_price": 115,
+                "total_price": 230,
+            }
+        ]
+    }
+
+    assert invoice_requires_detail_refresh(invoice, quote) is False

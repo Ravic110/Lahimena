@@ -2263,5 +2263,518 @@
     "label": "Navigation",
     "category": "nav",
     "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 10:43:55",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-23 10:50:04",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_quote_detail"
+  },
+  {
+    "timestamp": "2026-04-23 10:50:38",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_invoice_detail"
+  },
+  {
+    "timestamp": "2026-04-23 10:52:02",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 10:52:06",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_quote_detail"
+  },
+  {
+    "timestamp": "2026-04-23 10:52:26",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 10:52:31",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_hotel_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 14:35:05",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 14:35:15",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_hotel_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 14:39:33",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 14:39:38",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_hotel_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 14:39:50",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 14:40:02",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_hotel_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 14:40:22",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 14:40:27",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_collective_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 14:41:09",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 14:41:18",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_transport_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 14:43:17",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 14:43:25",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_air_ticket_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 14:43:29",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 14:43:34",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_quote_detail"
+  },
+  {
+    "timestamp": "2026-04-23 14:44:14",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_invoice_detail"
+  },
+  {
+    "timestamp": "2026-04-23 14:45:26",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 14:45:30",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_quote_detail"
+  },
+  {
+    "timestamp": "2026-04-23 14:46:25",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_invoice_detail"
+  },
+  {
+    "timestamp": "2026-04-23 15:29:18",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-23 15:31:37",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_quote_detail"
+  },
+  {
+    "timestamp": "2026-04-23 15:32:08",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_invoice_detail"
+  },
+  {
+    "timestamp": "2026-04-23 15:32:15",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 15:32:21",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_quote_detail"
+  },
+  {
+    "timestamp": "2026-04-23 15:32:24",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 15:32:29",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_hotel_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 15:33:29",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 15:33:34",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_hotel_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 15:33:39",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 15:33:44",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_hotel_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 15:35:01",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 15:35:07",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_hotel_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 15:35:23",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 15:35:28",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_collective_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 15:36:03",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 15:36:09",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_transport_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 15:36:55",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 15:37:00",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_quote_detail"
+  },
+  {
+    "timestamp": "2026-04-23 15:37:07",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 15:37:11",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_collective_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 15:37:25",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 15:37:31",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_transport_cotation"
+  },
+  {
+    "timestamp": "2026-04-23 15:37:39",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 15:37:44",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_quote_detail"
+  },
+  {
+    "timestamp": "2026-04-23 15:38:16",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_invoice_detail"
+  },
+  {
+    "timestamp": "2026-04-23 19:37:15",
+    "username": "victorien",
+    "role": "",
+    "action": "login_failed",
+    "label": "Tentative de connexion échouée",
+    "category": "auth",
+    "details": "Tentative échouée pour : victorien"
+  },
+  {
+    "timestamp": "2026-04-23 19:37:32",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "login",
+    "label": "Connexion",
+    "category": "auth",
+    "details": "Connexion réussie"
+  },
+  {
+    "timestamp": "2026-04-23 19:37:57",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_quote_detail"
+  },
+  {
+    "timestamp": "2026-04-23 19:38:05",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_invoice_detail"
+  },
+  {
+    "timestamp": "2026-04-23 19:38:20",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : welcome"
+  },
+  {
+    "timestamp": "2026-04-23 19:38:25",
+    "username": "Victorien",
+    "role": "admin",
+    "action": "navigate",
+    "label": "Navigation",
+    "category": "nav",
+    "details": "Page : client_quote_detail"
   }
 ]

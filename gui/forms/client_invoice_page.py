@@ -20,7 +20,7 @@ from config import (
     TEXT_COLOR,
     TITLE_FONT,
 )
-from utils.client_billing import convert_quote_to_invoice
+from utils.client_billing import convert_quote_to_invoice, invoice_requires_detail_refresh
 from utils.excel_handler import (
     load_active_client_invoice_from_excel,
     load_active_client_quote_from_excel,
@@ -147,11 +147,14 @@ class ClientInvoicePage:
 
     def _load_document(self):
         self.document = load_active_client_invoice_from_excel(self.client)
+        quote_document = load_active_client_quote_from_excel(self.client)
         if not self.document:
-            quote_document = load_active_client_quote_from_excel(self.client)
             if quote_document:
                 self.document = convert_quote_to_invoice(quote_document)
                 save_active_client_invoice_to_excel(self.client, self.document)
+        elif quote_document and invoice_requires_detail_refresh(self.document, quote_document):
+            self.document = convert_quote_to_invoice(quote_document)
+            save_active_client_invoice_to_excel(self.client, self.document)
         self._render_document()
 
     def _render_document(self):

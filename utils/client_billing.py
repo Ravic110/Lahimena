@@ -259,28 +259,33 @@ def build_client_quote(client, source_rows=None):
 
 
 def convert_quote_to_invoice(quote):
-    """Collapse a quote into one line per category."""
-    grouped = {}
+    """Convert a quote into an invoice while preserving detailed service lines."""
+    lines = []
     for line in quote.get("lines", []):
         category = _safe_strip(line.get("category"))
         if not category:
             continue
-        grouped.setdefault(
-            category,
+
+        quantity = max(1, _to_int(line.get("quantity", 1), 1))
+        unit_price = max(
+            0.0,
+            _to_float(line.get("unit_price", line.get("total_price", 0))),
+        )
+        total_price = max(
+            0.0,
+            _to_float(line.get("total_price", unit_price * quantity)),
+        )
+        lines.append(
             {
                 "category": category,
-                "designation": category,
-                "quantity": 1,
-                "unit": "unité",
-                "unit_price": 0.0,
-                "total_price": 0.0,
-                "currency": line.get("currency", "Ariary"),
-            },
+                "designation": _safe_strip(line.get("designation")) or category,
+                "quantity": quantity,
+                "unit": _safe_strip(line.get("unit")) or "unité",
+                "unit_price": unit_price,
+                "total_price": total_price,
+                "currency": line.get("currency", quote.get("currency", "Ariary")),
+            }
         )
-        grouped[category]["unit_price"] += _to_float(line.get("total_price", 0))
-        grouped[category]["total_price"] += _to_float(line.get("total_price", 0))
-
-    lines = list(grouped.values())
     total_price = sum(_to_float(line.get("total_price", 0)) for line in lines)
     return {
         "client_id": quote.get("client_id", ""),
@@ -291,3 +296,20 @@ def convert_quote_to_invoice(quote):
         "line_count": len(lines),
         "total_price": total_price,
     }
+
+
+def invoice_requires_detail_refresh(invoice_document, quote_document):
+    """Detect legacy grouped invoices that should be rebuilt from the detailed quote."""
+    invoice_lines = invoice_document.get("lines", [])
+    quote_lines = quote_document.get("lines", [])
+    if not invoice_lines or not quote_lines:
+        return False
+    if len(invoice_lines) >= len(quote_lines):
+        return False
+
+    for line in invoice_lines:
+        category = _safe_strip(line.get("category"))
+        designation = _safe_strip(line.get("designation"))
+        if not category or designation != category:
+            return False
+    return True
