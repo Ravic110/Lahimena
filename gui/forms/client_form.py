@@ -2,7 +2,6 @@
 Client form GUI component - Version améliorée avec nouveaux champs
 """
 
-import calendar
 import getpass
 import os
 import re
@@ -52,6 +51,12 @@ from gui.ui_style import (
     styled_entry,
     styled_label,
 )
+from gui.date_picker_utils import (
+    CALENDAR_MONTHS_FR,
+    get_calendar_day_headers,
+    get_calendar_weeks,
+    get_calendar_year_options,
+)
 from models.client_data import ClientData
 from utils.excel_handler import (
     get_km_mada_km_for_repere,
@@ -72,17 +77,25 @@ class CalendarDialog(tk.Toplevel):
     def __init__(self, parent, title="Choisir une date"):
         super().__init__(parent)
         self.title(title)
-        self.geometry("350x400")
+        self.geometry("500x430")
         self.configure(bg=MAIN_BG_COLOR)
         self.resizable(False, False)
 
         # Center window
         self.transient(parent)
+        self.grab_set()
         self.after(0, self._safe_focus)
 
         self.selected_date = None
         self.current_month = datetime.now().month
         self.current_year = datetime.now().year
+        self.month_var = tk.StringVar(
+            value=CALENDAR_MONTHS_FR[self.current_month - 1]
+        )
+        self.year_var = tk.StringVar(value=str(self.current_year))
+        self.year_options = get_calendar_year_options(self.current_year)
+        self.month_combo = None
+        self.year_combo = None
 
         self._create_widgets()
 
@@ -95,146 +108,220 @@ class CalendarDialog(tk.Toplevel):
 
     def _create_widgets(self):
         """Create calendar widgets"""
-        # Header frame
-        header_frame = tk.Frame(self, bg=MAIN_BG_COLOR)
-        header_frame.pack(fill="x", padx=10, pady=10)
+        configure_combobox_style(self)
 
-        # Previous month button
-        tk.Button(
-            header_frame,
-            text="◀",
-            command=self._prev_month,
-            bg=BUTTON_BLUE,
-            fg="white",
-            font=("Poppins", 12, "bold"),
-            width=3,
-        ).pack(side="left")
+        if ctk:
+            shell = ctk.CTkFrame(
+                self,
+                fg_color=CARD_BG_COLOR,
+                corner_radius=18,
+                border_width=1,
+                border_color="#C9DDE3",
+            )
+        else:
+            shell = tk.Frame(
+                self,
+                bg=CARD_BG_COLOR,
+                highlightbackground="#C9DDE3",
+                highlightthickness=1,
+                bd=0,
+            )
+        shell.pack(fill="both", expand=True, padx=14, pady=14)
 
-        # Month/Year label
-        self.month_year_label = tk.Label(
-            header_frame,
-            text="",
+        body = tk.Frame(shell, bg=CARD_BG_COLOR)
+        body.pack(fill="both", expand=True, padx=14, pady=14)
+
+        title_label = tk.Label(
+            body,
+            text="Sélectionnez une date",
             font=("Poppins", 14, "bold"),
-            bg=MAIN_BG_COLOR,
+            bg=CARD_BG_COLOR,
             fg=TEXT_COLOR,
         )
-        self.month_year_label.pack(side="left", expand=True)
+        title_label.pack(anchor="w", pady=(0, 10))
 
-        # Next month button
-        tk.Button(
+        header_frame = tk.Frame(body, bg=CARD_BG_COLOR)
+        header_frame.pack(fill="x", pady=(0, 10))
+        header_frame.grid_columnconfigure(1, weight=1)
+        header_frame.grid_columnconfigure(2, weight=0)
+
+        prev_button = action_button(
             header_frame,
-            text="▶",
-            command=self._next_month,
-            bg=BUTTON_BLUE,
-            fg="white",
-            font=("Poppins", 12, "bold"),
-            width=3,
-        ).pack(side="right")
+            "◀",
+            variant="blue",
+            command=self._prev_month,
+        )
+        prev_button.grid(row=0, column=0, padx=(0, 8), sticky="w")
 
-        # Calendar frame
-        self.calendar_frame = tk.Frame(self, bg=MAIN_BG_COLOR)
-        self.calendar_frame.pack(padx=10, pady=10)
+        self.month_combo = ttk.Combobox(
+            header_frame,
+            textvariable=self.month_var,
+            values=list(CALENDAR_MONTHS_FR),
+            state="readonly",
+            width=14,
+            font=ENTRY_FONT,
+        )
+        self.month_combo.grid(row=0, column=1, padx=(0, 8), sticky="ew")
+        self.month_combo.bind("<<ComboboxSelected>>", self._on_month_selected)
+
+        self.year_combo = ttk.Combobox(
+            header_frame,
+            textvariable=self.year_var,
+            values=[str(year) for year in self.year_options],
+            state="readonly",
+            width=8,
+            font=ENTRY_FONT,
+        )
+        self.year_combo.grid(row=0, column=2, padx=(0, 8), sticky="ew")
+        self.year_combo.bind("<<ComboboxSelected>>", self._on_year_selected)
+
+        next_button = action_button(
+            header_frame,
+            "▶",
+            variant="blue",
+            command=self._next_month,
+        )
+        next_button.grid(row=0, column=3, sticky="e")
+
+        self.calendar_frame = tk.Frame(body, bg=CARD_BG_COLOR)
+        self.calendar_frame.pack(fill="both", expand=True, pady=(0, 12))
+
+        btn_frame = tk.Frame(body, bg=CARD_BG_COLOR)
+        btn_frame.pack(fill="x")
+
+        today_button = action_button(
+            btn_frame,
+            "Aujourd'hui",
+            variant="primary",
+            command=self._select_today,
+        )
+        today_button.pack(side="left")
+
+        cancel_button = action_button(
+            btn_frame,
+            "Annuler",
+            variant="danger",
+            command=self.destroy,
+        )
+        cancel_button.pack(side="right")
 
         self._show_calendar()
 
-        # Button frame
-        btn_frame = tk.Frame(self, bg=MAIN_BG_COLOR)
-        btn_frame.pack(pady=10)
-
-        tk.Button(
-            btn_frame,
-            text="Aujourd'hui",
-            command=self._select_today,
-            bg=BUTTON_GREEN,
-            fg="white",
-            font=("Poppins", 10),
-            width=12,
-        ).pack(side="left", padx=5)
-
-        tk.Button(
-            btn_frame,
-            text="Annuler",
-            command=self.destroy,
-            bg=BUTTON_RED,
-            fg="white",
-            font=("Poppins", 10),
-            width=12,
-        ).pack(side="left", padx=5)
-
     def _show_calendar(self):
         """Display calendar for current month/year"""
-        # Clear previous calendar
         for widget in self.calendar_frame.winfo_children():
             widget.destroy()
 
-        # Update month/year label
-        months_fr = [
-            "Janvier",
-            "Février",
-            "Mars",
-            "Avril",
-            "Mai",
-            "Juin",
-            "Juillet",
-            "Août",
-            "Septembre",
-            "Octobre",
-            "Novembre",
-            "Décembre",
-        ]
-        self.month_year_label.config(
-            text=f"{months_fr[self.current_month - 1]} {self.current_year}"
-        )
+        self._sync_header_controls()
 
-        # Day headers
-        days = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
-        for i, day in enumerate(days):
+        for column in range(7):
+            self.calendar_frame.grid_columnconfigure(column, weight=1, uniform="day")
+
+        for i, day in enumerate(get_calendar_day_headers()):
             tk.Label(
                 self.calendar_frame,
                 text=day,
                 font=("Poppins", 10, "bold"),
                 bg=BUTTON_BLUE,
                 fg="white",
-                width=5,
-            ).grid(row=0, column=i, padx=1, pady=1, sticky="nsew")
+                padx=6,
+                pady=8,
+            ).grid(row=0, column=i, padx=3, pady=(0, 6), sticky="nsew")
 
-        # Get calendar data
-        cal = calendar.monthcalendar(self.current_year, self.current_month)
+        cal = get_calendar_weeks(self.current_year, self.current_month)
+        today = datetime.now().date()
 
-        # Today's date
-        today = datetime.now()
-
-        # Create day buttons
         for week_num, week in enumerate(cal, start=1):
             for day_num, day in enumerate(week):
                 if day == 0:
-                    # Empty cell
                     tk.Label(
-                        self.calendar_frame, text="", bg=MAIN_BG_COLOR, width=5
-                    ).grid(row=week_num, column=day_num, padx=1, pady=1)
+                        self.calendar_frame,
+                        text="",
+                        bg=CARD_BG_COLOR,
+                    ).grid(row=week_num, column=day_num, padx=3, pady=3, sticky="nsew")
                 else:
-                    # Check if it's today
-                    is_today = (
-                        day == today.day
-                        and self.current_month == today.month
-                        and self.current_year == today.year
-                    )
+                    date_value = datetime(self.current_year, self.current_month, day)
+                    is_today = date_value.date() == today
 
                     bg_color = BUTTON_GREEN if is_today else INPUT_BG_COLOR
                     fg_color = "white" if is_today else TEXT_COLOR
+                    border_color = BUTTON_GREEN if is_today else "#C9DDE3"
 
-                    btn = tk.Button(
+                    btn = self._create_day_button(
                         self.calendar_frame,
-                        text=str(day),
-                        bg=bg_color,
-                        fg=fg_color,
-                        font=("Poppins", 10),
-                        width=5,
+                        label=str(day),
+                        bg_color=bg_color,
+                        fg_color=fg_color,
+                        border_color=border_color,
                         command=lambda d=day: self._select_date(d),
                     )
                     btn.grid(
-                        row=week_num, column=day_num, padx=1, pady=1, sticky="nsew"
+                        row=week_num,
+                        column=day_num,
+                        padx=3,
+                        pady=3,
+                        sticky="nsew",
+                        ipadx=4,
+                        ipady=4,
                     )
+
+    def _create_day_button(self, parent, label, bg_color, fg_color, border_color, command):
+        """Build a day cell button matching the app style."""
+        if ctk:
+            return ctk.CTkButton(
+                parent,
+                text=label,
+                command=command,
+                fg_color=bg_color,
+                hover_color=BUTTON_BLUE if bg_color != BUTTON_GREEN else BUTTON_GREEN,
+                text_color=fg_color,
+                border_width=1,
+                border_color=border_color,
+                corner_radius=12,
+                font=("Poppins", 10, "bold" if bg_color == BUTTON_GREEN else "normal"),
+                height=36,
+            )
+        return tk.Button(
+            parent,
+            text=label,
+            command=command,
+            bg=bg_color,
+            fg=fg_color,
+            activebackground=BUTTON_BLUE,
+            activeforeground="white",
+            font=("Poppins", 10, "bold" if bg_color == BUTTON_GREEN else "normal"),
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground=border_color,
+            highlightcolor=border_color,
+            bd=0,
+            padx=6,
+            pady=8,
+            cursor="hand2",
+        )
+
+    def _sync_header_controls(self):
+        """Keep header dropdowns aligned with the displayed month."""
+        self.month_var.set(CALENDAR_MONTHS_FR[self.current_month - 1])
+        if self.current_year not in self.year_options:
+            self.year_options = get_calendar_year_options(self.current_year)
+            self.year_combo.configure(values=[str(year) for year in self.year_options])
+        self.year_var.set(str(self.current_year))
+
+    def _on_month_selected(self, _event=None):
+        """Update the month from the dropdown selection."""
+        selected_month = self.month_var.get()
+        if selected_month in CALENDAR_MONTHS_FR:
+            self.current_month = CALENDAR_MONTHS_FR.index(selected_month) + 1
+            self._show_calendar()
+
+    def _on_year_selected(self, _event=None):
+        """Update the year from the dropdown selection."""
+        try:
+            self.current_year = int(self.year_var.get())
+        except (TypeError, ValueError):
+            return
+        self._show_calendar()
 
     def _prev_month(self):
         """Go to previous month"""
