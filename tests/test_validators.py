@@ -4,6 +4,11 @@ Test suite for utils.validators module
 
 import pytest
 
+from gui.date_picker_utils import (
+    get_calendar_day_headers,
+    get_calendar_weeks,
+    get_calendar_year_options,
+)
 from utils.validators import (
     convert_currency,
     get_exchange_rates,
@@ -157,3 +162,33 @@ class TestCurrencyValidation:
             assert 90 < result < 110, f"Expected ~100, got {result}"
         except Exception as e:
             pytest.skip(f"Currency conversion unavailable: {e}")
+
+
+class TestCalendarDialogHelpers:
+    """Test pure helpers used by the shared calendar dialog."""
+
+    def test_calendar_headers_cover_monday_through_sunday(self):
+        assert get_calendar_day_headers() == (
+            "Lun",
+            "Mar",
+            "Mer",
+            "Jeu",
+            "Ven",
+            "Sam",
+            "Dim",
+        )
+
+    def test_calendar_weeks_keep_sunday_in_last_column_with_monday_first(self):
+        weeks = get_calendar_weeks(2024, 9)
+
+        assert weeks[0] == [0, 0, 0, 0, 0, 0, 1]
+        assert weeks[4][-2:] == [28, 29]
+
+    def test_calendar_year_options_surround_current_year(self):
+        assert get_calendar_year_options(2026, span=2) == [
+            2024,
+            2025,
+            2026,
+            2027,
+            2028,
+        ]
