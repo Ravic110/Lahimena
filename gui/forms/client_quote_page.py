@@ -17,7 +17,11 @@ from config import (
     TEXT_COLOR,
     TITLE_FONT,
 )
-from utils.client_billing import apply_margin_to_quote_line, build_client_quote, convert_quote_to_invoice
+from utils.client_billing import (
+    apply_margin_to_quote_line,
+    build_client_quote,
+    convert_quote_to_invoice,
+)
 from utils.excel_handler import (
     load_active_client_quote_from_excel,
     save_active_client_invoice_to_excel,
@@ -74,7 +78,9 @@ class ClientQuotePage:
                 pady=6,
             ).pack(side="left", padx=12, pady=12)
 
-        client_name = f"{self.client.get('prenom', '')} {self.client.get('nom', '')}".strip()
+        client_name = (
+            f"{self.client.get('prenom', '')} {self.client.get('nom', '')}".strip()
+        )
         tk.Label(
             header,
             text=f"DEVIS CLIENT · {client_name or 'Client'}",
@@ -95,7 +101,11 @@ class ClientQuotePage:
         actions = tk.Frame(root, bg=MAIN_BG_COLOR)
         actions.pack(fill="x", pady=(0, 10))
         for text, cmd, color in (
-            ("🔄 Actualiser depuis les dépenses client", self._refresh_from_sources, BUTTON_BLUE),
+            (
+                "🔄 Actualiser depuis les dépenses client",
+                self._refresh_from_sources,
+                BUTTON_BLUE,
+            ),
             ("💾 Enregistrer le devis", self._save_quote, BUTTON_GREEN),
             ("🧾 Générer la facture", self._generate_invoice, BUTTON_ORANGE),
         ):
@@ -121,7 +131,9 @@ class ClientQuotePage:
             "margin_amount",
             "total_price",
         )
-        self.tree = ttk.Treeview(table_wrap, columns=columns, show="headings", height=14)
+        self.tree = ttk.Treeview(
+            table_wrap, columns=columns, show="headings", height=14
+        )
         headings = {
             "category": "Catégorie",
             "designation": "Désignation",
@@ -164,11 +176,25 @@ class ClientQuotePage:
 
         totals = tk.Frame(root, bg=PANEL_BG_COLOR)
         totals.pack(fill="x")
-        self.total_cost_label = tk.Label(totals, text="Coût: 0.00", font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR)
+        self.total_cost_label = tk.Label(
+            totals, text="Coût: 0.00", font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR
+        )
         self.total_cost_label.pack(side="left", padx=12, pady=10)
-        self.total_margin_label = tk.Label(totals, text="Marge: 0.00", font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR)
+        self.total_margin_label = tk.Label(
+            totals,
+            text="Marge: 0.00",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+        )
         self.total_margin_label.pack(side="left", padx=12, pady=10)
-        self.total_price_label = tk.Label(totals, text="Total devis: 0.00", font=TITLE_FONT, fg=BUTTON_GREEN, bg=PANEL_BG_COLOR)
+        self.total_price_label = tk.Label(
+            totals,
+            text="Total devis: 0.00",
+            font=TITLE_FONT,
+            fg=BUTTON_GREEN,
+            bg=PANEL_BG_COLOR,
+        )
         self.total_price_label.pack(side="right", padx=12, pady=10)
 
     def _load_document(self):
@@ -185,7 +211,11 @@ class ClientQuotePage:
     def _render_document(self):
         self.tree.delete(*self.tree.get_children())
         for index, line in enumerate(self.document.get("lines", [])):
-            margin_text = "0 (verrouillé)" if not line.get("margin_editable", True) else _fmt(line.get("margin_pct", 0))
+            margin_text = (
+                "0 (verrouillé)"
+                if not line.get("margin_editable", True)
+                else _fmt(line.get("margin_pct", 0))
+            )
             self.tree.insert(
                 "",
                 "end",
@@ -201,9 +231,18 @@ class ClientQuotePage:
                 ),
             )
 
-        total_cost = sum(_to_float(line.get("cost_total", 0)) for line in self.document.get("lines", []))
-        total_margin = sum(_to_float(line.get("margin_amount", 0)) for line in self.document.get("lines", []))
-        total_price = sum(_to_float(line.get("total_price", 0)) for line in self.document.get("lines", []))
+        total_cost = sum(
+            _to_float(line.get("cost_total", 0))
+            for line in self.document.get("lines", [])
+        )
+        total_margin = sum(
+            _to_float(line.get("margin_amount", 0))
+            for line in self.document.get("lines", [])
+        )
+        total_price = sum(
+            _to_float(line.get("total_price", 0))
+            for line in self.document.get("lines", [])
+        )
         self.total_cost_label.config(text=f"Coût total: {_fmt(total_cost)} Ar")
         self.total_margin_label.config(text=f"Marge totale: {_fmt(total_margin)} Ar")
         self.total_price_label.config(text=f"Total devis: {_fmt(total_price)} Ar")
@@ -230,10 +269,25 @@ class ClientQuotePage:
         win = tk.Toplevel(self.parent)
         win.title("Modifier la marge")
         win.configure(bg=MAIN_BG_COLOR)
-        tk.Label(win, text=line.get("designation", ""), font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).pack(anchor="w", padx=12, pady=(12, 6))
-        tk.Label(win, text="Marge (%)", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).pack(anchor="w", padx=12)
+        tk.Label(
+            win,
+            text=line.get("designation", ""),
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).pack(anchor="w", padx=12, pady=(12, 6))
+        tk.Label(
+            win, text="Marge (%)", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR
+        ).pack(anchor="w", padx=12)
         margin_var = tk.StringVar(value=str(line.get("margin_pct", 0)))
-        tk.Entry(win, textvariable=margin_var, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR, width=24).pack(anchor="w", padx=12, pady=(0, 12))
+        tk.Entry(
+            win,
+            textvariable=margin_var,
+            font=ENTRY_FONT,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR,
+            width=24,
+        ).pack(anchor="w", padx=12, pady=(0, 12))
 
         def _apply():
             updated = apply_margin_to_quote_line(line, margin_var.get())
@@ -243,8 +297,22 @@ class ClientQuotePage:
 
         btns = tk.Frame(win, bg=MAIN_BG_COLOR)
         btns.pack(fill="x", padx=12, pady=(0, 12))
-        tk.Button(btns, text="Appliquer", command=_apply, bg=BUTTON_GREEN, fg="white", font=BUTTON_FONT).pack(side="left", padx=(0, 8))
-        tk.Button(btns, text="Annuler", command=win.destroy, bg=BUTTON_RED, fg="white", font=BUTTON_FONT).pack(side="left")
+        tk.Button(
+            btns,
+            text="Appliquer",
+            command=_apply,
+            bg=BUTTON_GREEN,
+            fg="white",
+            font=BUTTON_FONT,
+        ).pack(side="left", padx=(0, 8))
+        tk.Button(
+            btns,
+            text="Annuler",
+            command=win.destroy,
+            bg=BUTTON_RED,
+            fg="white",
+            font=BUTTON_FONT,
+        ).pack(side="left")
 
     def _save_quote(self):
         result = save_active_client_quote_to_excel(self.client, self.document)
@@ -266,7 +334,9 @@ class ClientQuotePage:
             messagebox.showerror("Facture client", "Fermez data.xlsx puis réessayez.")
             return
         if result < 0:
-            messagebox.showerror("Facture client", "La génération de la facture a échoué.")
+            messagebox.showerror(
+                "Facture client", "La génération de la facture a échoué."
+            )
             return
         if self.on_open_invoice:
             self.on_open_invoice()

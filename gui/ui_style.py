@@ -14,8 +14,8 @@ except Exception:
     CTK_AVAILABLE = False
 
 from config import (
-    BUTTON_FONT,
     BUTTON_BLUE,
+    BUTTON_FONT,
     BUTTON_GRAY,
     BUTTON_GREEN,
     BUTTON_GREEN_HOVER,
@@ -58,7 +58,16 @@ def configure_combobox_style(root):
     root.option_add("*TCombobox*Listbox.selectForeground", "white")
 
 
-def create_card(parent, title=None, tabs=None, show_controls=False, on_add=None, on_remove=None, expand=False, on_tab_click=None):
+def create_card(
+    parent,
+    title=None,
+    tabs=None,
+    show_controls=False,
+    on_add=None,
+    on_remove=None,
+    expand=False,
+    on_tab_click=None,
+):
     """Create a rounded card container with optional title and tabs."""
     if CTK_AVAILABLE:
         card = ctk.CTkFrame(
@@ -112,12 +121,17 @@ def create_card(parent, title=None, tabs=None, show_controls=False, on_add=None,
             _chip_refs[label] = chip
 
         if on_tab_click:
+
             def _make_handler(lbl, refs):
                 def _handler(e):
-                    for l, c in refs.items():
-                        c.configure(bg=BUTTON_RED if l == lbl else BUTTON_BLUE)
+                    for chip_label, chip_widget in refs.items():
+                        chip_widget.configure(
+                            bg=BUTTON_RED if chip_label == lbl else BUTTON_BLUE
+                        )
                     on_tab_click(lbl)
+
                 return _handler
+
             for lbl, chip in _chip_refs.items():
                 chip.bind("<Button-1>", _make_handler(lbl, _chip_refs))
 
@@ -229,7 +243,9 @@ def styled_label(parent, text):
     )
 
 
-def action_button(parent, text, variant="primary", command=None, height=None, width=None):
+def action_button(
+    parent, text, variant="primary", command=None, height=None, width=None
+):
     """Create a styled button.
 
     Variants acceptés :
@@ -311,9 +327,11 @@ def card_frame(parent, expand=False, padx=0, pady=(0, 8)):
         )
     else:
         card = tk.Frame(
-            parent, bg=PANEL_BG_COLOR,
+            parent,
+            bg=PANEL_BG_COLOR,
             highlightbackground=_CARD_BORDER,
-            highlightthickness=1, bd=0,
+            highlightthickness=1,
+            bd=0,
         )
     card.pack(fill="both" if expand else "x", expand=expand, padx=padx, pady=pady)
 

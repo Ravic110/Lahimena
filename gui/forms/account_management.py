@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from tkinter import filedialog, messagebox, ttk
 
 import customtkinter as ctk
+
 try:
     from PIL import Image, ImageDraw, ImageFont, ImageTk
 
@@ -287,10 +288,16 @@ class AccountManagementWindow(tk.Toplevel):
             card.pack(side="left", padx=(0, 12), fill="x", expand=True)
             top = tk.Frame(card, bg=color)
             top.pack(fill="x")
-            tk.Label(top, text=icon, font=("Poppins", 18), fg="white", bg=color).pack(side="left")
-            value_lbl = tk.Label(top, text="0", font=("Poppins", 22, "bold"), fg="white", bg=color)
+            tk.Label(top, text=icon, font=("Poppins", 18), fg="white", bg=color).pack(
+                side="left"
+            )
+            value_lbl = tk.Label(
+                top, text="0", font=("Poppins", 22, "bold"), fg="white", bg=color
+            )
             value_lbl.pack(side="right")
-            label_lbl = tk.Label(card, text=label, font=("Poppins", 9, "bold"), fg="white", bg=color)
+            label_lbl = tk.Label(
+                card, text=label, font=("Poppins", 9, "bold"), fg="white", bg=color
+            )
             label_lbl.pack(anchor="w", pady=(8, 0))
             self._counter_cards[key] = (value_lbl, label_lbl)
 
@@ -312,13 +319,17 @@ class AccountManagementWindow(tk.Toplevel):
         self._security_alert.grid_remove()
 
     def _build_filter_bar(self, parent):
-        bar = tk.Frame(parent, bg=_SURFACE, highlightbackground=_BORDER_CLR, highlightthickness=1)
+        bar = tk.Frame(
+            parent, bg=_SURFACE, highlightbackground=_BORDER_CLR, highlightthickness=1
+        )
         bar.grid(row=1, column=0, sticky="ew", pady=(14, 0))
         for idx in range(7):
             bar.columnconfigure(idx, weight=0)
         bar.columnconfigure(1, weight=1)
 
-        tk.Label(bar, text="🔍", font=("Poppins", 12), bg=_SURFACE).grid(row=0, column=0, padx=(14, 6), pady=12)
+        tk.Label(bar, text="🔍", font=("Poppins", 12), bg=_SURFACE).grid(
+            row=0, column=0, padx=(14, 6), pady=12
+        )
         self._search_var = tk.StringVar()
         self._search_var.trace_add("write", lambda *_: self._apply_filters())
         self._search_entry = ctk.CTkEntry(
@@ -334,7 +345,9 @@ class AccountManagementWindow(tk.Toplevel):
         )
         self._search_entry.grid(row=0, column=1, sticky="ew", pady=10, padx=(0, 14))
 
-        tk.Label(bar, text="Rôle", font=_FONT_BOLD, fg=TEXT_COLOR, bg=_SURFACE).grid(row=0, column=2, padx=(0, 6))
+        tk.Label(bar, text="Rôle", font=_FONT_BOLD, fg=TEXT_COLOR, bg=_SURFACE).grid(
+            row=0, column=2, padx=(0, 6)
+        )
         self._role_filter = tk.StringVar(value="Tous")
         self._role_cb = ttk.Combobox(
             bar,
@@ -347,7 +360,9 @@ class AccountManagementWindow(tk.Toplevel):
         self._role_cb.grid(row=0, column=3, padx=(0, 14))
         self._role_cb.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
 
-        tk.Label(bar, text="Statut", font=_FONT_BOLD, fg=TEXT_COLOR, bg=_SURFACE).grid(row=0, column=4, padx=(0, 6))
+        tk.Label(bar, text="Statut", font=_FONT_BOLD, fg=TEXT_COLOR, bg=_SURFACE).grid(
+            row=0, column=4, padx=(0, 6)
+        )
         self._status_filter = tk.StringVar(value="Tous")
         self._status_cb = ttk.Combobox(
             bar,
@@ -376,7 +391,9 @@ class AccountManagementWindow(tk.Toplevel):
         ).grid(row=0, column=6, padx=(0, 12))
 
     def _build_user_list(self, parent):
-        card = tk.Frame(parent, bg=_SURFACE, highlightbackground=_BORDER_CLR, highlightthickness=1)
+        card = tk.Frame(
+            parent, bg=_SURFACE, highlightbackground=_BORDER_CLR, highlightthickness=1
+        )
         card.grid(row=0, column=0, sticky="nsew")
         card.columnconfigure(0, weight=1)
         card.rowconfigure(1, weight=1)
@@ -437,7 +454,9 @@ class AccountManagementWindow(tk.Toplevel):
             style="Acc.Treeview",
             selectmode="browse",
         )
-        self._tree.heading("#0", text="Utilisateur", command=lambda: self._sort_by("username"))
+        self._tree.heading(
+            "#0", text="Utilisateur", command=lambda: self._sort_by("username")
+        )
         self._tree.column("#0", width=250, minwidth=180, anchor="w")
 
         headings = {
@@ -455,7 +474,9 @@ class AccountManagementWindow(tk.Toplevel):
             "status": 190,
         }
         for col, (label, sort_key) in headings.items():
-            self._tree.heading(col, text=label, command=lambda key=sort_key: self._sort_by(key))
+            self._tree.heading(
+                col, text=label, command=lambda key=sort_key: self._sort_by(key)
+            )
             anchor = "center" if col in ("actions", "status") else "w"
             self._tree.column(col, width=widths[col], minwidth=80, anchor=anchor)
 
@@ -487,11 +508,17 @@ class AccountManagementWindow(tk.Toplevel):
         actions = tk.Frame(footer, bg=_SURFACE)
         actions.grid(row=0, column=1, sticky="e")
 
-        self._btn_reset = self._make_small_button(actions, "🔑 Réinitialiser MDP", BUTTON_ORANGE, self._reset_password)
+        self._btn_reset = self._make_small_button(
+            actions, "🔑 Réinitialiser MDP", BUTTON_ORANGE, self._reset_password
+        )
         self._btn_reset.pack(side="left", padx=(0, 8))
-        self._btn_history = self._make_small_button(actions, "📋 Historique", BUTTON_BLUE, self._show_history)
+        self._btn_history = self._make_small_button(
+            actions, "📋 Historique", BUTTON_BLUE, self._show_history
+        )
         self._btn_history.pack(side="left", padx=(0, 8))
-        self._btn_delete = self._make_small_button(actions, "🗑 Supprimer", BUTTON_RED, self._delete_account)
+        self._btn_delete = self._make_small_button(
+            actions, "🗑 Supprimer", BUTTON_RED, self._delete_account
+        )
         self._btn_delete.pack(side="left")
         self._set_list_actions_enabled(False)
 
@@ -526,7 +553,12 @@ class AccountManagementWindow(tk.Toplevel):
             command=self._close_detail_panel,
         ).grid(row=0, column=1, sticky="e")
 
-        hero = tk.Frame(self._detail_panel, bg=_HEADER_BG, highlightbackground=_BORDER_CLR, highlightthickness=1)
+        hero = tk.Frame(
+            self._detail_panel,
+            bg=_HEADER_BG,
+            highlightbackground=_BORDER_CLR,
+            highlightthickness=1,
+        )
         hero.pack(fill="x", padx=18)
         avatar_wrap = tk.Frame(hero, bg=_HEADER_BG)
         avatar_wrap.pack(fill="x", padx=16, pady=16)
@@ -534,11 +566,33 @@ class AccountManagementWindow(tk.Toplevel):
         self._detail_avatar.pack(side="left")
         text_block = tk.Frame(avatar_wrap, bg=_HEADER_BG)
         text_block.pack(side="left", padx=(12, 0), fill="x", expand=True)
-        self._detail_name = tk.Label(text_block, text="", font=("Poppins", 14, "bold"), fg=TEXT_COLOR, bg=_HEADER_BG)
+        self._detail_name = tk.Label(
+            text_block,
+            text="",
+            font=("Poppins", 14, "bold"),
+            fg=TEXT_COLOR,
+            bg=_HEADER_BG,
+        )
         self._detail_name.pack(anchor="w")
-        self._detail_role_badge = tk.Label(text_block, text="", font=("Poppins", 9, "bold"), fg="white", bg=BUTTON_BLUE, padx=10, pady=4)
+        self._detail_role_badge = tk.Label(
+            text_block,
+            text="",
+            font=("Poppins", 9, "bold"),
+            fg="white",
+            bg=BUTTON_BLUE,
+            padx=10,
+            pady=4,
+        )
         self._detail_role_badge.pack(anchor="w", pady=(6, 0))
-        self._detail_status_badge = tk.Label(hero, text="", font=("Poppins", 10, "bold"), fg="white", bg=BUTTON_GREEN, padx=12, pady=6)
+        self._detail_status_badge = tk.Label(
+            hero,
+            text="",
+            font=("Poppins", 10, "bold"),
+            fg="white",
+            bg=BUTTON_GREEN,
+            padx=12,
+            pady=6,
+        )
         self._detail_status_badge.pack(anchor="w", padx=16, pady=(0, 14))
 
         self._detail_notice = tk.Label(
@@ -565,8 +619,23 @@ class AccountManagementWindow(tk.Toplevel):
         ]:
             row = tk.Frame(info, bg=_SURFACE)
             row.pack(fill="x", pady=3)
-            tk.Label(row, text=title, width=22, anchor="w", font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=_SURFACE).pack(side="left")
-            lbl = tk.Label(row, text="—", anchor="w", font=("Poppins", 9), fg=MUTED_TEXT_COLOR, bg=_SURFACE)
+            tk.Label(
+                row,
+                text=title,
+                width=22,
+                anchor="w",
+                font=("Poppins", 9, "bold"),
+                fg=TEXT_COLOR,
+                bg=_SURFACE,
+            ).pack(side="left")
+            lbl = tk.Label(
+                row,
+                text="—",
+                anchor="w",
+                font=("Poppins", 9),
+                fg=MUTED_TEXT_COLOR,
+                bg=_SURFACE,
+            )
             lbl.pack(side="left", fill="x", expand=True)
             self._info_labels[key] = lbl
 
@@ -578,9 +647,16 @@ class AccountManagementWindow(tk.Toplevel):
         self._position_detail_panel(self._hidden_panel_x())
 
     def _build_role_editor(self):
-        box = tk.Frame(self._detail_panel, bg=_HEADER_BG, highlightbackground=_BORDER_CLR, highlightthickness=1)
+        box = tk.Frame(
+            self._detail_panel,
+            bg=_HEADER_BG,
+            highlightbackground=_BORDER_CLR,
+            highlightthickness=1,
+        )
         box.pack(fill="x", padx=18, pady=(14, 0))
-        tk.Label(box, text="Modifier le rôle", font=_FONT_BOLD, fg=TEXT_COLOR, bg=_HEADER_BG).pack(anchor="w", padx=14, pady=(14, 8))
+        tk.Label(
+            box, text="Modifier le rôle", font=_FONT_BOLD, fg=TEXT_COLOR, bg=_HEADER_BG
+        ).pack(anchor="w", padx=14, pady=(14, 8))
         row = tk.Frame(box, bg=_HEADER_BG)
         row.pack(fill="x", padx=14, pady=(0, 14))
         self._detail_role_var = tk.StringVar(value="agent")
@@ -607,10 +683,27 @@ class AccountManagementWindow(tk.Toplevel):
         self._detail_role_apply.pack(side="left")
 
     def _build_expiry_editor(self):
-        box = tk.Frame(self._detail_panel, bg=_HEADER_BG, highlightbackground=_BORDER_CLR, highlightthickness=1)
+        box = tk.Frame(
+            self._detail_panel,
+            bg=_HEADER_BG,
+            highlightbackground=_BORDER_CLR,
+            highlightthickness=1,
+        )
         box.pack(fill="x", padx=18, pady=(14, 0))
-        tk.Label(box, text="Expiration d'accès", font=_FONT_BOLD, fg=TEXT_COLOR, bg=_HEADER_BG).pack(anchor="w", padx=14, pady=(14, 4))
-        tk.Label(box, text="Date libre ou raccourcis rapides", font=("Poppins", 9), fg=MUTED_TEXT_COLOR, bg=_HEADER_BG).pack(anchor="w", padx=14)
+        tk.Label(
+            box,
+            text="Expiration d'accès",
+            font=_FONT_BOLD,
+            fg=TEXT_COLOR,
+            bg=_HEADER_BG,
+        ).pack(anchor="w", padx=14, pady=(14, 4))
+        tk.Label(
+            box,
+            text="Date libre ou raccourcis rapides",
+            font=("Poppins", 9),
+            fg=MUTED_TEXT_COLOR,
+            bg=_HEADER_BG,
+        ).pack(anchor="w", padx=14)
 
         row = tk.Frame(box, bg=_HEADER_BG)
         row.pack(fill="x", padx=14, pady=(10, 8))
@@ -645,30 +738,61 @@ class AccountManagementWindow(tk.Toplevel):
         quick = tk.Frame(box, bg=_HEADER_BG)
         quick.pack(fill="x", padx=14, pady=(0, 8))
         for text, days in [("+30j", 30), ("+90j", 90), ("+1 an", 365)]:
-            self._make_ghost_button(quick, text, lambda d=days: self._extend_expiry(d), width=82).pack(side="left", padx=(0, 6))
-        self._make_ghost_button(quick, "Illimité", self._remove_expiry, width=90).pack(side="left")
+            self._make_ghost_button(
+                quick, text, lambda d=days: self._extend_expiry(d), width=82
+            ).pack(side="left", padx=(0, 6))
+        self._make_ghost_button(quick, "Illimité", self._remove_expiry, width=90).pack(
+            side="left"
+        )
 
-        self._expiry_hint = tk.Label(box, text="", font=("Poppins", 9, "bold"), fg=MUTED_TEXT_COLOR, bg=_HEADER_BG)
+        self._expiry_hint = tk.Label(
+            box,
+            text="",
+            font=("Poppins", 9, "bold"),
+            fg=MUTED_TEXT_COLOR,
+            bg=_HEADER_BG,
+        )
         self._expiry_hint.pack(anchor="w", padx=14, pady=(0, 14))
 
     def _build_action_buttons(self):
         box = tk.Frame(self._detail_panel, bg=_SURFACE)
         box.pack(fill="x", padx=18, pady=(14, 0))
-        tk.Label(box, text="Actions rapides", font=_FONT_BOLD, fg=TEXT_COLOR, bg=_SURFACE).pack(anchor="w", pady=(0, 8))
+        tk.Label(
+            box, text="Actions rapides", font=_FONT_BOLD, fg=TEXT_COLOR, bg=_SURFACE
+        ).pack(anchor="w", pady=(0, 8))
 
-        self._btn_suspend = self._make_full_button(box, "🚫 Suspendre l'accès", BUTTON_RED, self._toggle_suspend)
+        self._btn_suspend = self._make_full_button(
+            box, "🚫 Suspendre l'accès", BUTTON_RED, self._toggle_suspend
+        )
         self._btn_suspend.pack(fill="x", pady=(0, 8))
-        self._btn_reset_side = self._make_full_button(box, "🔑 Réinitialiser le mot de passe", BUTTON_ORANGE, self._reset_password)
+        self._btn_reset_side = self._make_full_button(
+            box, "🔑 Réinitialiser le mot de passe", BUTTON_ORANGE, self._reset_password
+        )
         self._btn_reset_side.pack(fill="x", pady=(0, 8))
-        self._btn_duplicate = self._make_full_button(box, "🧬 Dupliquer ce compte", BUTTON_BLUE, self._duplicate_account)
+        self._btn_duplicate = self._make_full_button(
+            box, "🧬 Dupliquer ce compte", BUTTON_BLUE, self._duplicate_account
+        )
         self._btn_duplicate.pack(fill="x", pady=(0, 8))
-        self._btn_history_side = self._make_full_button(box, "📋 Voir l'historique complet", "#0E7C86", self._show_history)
+        self._btn_history_side = self._make_full_button(
+            box, "📋 Voir l'historique complet", "#0E7C86", self._show_history
+        )
         self._btn_history_side.pack(fill="x")
 
     def _build_activity_summary(self):
-        box = tk.Frame(self._detail_panel, bg=_HEADER_BG, highlightbackground=_BORDER_CLR, highlightthickness=1)
+        box = tk.Frame(
+            self._detail_panel,
+            bg=_HEADER_BG,
+            highlightbackground=_BORDER_CLR,
+            highlightthickness=1,
+        )
         box.pack(fill="both", expand=True, padx=18, pady=(14, 18))
-        tk.Label(box, text="Résumé d'activité récent", font=_FONT_BOLD, fg=TEXT_COLOR, bg=_HEADER_BG).pack(anchor="w", padx=14, pady=(14, 8))
+        tk.Label(
+            box,
+            text="Résumé d'activité récent",
+            font=_FONT_BOLD,
+            fg=TEXT_COLOR,
+            bg=_HEADER_BG,
+        ).pack(anchor="w", padx=14, pady=(14, 8))
         self._activity_summary = tk.Frame(box, bg=_HEADER_BG)
         self._activity_summary.pack(fill="both", expand=True, padx=14, pady=(0, 12))
 
@@ -715,7 +839,9 @@ class AccountManagementWindow(tk.Toplevel):
         )
 
     def _avatar_color(self, username: str) -> str:
-        return _AVATAR_PALETTE[sum(ord(c) for c in username.lower()) % len(_AVATAR_PALETTE)]
+        return _AVATAR_PALETTE[
+            sum(ord(c) for c in username.lower()) % len(_AVATAR_PALETTE)
+        ]
 
     def _avatar_image(self, username: str, size: int = 34):
         if not PIL_AVAILABLE:
@@ -740,7 +866,9 @@ class AccountManagementWindow(tk.Toplevel):
         bbox = draw.textbbox((0, 0), initials, font=font)
         tw = bbox[2] - bbox[0]
         th = bbox[3] - bbox[1]
-        draw.text(((size - tw) / 2, (size - th) / 2 - 1), initials, fill="white", font=font)
+        draw.text(
+            ((size - tw) / 2, (size - th) / 2 - 1), initials, fill="white", font=font
+        )
         photo = ImageTk.PhotoImage(img)
         self._avatar_cache[key] = photo
         return photo
@@ -766,20 +894,30 @@ class AccountManagementWindow(tk.Toplevel):
     # ── Chargement / filtre / tri ─────────────────────────────────────────────
 
     def _load_users(self, preserve_selection: bool = True):
-        selected = self._detail_user["username"] if preserve_selection and self._detail_user else None
+        selected = (
+            self._detail_user["username"]
+            if preserve_selection and self._detail_user
+            else None
+        )
         brute_force_users = set(u.lower() for u in get_brute_force_usernames())
 
         users = []
         for user in get_users():
             stats = get_user_stats(user["username"])
             user = dict(user)
-            user["role_label"] = _ROLE_SHORT.get(user["role"], user["role"].capitalize())
+            user["role_label"] = _ROLE_SHORT.get(
+                user["role"], user["role"].capitalize()
+            )
             user["created_at_label"] = _fmt_date(user.get("created_at", ""))
             user["last_login"] = stats.get("last_login", "")
             user["last_login_label"] = _fmt_dt(stats.get("last_login", ""))
             user["total_actions"] = stats.get("total_actions", 0)
-            user["brute_force_detected"] = user["username"].lower() in brute_force_users or stats.get("brute_force_detected", False)
-            user["status_label"] = _status_label(user.get("status", ""), user.get("password_expiring_soon", False))
+            user["brute_force_detected"] = user[
+                "username"
+            ].lower() in brute_force_users or stats.get("brute_force_detected", False)
+            user["status_label"] = _status_label(
+                user.get("status", ""), user.get("password_expiring_soon", False)
+            )
             users.append(user)
 
         self._all_users = users
@@ -798,15 +936,26 @@ class AccountManagementWindow(tk.Toplevel):
         counts = {
             "total": len(self._all_users),
             "active": sum(1 for u in self._all_users if u.get("status") == "active"),
-            "suspended": sum(1 for u in self._all_users if u.get("status") == "suspended"),
-            "expired": sum(1 for u in self._all_users if u.get("status") in {"access_expired", "pw_expired"}),
+            "suspended": sum(
+                1 for u in self._all_users if u.get("status") == "suspended"
+            ),
+            "expired": sum(
+                1
+                for u in self._all_users
+                if u.get("status") in {"access_expired", "pw_expired"}
+            ),
         }
         for key, (value_lbl, _) in self._counter_cards.items():
             value_lbl.configure(text=str(counts.get(key, 0)))
 
-        brute_accounts = [u["username"] for u in self._all_users if u.get("brute_force_detected")]
+        brute_accounts = [
+            u["username"] for u in self._all_users if u.get("brute_force_detected")
+        ]
         if brute_accounts:
-            txt = "Alerte sécurité : tentatives de brute force détectées pour " + ", ".join(brute_accounts)
+            txt = (
+                "Alerte sécurité : tentatives de brute force détectées pour "
+                + ", ".join(brute_accounts)
+            )
             self._security_alert.configure(text=txt)
             self._security_alert.grid()
         else:
@@ -833,7 +982,10 @@ class AccountManagementWindow(tk.Toplevel):
                 continue
             if status_filter == "Suspendu" and user.get("status") != "suspended":
                 continue
-            if status_filter == "Expiré" and user.get("status") not in {"access_expired", "pw_expired"}:
+            if status_filter == "Expiré" and user.get("status") not in {
+                "access_expired",
+                "pw_expired",
+            }:
                 continue
             users.append(user)
 
@@ -843,7 +995,9 @@ class AccountManagementWindow(tk.Toplevel):
     def _sort_users(self, users: list[dict]) -> list[dict]:
         def status_weight(user: dict) -> tuple[int, str]:
             order = {"active": 0, "pw_expired": 1, "access_expired": 2, "suspended": 3}
-            return order.get(user.get("status", "active"), 9), user.get("status_label", "")
+            return order.get(user.get("status", "active"), 9), user.get(
+                "status_label", ""
+            )
 
         key_funcs = {
             "username": lambda u: u["username"].lower(),
@@ -877,7 +1031,9 @@ class AccountManagementWindow(tk.Toplevel):
             if user.get("brute_force_detected"):
                 tags.append("security")
             image = self._avatar_image(user["username"])
-            text = user["username"] + ("  ⚠" if user.get("password_expiring_soon") else "")
+            text = user["username"] + (
+                "  ⚠" if user.get("password_expiring_soon") else ""
+            )
             if not image:
                 text = f"{_initials(user['username'])}  {text}"
             iid = self._tree.insert(
@@ -907,7 +1063,10 @@ class AccountManagementWindow(tk.Toplevel):
             self._set_list_actions_enabled(True)
         else:
             self._set_list_actions_enabled(False)
-            if self._detail_user and self._detail_user["username"].lower() not in self._row_by_username:
+            if (
+                self._detail_user
+                and self._detail_user["username"].lower() not in self._row_by_username
+            ):
                 self._close_detail_panel()
 
     # ── Sélection & panneau latéral ──────────────────────────────────────────
@@ -929,7 +1088,9 @@ class AccountManagementWindow(tk.Toplevel):
         self._set_list_actions_enabled(True)
         self._open_user_by_name(username, sync_selection=False)
 
-    def _open_user_by_name(self, username: str, keep_panel: bool = False, sync_selection: bool = True):
+    def _open_user_by_name(
+        self, username: str, keep_panel: bool = False, sync_selection: bool = True
+    ):
         user = self._users_by_name.get(username.lower())
         if not user:
             return
@@ -971,25 +1132,37 @@ class AccountManagementWindow(tk.Toplevel):
         self._detail_name.configure(text=user["username"])
 
         role_color = _ROLE_COLORS.get(user["role"], BUTTON_BLUE)
-        self._detail_role_badge.configure(text=user.get("role_label", user["role"]), bg=role_color)
+        self._detail_role_badge.configure(
+            text=user.get("role_label", user["role"]), bg=role_color
+        )
         self._detail_role_var.set(user["role"])
 
         status_meta = _STATUS_META.get(user["status"], _STATUS_META["active"])
-        self._detail_status_badge.configure(text=user.get("status_label", status_meta["label"]), bg=status_meta["color"])
+        self._detail_status_badge.configure(
+            text=user.get("status_label", status_meta["label"]), bg=status_meta["color"]
+        )
         self._badge_phase = False
         self._schedule_badge_pulse()
 
         self._info_labels["created"].configure(text=_fmt_dt(user.get("created_at", "")))
-        self._info_labels["last_login"].configure(text=user.get("last_login_label", "—"))
+        self._info_labels["last_login"].configure(
+            text=user.get("last_login_label", "—")
+        )
         self._info_labels["actions"].configure(text=str(user.get("total_actions", 0)))
 
         pw_text = user.get("password_expires_at") or "—"
         if user.get("password_expiring_soon"):
             days_left = user.get("password_days_left")
-            label = f"{pw_text}  •  attention, {max(days_left, 0)} jour(s) restant(s)" if days_left is not None else pw_text
+            label = (
+                f"{pw_text}  •  attention, {max(days_left, 0)} jour(s) restant(s)"
+                if days_left is not None
+                else pw_text
+            )
             self._info_labels["password"].configure(text=label, fg="#E65100")
         elif user.get("status") == "pw_expired":
-            self._info_labels["password"].configure(text=f"{pw_text}  •  expiré", fg=BUTTON_RED)
+            self._info_labels["password"].configure(
+                text=f"{pw_text}  •  expiré", fg=BUTTON_RED
+            )
         else:
             self._info_labels["password"].configure(text=pw_text, fg=MUTED_TEXT_COLOR)
 
@@ -999,9 +1172,15 @@ class AccountManagementWindow(tk.Toplevel):
         self._expiry_hint.configure(text=f"Valeur actuelle : {access_until}")
 
         if user.get("status") == "suspended":
-            self._btn_suspend.configure(text="✅ Réactiver l'accès", fg_color=BUTTON_GREEN, hover_color="#1B5E20")
+            self._btn_suspend.configure(
+                text="✅ Réactiver l'accès",
+                fg_color=BUTTON_GREEN,
+                hover_color="#1B5E20",
+            )
         else:
-            self._btn_suspend.configure(text="🚫 Suspendre l'accès", fg_color=BUTTON_RED, hover_color="#7F0000")
+            self._btn_suspend.configure(
+                text="🚫 Suspendre l'accès", fg_color=BUTTON_RED, hover_color="#7F0000"
+            )
 
         self._populate_activity_summary()
         self._detail_notice.configure(text="")
@@ -1063,7 +1242,9 @@ class AccountManagementWindow(tk.Toplevel):
         self._detail_panel.place(x=x, y=0, width=self._detail_width, relheight=1)
 
     def _on_content_resize(self, event=None):
-        target_x = self._visible_panel_x() if self._detail_visible else self._hidden_panel_x()
+        target_x = (
+            self._visible_panel_x() if self._detail_visible else self._hidden_panel_x()
+        )
         self._position_detail_panel(target_x)
 
     def _animate_panel(self, show: bool):
@@ -1126,7 +1307,9 @@ class AccountManagementWindow(tk.Toplevel):
         return self._detail_user["username"] if self._detail_user else None
 
     def _create_account(self):
-        _CreateAccountDialog(self, on_created=lambda: self._load_users(preserve_selection=False))
+        _CreateAccountDialog(
+            self, on_created=lambda: self._load_users(preserve_selection=False)
+        )
 
     def _reset_password(self):
         username = self._get_selected_username()
@@ -1172,7 +1355,9 @@ class AccountManagementWindow(tk.Toplevel):
             return
         date_str = self._expiry_var.get().strip()
         if date_str and not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
-            self._show_notice("Format invalide. Utilisez AAAA-MM-JJ.", color=BUTTON_RED, detail=True)
+            self._show_notice(
+                "Format invalide. Utilisez AAAA-MM-JJ.", color=BUTTON_RED, detail=True
+            )
             return
         success, err = set_access_expiry(username, date_str)
         if success:
@@ -1255,6 +1440,7 @@ class AccountManagementWindow(tk.Toplevel):
 
 # ── Dialog : historique d'activité ───────────────────────────────────────────
 
+
 class _ActivityHistoryDialog(tk.Toplevel):
     """Historique d'activité complet avec filtres, tri et export CSV."""
 
@@ -1328,12 +1514,23 @@ class _ActivityHistoryDialog(tk.Toplevel):
         body.columnconfigure(0, weight=1)
         body.rowconfigure(1, weight=1)
 
-        fbar = tk.Frame(body, bg=_HEADER_BG, highlightbackground="#C9DDE3", highlightthickness=1)
+        fbar = tk.Frame(
+            body, bg=_HEADER_BG, highlightbackground="#C9DDE3", highlightthickness=1
+        )
         fbar.grid(row=0, column=0, sticky="ew", pady=(0, 8))
 
-        tk.Label(fbar, text="Afficher :", font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=_HEADER_BG).grid(row=0, column=0, padx=(10, 4), pady=8, sticky="w")
+        tk.Label(
+            fbar,
+            text="Afficher :",
+            font=("Poppins", 9, "bold"),
+            fg=TEXT_COLOR,
+            bg=_HEADER_BG,
+        ).grid(row=0, column=0, padx=(10, 4), pady=8, sticky="w")
         self._filter_var = tk.StringVar(value="user")
-        for col_idx, (val, lbl) in enumerate([("user", f"Seulement {self.username}"), ("all", "Tous les utilisateurs")], start=1):
+        for col_idx, (val, lbl) in enumerate(
+            [("user", f"Seulement {self.username}"), ("all", "Tous les utilisateurs")],
+            start=1,
+        ):
             tk.Radiobutton(
                 fbar,
                 text=lbl,
@@ -1346,19 +1543,42 @@ class _ActivityHistoryDialog(tk.Toplevel):
                 command=self._reload,
             ).grid(row=0, column=col_idx, padx=(0, 10), pady=8)
 
-        tk.Frame(fbar, bg="#C9DDE3", width=1).grid(row=0, column=3, padx=8, pady=4, sticky="ns")
-        tk.Label(fbar, text="Catégorie :", font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=_HEADER_BG).grid(row=0, column=4, padx=(0, 4), pady=8)
+        tk.Frame(fbar, bg="#C9DDE3", width=1).grid(
+            row=0, column=3, padx=8, pady=4, sticky="ns"
+        )
+        tk.Label(
+            fbar,
+            text="Catégorie :",
+            font=("Poppins", 9, "bold"),
+            fg=TEXT_COLOR,
+            bg=_HEADER_BG,
+        ).grid(row=0, column=4, padx=(0, 4), pady=8)
         self._cat_var = tk.StringVar(value="")
-        cat_cb = ttk.Combobox(fbar, textvariable=self._cat_var, state="readonly", values=list(self._CAT_LABELS.values()), width=16, font=("Poppins", 9))
+        cat_cb = ttk.Combobox(
+            fbar,
+            textvariable=self._cat_var,
+            state="readonly",
+            values=list(self._CAT_LABELS.values()),
+            width=16,
+            font=("Poppins", 9),
+        )
         cat_cb.grid(row=0, column=5, padx=(0, 8), pady=8)
         cat_cb.bind("<<ComboboxSelected>>", lambda e: self._reload())
 
-        tk.Label(fbar, text="Du :", font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=_HEADER_BG).grid(row=0, column=6, padx=(0, 4))
+        tk.Label(
+            fbar, text="Du :", font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=_HEADER_BG
+        ).grid(row=0, column=6, padx=(0, 4))
         self._date_from = tk.StringVar()
-        tk.Entry(fbar, textvariable=self._date_from, width=11, font=("Poppins", 9)).grid(row=0, column=7, padx=(0, 6))
-        tk.Label(fbar, text="Au :", font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=_HEADER_BG).grid(row=0, column=8, padx=(0, 4))
+        tk.Entry(
+            fbar, textvariable=self._date_from, width=11, font=("Poppins", 9)
+        ).grid(row=0, column=7, padx=(0, 6))
+        tk.Label(
+            fbar, text="Au :", font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=_HEADER_BG
+        ).grid(row=0, column=8, padx=(0, 4))
         self._date_to = tk.StringVar()
-        tk.Entry(fbar, textvariable=self._date_to, width=11, font=("Poppins", 9)).grid(row=0, column=9, padx=(0, 6))
+        tk.Entry(fbar, textvariable=self._date_to, width=11, font=("Poppins", 9)).grid(
+            row=0, column=9, padx=(0, 6)
+        )
         tk.Button(
             fbar,
             text="Appliquer",
@@ -1384,18 +1604,42 @@ class _ActivityHistoryDialog(tk.Toplevel):
             command=self._reset_filters,
         ).grid(row=0, column=11, padx=(0, 6))
 
-        tk.Frame(fbar, bg="#C9DDE3", width=1).grid(row=0, column=12, padx=8, pady=4, sticky="ns")
-        tk.Label(fbar, text="🔍", font=("Poppins", 11), bg=_HEADER_BG).grid(row=0, column=13, padx=(0, 2))
+        tk.Frame(fbar, bg="#C9DDE3", width=1).grid(
+            row=0, column=12, padx=8, pady=4, sticky="ns"
+        )
+        tk.Label(fbar, text="🔍", font=("Poppins", 11), bg=_HEADER_BG).grid(
+            row=0, column=13, padx=(0, 2)
+        )
         self._search_var = tk.StringVar()
         self._search_var.trace_add("write", lambda *_: self._apply_search())
-        tk.Entry(fbar, textvariable=self._search_var, width=18, font=("Poppins", 9)).grid(row=0, column=14, padx=(0, 10))
+        tk.Entry(
+            fbar, textvariable=self._search_var, width=18, font=("Poppins", 9)
+        ).grid(row=0, column=14, padx=(0, 10))
 
         tab_bar = tk.Frame(body, bg=PANEL_BG_COLOR)
         tab_bar.grid(row=1, column=0, sticky="ew")
 
-        self._tab_hist_btn = tk.Label(tab_bar, text="Historique", font=("Poppins", 10, "bold"), bg=BUTTON_RED, fg="white", padx=14, pady=4, cursor="hand2")
+        self._tab_hist_btn = tk.Label(
+            tab_bar,
+            text="Historique",
+            font=("Poppins", 10, "bold"),
+            bg=BUTTON_RED,
+            fg="white",
+            padx=14,
+            pady=4,
+            cursor="hand2",
+        )
         self._tab_hist_btn.pack(side="left", padx=(0, 4))
-        self._tab_stat_btn = tk.Label(tab_bar, text="Statistiques", font=("Poppins", 10, "bold"), bg=BUTTON_BLUE, fg="white", padx=14, pady=4, cursor="hand2")
+        self._tab_stat_btn = tk.Label(
+            tab_bar,
+            text="Statistiques",
+            font=("Poppins", 10, "bold"),
+            bg=BUTTON_BLUE,
+            fg="white",
+            padx=14,
+            pady=4,
+            cursor="hand2",
+        )
         self._tab_stat_btn.pack(side="left")
         self._tab_hist_btn.bind("<Button-1>", lambda e: self._show_tab("hist"))
         self._tab_stat_btn.bind("<Button-1>", lambda e: self._show_tab("stat"))
@@ -1420,7 +1664,9 @@ class _ActivityHistoryDialog(tk.Toplevel):
         self._hist_frame.rowconfigure(0, weight=1)
         self._build_treeview(self._hist_frame)
 
-        self._count_lbl = tk.Label(body, text="", font=("Poppins", 9), fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR)
+        self._count_lbl = tk.Label(
+            body, text="", font=("Poppins", 9), fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR
+        )
         self._count_lbl.grid(row=3, column=0, sticky="e", pady=(2, 0))
 
         self._stat_frame = tk.Frame(body, bg=PANEL_BG_COLOR)
@@ -1428,15 +1674,39 @@ class _ActivityHistoryDialog(tk.Toplevel):
 
     def _build_treeview(self, parent):
         style = ttk.Style()
-        style.configure("Hist.Treeview", background=PANEL_BG_COLOR, fieldbackground=PANEL_BG_COLOR, font=("Poppins", 9), rowheight=26)
-        style.configure("Hist.Treeview.Heading", font=("Poppins", 9, "bold"), background=_HEADER_BG)
+        style.configure(
+            "Hist.Treeview",
+            background=PANEL_BG_COLOR,
+            fieldbackground=PANEL_BG_COLOR,
+            font=("Poppins", 9),
+            rowheight=26,
+        )
+        style.configure(
+            "Hist.Treeview.Heading", font=("Poppins", 9, "bold"), background=_HEADER_BG
+        )
 
         cols = ("timestamp", "username", "role", "label", "details")
-        self._tree = ttk.Treeview(parent, columns=cols, show="headings", style="Hist.Treeview")
-        widths = {"timestamp": 140, "username": 100, "role": 80, "label": 160, "details": 0}
-        heads = {"timestamp": "Date / Heure", "username": "Utilisateur", "role": "Rôle", "label": "Action", "details": "Détails"}
+        self._tree = ttk.Treeview(
+            parent, columns=cols, show="headings", style="Hist.Treeview"
+        )
+        widths = {
+            "timestamp": 140,
+            "username": 100,
+            "role": 80,
+            "label": 160,
+            "details": 0,
+        }
+        heads = {
+            "timestamp": "Date / Heure",
+            "username": "Utilisateur",
+            "role": "Rôle",
+            "label": "Action",
+            "details": "Détails",
+        }
         for col in cols:
-            self._tree.heading(col, text=heads[col], command=lambda c=col: self._sort_by_col(c))
+            self._tree.heading(
+                col, text=heads[col], command=lambda c=col: self._sort_by_col(c)
+            )
             if widths[col]:
                 self._tree.column(col, width=widths[col], minwidth=60, stretch=False)
             else:
@@ -1452,7 +1722,9 @@ class _ActivityHistoryDialog(tk.Toplevel):
         for cat, color in self._CAT_COLORS.items():
             self._tree.tag_configure(cat, foreground=color)
         self._tree.tag_configure("odd", background="#F5F9FB")
-        self._tree.tag_configure("auth_alert", foreground="#C62828", font=("Poppins", 9, "bold"))
+        self._tree.tag_configure(
+            "auth_alert", foreground="#C62828", font=("Poppins", 9, "bold")
+        )
 
     def _build_stats_panel(self, parent):
         stats = get_user_stats(self.username)
@@ -1466,7 +1738,13 @@ class _ActivityHistoryDialog(tk.Toplevel):
             card = tk.Frame(frame, bg=color, padx=14, pady=10)
             card.pack(side="left", padx=(0, 10), fill="y")
             tk.Label(card, text=icon, font=("Poppins", 18), bg=color, fg="white").pack()
-            tk.Label(card, text=str(value), font=("Poppins", 20, "bold"), bg=color, fg="white").pack()
+            tk.Label(
+                card,
+                text=str(value),
+                font=("Poppins", 20, "bold"),
+                bg=color,
+                fg="white",
+            ).pack()
             tk.Label(card, text=label, font=("Poppins", 8), bg=color, fg="white").pack()
 
         _stat_card(cards_row, "🔐", stats["login_count"], "Connexions", "#1565C0")
@@ -1477,22 +1755,59 @@ class _ActivityHistoryDialog(tk.Toplevel):
 
         info = tk.Frame(parent, bg=PANEL_BG_COLOR)
         info.pack(fill="x", pady=(0, 10))
-        for lbl, val in [("Dernière connexion :", stats["last_login"] or "—"), ("Dernière action :", stats["last_action_ts"] or "—")]:
+        for lbl, val in [
+            ("Dernière connexion :", stats["last_login"] or "—"),
+            ("Dernière action :", stats["last_action_ts"] or "—"),
+        ]:
             row = tk.Frame(info, bg=PANEL_BG_COLOR)
             row.pack(anchor="w")
-            tk.Label(row, text=lbl, font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left", padx=(0, 6))
-            tk.Label(row, text=val, font=("Poppins", 9), fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left")
+            tk.Label(
+                row,
+                text=lbl,
+                font=("Poppins", 9, "bold"),
+                fg=TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
+            ).pack(side="left", padx=(0, 6))
+            tk.Label(
+                row,
+                text=val,
+                font=("Poppins", 9),
+                fg=MUTED_TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
+            ).pack(side="left")
 
         if stats["top_actions"]:
-            tk.Label(parent, text="Actions les plus fréquentes (30 jours)", font=("Poppins", 10, "bold"), fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(4, 6))
+            tk.Label(
+                parent,
+                text="Actions les plus fréquentes (30 jours)",
+                font=("Poppins", 10, "bold"),
+                fg=TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
+            ).pack(anchor="w", pady=(4, 6))
             for action_lbl, count in stats["top_actions"]:
                 bar_frame = tk.Frame(parent, bg=PANEL_BG_COLOR)
                 bar_frame.pack(fill="x", pady=(0, 4))
-                tk.Label(bar_frame, text=action_lbl, width=30, anchor="w", font=("Poppins", 9), fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left")
+                tk.Label(
+                    bar_frame,
+                    text=action_lbl,
+                    width=30,
+                    anchor="w",
+                    font=("Poppins", 9),
+                    fg=TEXT_COLOR,
+                    bg=PANEL_BG_COLOR,
+                ).pack(side="left")
                 max_count = stats["top_actions"][0][1] if stats["top_actions"] else 1
                 bar_w = max(4, int(200 * count / max_count))
-                tk.Frame(bar_frame, bg=BUTTON_BLUE, width=bar_w, height=14).pack(side="left", padx=(4, 6))
-                tk.Label(bar_frame, text=str(count), font=("Poppins", 9), fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left")
+                tk.Frame(bar_frame, bg=BUTTON_BLUE, width=bar_w, height=14).pack(
+                    side="left", padx=(4, 6)
+                )
+                tk.Label(
+                    bar_frame,
+                    text=str(count),
+                    font=("Poppins", 9),
+                    fg=MUTED_TEXT_COLOR,
+                    bg=PANEL_BG_COLOR,
+                ).pack(side="left")
 
     def _show_tab(self, tab: str):
         if tab == "hist":
@@ -1537,7 +1852,9 @@ class _ActivityHistoryDialog(tk.Toplevel):
         q = self._search_var.get().strip().lower()
         entries = self._all_entries
         if q:
-            entries = [e for e in entries if any(q in str(v).lower() for v in e.values())]
+            entries = [
+                e for e in entries if any(q in str(v).lower() for v in e.values())
+            ]
         self._visible_entries = list(entries)
         self._populate_history_tree(entries)
 
@@ -1574,15 +1891,25 @@ class _ActivityHistoryDialog(tk.Toplevel):
         else:
             self._sort_col = col
             self._sort_desc = True
-        self._all_entries.sort(key=lambda e: str(e.get(col, "")).lower(), reverse=self._sort_desc)
-        heads = {"timestamp": "Date / Heure", "username": "Utilisateur", "role": "Rôle", "label": "Action", "details": "Détails"}
+        self._all_entries.sort(
+            key=lambda e: str(e.get(col, "")).lower(), reverse=self._sort_desc
+        )
+        heads = {
+            "timestamp": "Date / Heure",
+            "username": "Utilisateur",
+            "role": "Rôle",
+            "label": "Action",
+            "details": "Détails",
+        }
         arrow = " ▼" if self._sort_desc else " ▲"
         for key, head in heads.items():
             self._tree.heading(key, text=head + (arrow if key == col else ""))
         self._apply_search()
 
     def _export_csv(self):
-        default = f"historique_{self.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        default = (
+            f"historique_{self.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        )
         path = filedialog.asksaveasfilename(
             parent=self,
             defaultextension=".csv",
@@ -1596,17 +1923,27 @@ class _ActivityHistoryDialog(tk.Toplevel):
             with open(path, "w", newline="", encoding="utf-8-sig") as f:
                 writer = csv.DictWriter(
                     f,
-                    fieldnames=["timestamp", "username", "role", "label", "category", "details"],
+                    fieldnames=[
+                        "timestamp",
+                        "username",
+                        "role",
+                        "label",
+                        "category",
+                        "details",
+                    ],
                     extrasaction="ignore",
                 )
                 writer.writeheader()
                 writer.writerows(self._visible_entries)
-            messagebox.showinfo("Export réussi", f"Fichier exporté :\n{path}", parent=self)
+            messagebox.showinfo(
+                "Export réussi", f"Fichier exporté :\n{path}", parent=self
+            )
         except Exception as ex:
             messagebox.showerror("Erreur", str(ex), parent=self)
 
 
 # ── Dialog : créer un compte ─────────────────────────────────────────────────
+
 
 class _CreateAccountDialog(tk.Toplevel):
     def __init__(self, parent, on_created=None):
@@ -1632,11 +1969,23 @@ class _CreateAccountDialog(tk.Toplevel):
         bar = tk.Frame(self, bg=BUTTON_GREEN, height=46)
         bar.pack(fill="x")
         bar.pack_propagate(False)
-        tk.Label(bar, text="➕  Créer un nouveau compte", font=("Poppins", 12, "bold"), fg="white", bg=BUTTON_GREEN).pack(side="left", padx=20)
+        tk.Label(
+            bar,
+            text="➕  Créer un nouveau compte",
+            font=("Poppins", 12, "bold"),
+            fg="white",
+            bg=BUTTON_GREEN,
+        ).pack(side="left", padx=20)
 
         footer = tk.Frame(self, bg=PANEL_BG_COLOR)
         footer.pack(side="bottom", fill="x", padx=24, pady=12)
-        self._msg = ctk.CTkLabel(footer, text="", font=ctk.CTkFont(family="Poppins", size=11), text_color=BUTTON_RED, wraplength=440)
+        self._msg = ctk.CTkLabel(
+            footer,
+            text="",
+            font=ctk.CTkFont(family="Poppins", size=11),
+            text_color=BUTTON_RED,
+            wraplength=440,
+        )
         self._msg.pack(anchor="w", pady=(0, 6))
 
         btn_row = tk.Frame(footer, bg=PANEL_BG_COLOR)
@@ -1667,7 +2016,13 @@ class _CreateAccountDialog(tk.Toplevel):
         body.pack(fill="both", expand=True, padx=24, pady=(12, 0))
 
         def _field(label, attr, show=""):
-            tk.Label(body, text=label, font=("Poppins", 10, "bold"), fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(6, 2))
+            tk.Label(
+                body,
+                text=label,
+                font=("Poppins", 10, "bold"),
+                fg=TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
+            ).pack(anchor="w", pady=(6, 2))
             entry = ctk.CTkEntry(
                 body,
                 height=34,
@@ -1685,7 +2040,13 @@ class _CreateAccountDialog(tk.Toplevel):
         _field("Mot de passe  (min. 6 caractères)", "_e_pass", show="•")
         _field("Confirmer le mot de passe", "_e_confirm", show="•")
 
-        tk.Label(body, text="Date d'expiration d'accès  (optionnel)", font=("Poppins", 10, "bold"), fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(8, 2))
+        tk.Label(
+            body,
+            text="Date d'expiration d'accès  (optionnel)",
+            font=("Poppins", 10, "bold"),
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+        ).pack(anchor="w", pady=(8, 2))
         self._expiry_var = tk.StringVar(value="")
         self._e_expiry = ctk.CTkEntry(
             body,
@@ -1735,7 +2096,13 @@ class _CreateAccountDialog(tk.Toplevel):
             command=lambda: self._expiry_var.set(""),
         ).pack(side="left")
 
-        tk.Label(body, text="Rôle", font=("Poppins", 10, "bold"), fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(12, 6))
+        tk.Label(
+            body,
+            text="Rôle",
+            font=("Poppins", 10, "bold"),
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+        ).pack(anchor="w", pady=(12, 6))
         self._role_var = tk.StringVar(value="agent")
         role_box = tk.Frame(body, bg=PANEL_BG_COLOR)
         role_box.pack(fill="x")
@@ -1767,15 +2134,48 @@ class _CreateAccountDialog(tk.Toplevel):
                 widgets[-1].configure(fg=muted)
 
         for col, role in enumerate(cfg):
-            card = tk.Frame(role_box, bg="#E8F4F8", cursor="hand2", relief="solid", bd=1, highlightbackground=_BORDER_CLR)
-            card.grid(row=0, column=col, sticky="nsew", padx=(0, 4) if col < 2 else (4, 0), pady=2)
+            card = tk.Frame(
+                role_box,
+                bg="#E8F4F8",
+                cursor="hand2",
+                relief="solid",
+                bd=1,
+                highlightbackground=_BORDER_CLR,
+            )
+            card.grid(
+                row=0,
+                column=col,
+                sticky="nsew",
+                padx=(0, 4) if col < 2 else (4, 0),
+                pady=2,
+            )
             top = tk.Frame(card, bg="#E8F4F8")
             top.pack(fill="x", padx=8, pady=(8, 2))
-            icon = tk.Label(top, text=cfg[role]["icon"], font=("Poppins", 15), bg="#E8F4F8", fg=TEXT_COLOR)
+            icon = tk.Label(
+                top,
+                text=cfg[role]["icon"],
+                font=("Poppins", 15),
+                bg="#E8F4F8",
+                fg=TEXT_COLOR,
+            )
             icon.pack(side="left")
-            name = tk.Label(top, text=role.capitalize(), font=("Poppins", 10, "bold"), bg="#E8F4F8", fg=TEXT_COLOR)
+            name = tk.Label(
+                top,
+                text=role.capitalize(),
+                font=("Poppins", 10, "bold"),
+                bg="#E8F4F8",
+                fg=TEXT_COLOR,
+            )
             name.pack(side="left", padx=(6, 0))
-            desc = tk.Label(card, text=cfg[role]["desc"], font=("Poppins", 9), bg="#E8F4F8", fg=MUTED_TEXT_COLOR, wraplength=140, justify="left")
+            desc = tk.Label(
+                card,
+                text=cfg[role]["desc"],
+                font=("Poppins", 9),
+                bg="#E8F4F8",
+                fg=MUTED_TEXT_COLOR,
+                wraplength=140,
+                justify="left",
+            )
             desc.pack(anchor="w", padx=8, pady=(0, 10))
             widgets = [card, top, icon, name, desc]
             self._role_cards[role] = (widgets, cfg[role])
@@ -1786,7 +2186,9 @@ class _CreateAccountDialog(tk.Toplevel):
         self._e_user.focus_set()
 
     def _set_expiry_days(self, days: int):
-        self._expiry_var.set((datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d"))
+        self._expiry_var.set(
+            (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
+        )
 
     def _pick_expiry_date(self):
         selected_date = _pick_date(self, "Choisir la date d'expiration")
@@ -1818,6 +2220,7 @@ class _CreateAccountDialog(tk.Toplevel):
 
 # ── Dialog : dupliquer un compte ─────────────────────────────────────────────
 
+
 class _DuplicateAccountDialog(tk.Toplevel):
     def __init__(self, parent, source_user: dict, on_done=None):
         super().__init__(parent)
@@ -1842,20 +2245,42 @@ class _DuplicateAccountDialog(tk.Toplevel):
         bar = tk.Frame(self, bg=BUTTON_BLUE, height=46)
         bar.pack(fill="x")
         bar.pack_propagate(False)
-        tk.Label(bar, text=f"🧬  Dupliquer — {self.source_user['username']}", font=("Poppins", 12, "bold"), fg="white", bg=BUTTON_BLUE).pack(side="left", padx=20)
+        tk.Label(
+            bar,
+            text=f"🧬  Dupliquer — {self.source_user['username']}",
+            font=("Poppins", 12, "bold"),
+            fg="white",
+            bg=BUTTON_BLUE,
+        ).pack(side="left", padx=20)
 
         body = tk.Frame(self, bg=PANEL_BG_COLOR)
         body.pack(fill="both", expand=True, padx=24, pady=18)
 
-        info_txt = f"Le nouveau compte reprendra le rôle {self.source_user['role_label']}"
+        info_txt = (
+            f"Le nouveau compte reprendra le rôle {self.source_user['role_label']}"
+        )
         if self.source_user.get("access_expires_at"):
             info_txt += f" et l'accès jusqu'au {self.source_user['access_expires_at']}"
         else:
             info_txt += " avec accès illimité"
-        tk.Label(body, text=info_txt, font=("Poppins", 9), fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR, wraplength=390, justify="left").pack(anchor="w", pady=(0, 14))
+        tk.Label(
+            body,
+            text=info_txt,
+            font=("Poppins", 9),
+            fg=MUTED_TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+            wraplength=390,
+            justify="left",
+        ).pack(anchor="w", pady=(0, 14))
 
         def _field(label, attr, show=""):
-            tk.Label(body, text=label, font=("Poppins", 10, "bold"), fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(6, 2))
+            tk.Label(
+                body,
+                text=label,
+                font=("Poppins", 10, "bold"),
+                fg=TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
+            ).pack(anchor="w", pady=(6, 2))
             entry = ctk.CTkEntry(
                 body,
                 height=34,
@@ -1872,7 +2297,9 @@ class _DuplicateAccountDialog(tk.Toplevel):
         _field("Nouveau nom d'utilisateur", "_e_user")
         _field("Mot de passe", "_e_pass", show="•")
         _field("Confirmer le mot de passe", "_e_confirm", show="•")
-        self._msg = tk.Label(body, text="", font=("Poppins", 9, "bold"), fg=BUTTON_RED, bg=PANEL_BG_COLOR)
+        self._msg = tk.Label(
+            body, text="", font=("Poppins", 9, "bold"), fg=BUTTON_RED, bg=PANEL_BG_COLOR
+        )
         self._msg.pack(anchor="w", pady=(10, 0))
 
         btns = tk.Frame(body, bg=PANEL_BG_COLOR)
@@ -1919,6 +2346,7 @@ class _DuplicateAccountDialog(tk.Toplevel):
 
 # ── Dialog : réinitialiser MDP (admin) ──────────────────────────────────────
 
+
 class _AdminResetPasswordDialog(tk.Toplevel):
     def __init__(self, parent, username, on_done=None):
         super().__init__(parent)
@@ -1943,13 +2371,24 @@ class _AdminResetPasswordDialog(tk.Toplevel):
         bar = tk.Frame(self, bg=BUTTON_ORANGE, height=46)
         bar.pack(fill="x")
         bar.pack_propagate(False)
-        tk.Label(bar, text=f"🔑  Réinitialiser — {self.username}", font=("Poppins", 12, "bold"), fg="white", bg=BUTTON_ORANGE).pack(side="left", padx=20)
+        tk.Label(
+            bar,
+            text=f"🔑  Réinitialiser — {self.username}",
+            font=("Poppins", 12, "bold"),
+            fg="white",
+            bg=BUTTON_ORANGE,
+        ).pack(side="left", padx=20)
 
         body = ctk.CTkFrame(self, fg_color=PANEL_BG_COLOR)
         body.pack(fill="both", expand=True, padx=32, pady=20)
 
         def _field(label, attr):
-            ctk.CTkLabel(body, text=label, font=ctk.CTkFont(family="Poppins", size=12, weight="bold"), text_color=TEXT_COLOR).pack(anchor="w", pady=(8, 3))
+            ctk.CTkLabel(
+                body,
+                text=label,
+                font=ctk.CTkFont(family="Poppins", size=12, weight="bold"),
+                text_color=TEXT_COLOR,
+            ).pack(anchor="w", pady=(8, 3))
             entry = ctk.CTkEntry(
                 body,
                 width=340,
@@ -1966,7 +2405,12 @@ class _AdminResetPasswordDialog(tk.Toplevel):
 
         _field("Nouveau mot de passe (min. 6 car.)", "_e_new")
         _field("Confirmer", "_e_confirm")
-        self._msg = ctk.CTkLabel(body, text="", font=ctk.CTkFont(family="Poppins", size=11), text_color=BUTTON_RED)
+        self._msg = ctk.CTkLabel(
+            body,
+            text="",
+            font=ctk.CTkFont(family="Poppins", size=11),
+            text_color=BUTTON_RED,
+        )
         self._msg.pack(pady=(8, 0))
         ctk.CTkButton(
             body,

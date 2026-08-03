@@ -27,7 +27,11 @@ class CotationHubPage:
         shell.pack(fill="both", expand=True, padx=24, pady=24)
 
         hero = ctk.CTkFrame(
-            shell, fg_color=PANEL_BG_COLOR, corner_radius=18, border_width=1, border_color="#C9DDE3"
+            shell,
+            fg_color=PANEL_BG_COLOR,
+            corner_radius=18,
+            border_width=1,
+            border_color="#C9DDE3",
         )
         hero.pack(fill="x", pady=(0, 18))
 
@@ -85,7 +89,11 @@ class CotationHubPage:
 
     def _add_group(self, parent, row, col, title, fg_color, action):
         card = ctk.CTkFrame(
-            parent, fg_color=fg_color, corner_radius=14, border_width=1, border_color="#C9DDE3"
+            parent,
+            fg_color=fg_color,
+            corner_radius=14,
+            border_width=1,
+            border_color="#C9DDE3",
         )
         card.grid(row=row, column=col, sticky="nsew", padx=8, pady=8)
 

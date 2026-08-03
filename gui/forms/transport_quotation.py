@@ -2,9 +2,9 @@
 Transport quotation GUI component
 """
 
-from datetime import datetime
 import re
 import tkinter as tk
+from datetime import datetime
 from tkinter import messagebox, ttk
 
 from config import (
@@ -22,6 +22,7 @@ from config import (
 )
 from gui.forms.client_form import CalendarDialog
 from utils.excel_handler import (
+    delete_transport_from_excel,
     get_km_mada_duration_for_repere,
     get_km_mada_km_for_repere,
     get_km_mada_reperes,
@@ -33,7 +34,6 @@ from utils.excel_handler import (
     load_all_clients,
     save_transport_quotation_to_excel,
     update_transport_quotation_in_excel,
-    delete_transport_from_excel,
 )
 from utils.logger import logger
 
@@ -136,7 +136,9 @@ class TransportQuotation:
         ]
 
         for field_type, fallback_label in reversed(required_fields):
-            has_field = any(self._get_field_type(header) == field_type for header in self.headers)
+            has_field = any(
+                self._get_field_type(header) == field_type for header in self.headers
+            )
             if not has_field:
                 self.headers.insert(0, fallback_label)
 
@@ -215,7 +217,9 @@ class TransportQuotation:
         for widget in self.parent.winfo_children():
             widget.destroy()
 
-        title_text = "MODIFIER COTATION TRANSPORT" if self.edit_data else "COTATION TRANSPORT"
+        title_text = (
+            "MODIFIER COTATION TRANSPORT" if self.edit_data else "COTATION TRANSPORT"
+        )
         tk.Label(
             self.parent,
             text=title_text,
@@ -275,8 +279,10 @@ class TransportQuotation:
             text="Sans carburant (carburant non compris dans la location)",
             variable=self._sans_carburant_var,
             command=self._on_sans_carburant_toggled,
-            bg=MAIN_BG_COLOR, fg=TEXT_COLOR,
-            selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+            bg=MAIN_BG_COLOR,
+            fg=TEXT_COLOR,
+            selectcolor=BUTTON_GREEN,
+            font=LABEL_FONT,
         ).pack(anchor="w", padx=20, pady=(0, 6))
 
         button_frame = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
@@ -343,21 +349,63 @@ class TransportQuotation:
     def _create_field_widget(self, parent, field_var, field_type):
         if field_type == "client_id":
             values = [""] + sorted(self.client_map.keys())
-            widget = ttk.Combobox(parent, textvariable=field_var, values=values, font=ENTRY_FONT, width=30, state="readonly")
+            widget = ttk.Combobox(
+                parent,
+                textvariable=field_var,
+                values=values,
+                font=ENTRY_FONT,
+                width=30,
+                state="readonly",
+            )
         elif field_type == "client_name":
             values = [""] + sorted(self.clients_by_name.keys())
-            widget = ttk.Combobox(parent, textvariable=field_var, values=values, font=ENTRY_FONT, width=30, state="readonly")
+            widget = ttk.Combobox(
+                parent,
+                textvariable=field_var,
+                values=values,
+                font=ENTRY_FONT,
+                width=30,
+                state="readonly",
+            )
         elif field_type == "dossier_number":
             values = [""] + sorted(self.clients_by_dossier.keys())
-            widget = ttk.Combobox(parent, textvariable=field_var, values=values, font=ENTRY_FONT, width=30, state="readonly")
+            widget = ttk.Combobox(
+                parent,
+                textvariable=field_var,
+                values=values,
+                font=ENTRY_FONT,
+                width=30,
+                state="readonly",
+            )
         elif field_type in {"departure", "arrival"}:
             values = [""] + self.reperes
-            widget = ttk.Combobox(parent, textvariable=field_var, values=values, font=ENTRY_FONT, width=30, state="readonly")
+            widget = ttk.Combobox(
+                parent,
+                textvariable=field_var,
+                values=values,
+                font=ENTRY_FONT,
+                width=30,
+                state="readonly",
+            )
         elif field_type == "prestataire":
             values = [""] + self.prestataires
-            widget = ttk.Combobox(parent, textvariable=field_var, values=values, font=ENTRY_FONT, width=30, state="readonly")
+            widget = ttk.Combobox(
+                parent,
+                textvariable=field_var,
+                values=values,
+                font=ENTRY_FONT,
+                width=30,
+                state="readonly",
+            )
         elif field_type == "vehicle_type":
-            widget = ttk.Combobox(parent, textvariable=field_var, values=[""], font=ENTRY_FONT, width=30, state="readonly")
+            widget = ttk.Combobox(
+                parent,
+                textvariable=field_var,
+                values=[""],
+                font=ENTRY_FONT,
+                width=30,
+                state="readonly",
+            )
         elif field_type == "date":
             entry = tk.Entry(
                 parent,
@@ -375,7 +423,14 @@ class TransportQuotation:
         else:
             state = "normal"
             bg = INPUT_BG_COLOR
-            if field_type in {"seat_count", "location_per_day", "distance", "fuel_need", "fuel_budget", "energy"}:
+            if field_type in {
+                "seat_count",
+                "location_per_day",
+                "distance",
+                "fuel_need",
+                "fuel_budget",
+                "energy",
+            }:
                 state = "readonly"
                 bg = READONLY_BG_COLOR
 
@@ -440,7 +495,9 @@ class TransportQuotation:
         if header_name:
             self.field_vars[header_name].set(str(client.get("nom") or "").strip())
         if header_dossier:
-            self.field_vars[header_dossier].set(str(client.get("numero_dossier") or "").strip())
+            self.field_vars[header_dossier].set(
+                str(client.get("numero_dossier") or "").strip()
+            )
 
     def _on_client_id_changed(self, *_args):
         header = self._find_header_by_type("client_id")
@@ -523,7 +580,9 @@ class TransportQuotation:
         if distance <= 0 or duration <= 0:
             return 1.0
 
-        expected_duration = distance / self.REF_SPEED_KMH if self.REF_SPEED_KMH > 0 else 0
+        expected_duration = (
+            distance / self.REF_SPEED_KMH if self.REF_SPEED_KMH > 0 else 0
+        )
         if expected_duration <= 0:
             return 1.0
 
@@ -566,13 +625,19 @@ class TransportQuotation:
         prestataire_header = self._find_header_by_type("prestataire")
         vehicle_header = self._find_header_by_type("vehicle_type")
 
-        departure = self.field_vars[departure_header].get().strip() if departure_header else ""
-        arrival = self.field_vars[arrival_header].get().strip() if arrival_header else ""
+        departure = (
+            self.field_vars[departure_header].get().strip() if departure_header else ""
+        )
+        arrival = (
+            self.field_vars[arrival_header].get().strip() if arrival_header else ""
+        )
 
         distance = 0.0
         duration = 0.0
         if departure and arrival:
-            if (not self._has_repere(departure) or not self._has_repere(arrival)) and not self._km_data_warning_shown:
+            if (
+                not self._has_repere(departure) or not self._has_repere(arrival)
+            ) and not self._km_data_warning_shown:
                 self._km_data_warning_shown = True
                 messagebox.showwarning(
                     "Référentiel KM_MADA",
@@ -588,8 +653,14 @@ class TransportQuotation:
 
         self._set_field_value("distance", self._format_number(distance))
 
-        prestataire = self.field_vars[prestataire_header].get().strip() if prestataire_header else ""
-        vehicle = self.field_vars[vehicle_header].get().strip() if vehicle_header else ""
+        prestataire = (
+            self.field_vars[prestataire_header].get().strip()
+            if prestataire_header
+            else ""
+        )
+        vehicle = (
+            self.field_vars[vehicle_header].get().strip() if vehicle_header else ""
+        )
 
         consommation = 0.0
         energie = ""
@@ -598,17 +669,24 @@ class TransportQuotation:
             consommation = self._to_float(vehicle_data.get("consommation", 0))
             energie = str(vehicle_data.get("energie") or "").strip()
 
-        if getattr(self, "_sans_carburant_var", None) and self._sans_carburant_var.get():
+        if (
+            getattr(self, "_sans_carburant_var", None)
+            and self._sans_carburant_var.get()
+        ):
             self._set_field_value("fuel_need", "0.00")
             self._set_field_value("fuel_budget", "0.00")
             return
 
         facteur_route = self._compute_route_consumption_factor(distance, duration)
-        besoin_base = (consommation * distance) / 100 if consommation and distance else 0.0
+        besoin_base = (
+            (consommation * distance) / 100 if consommation and distance else 0.0
+        )
         besoin = besoin_base * facteur_route if besoin_base else 0.0
         self._set_field_value("fuel_need", self._format_number(besoin))
 
-        fuel_price = self._to_float(get_transport_fuel_price(energie)) if energie else 0.0
+        fuel_price = (
+            self._to_float(get_transport_fuel_price(energie)) if energie else 0.0
+        )
         budget = besoin * fuel_price if besoin and fuel_price else 0.0
         self._set_field_value("fuel_budget", self._format_number(budget))
 
@@ -633,13 +711,20 @@ class TransportQuotation:
         form_data = self._collect_form_data()
         has_data = any(str(v).strip() for v in form_data.values())
         if not has_data:
-            messagebox.showwarning("Validation", "Veuillez renseigner au moins un champ avant l'enregistrement.")
+            messagebox.showwarning(
+                "Validation",
+                "Veuillez renseigner au moins un champ avant l'enregistrement.",
+            )
             return
 
         client_id_header = self._find_header_by_type("client_id")
         client_name_header = self._find_header_by_type("client_name")
-        client_id = form_data.get(client_id_header, "").strip() if client_id_header else ""
-        client_name = form_data.get(client_name_header, "").strip() if client_name_header else ""
+        client_id = (
+            form_data.get(client_id_header, "").strip() if client_id_header else ""
+        )
+        client_name = (
+            form_data.get(client_name_header, "").strip() if client_name_header else ""
+        )
         if not client_id and not client_name:
             messagebox.showwarning(
                 "Validation",
@@ -650,10 +735,14 @@ class TransportQuotation:
         if self.edit_data and self.row_number is not None:
             result = update_transport_quotation_in_excel(self.row_number, form_data)
             if result == -2:
-                messagebox.showerror("Fichier verrouillé", "Fermez data.xlsx puis réessayez.")
+                messagebox.showerror(
+                    "Fichier verrouillé", "Fermez data.xlsx puis réessayez."
+                )
                 return
             if result == -1:
-                messagebox.showerror("Erreur", "Échec de la modification dans TRANSPORT.")
+                messagebox.showerror(
+                    "Erreur", "Échec de la modification dans TRANSPORT."
+                )
                 return
             messagebox.showinfo("Succès", "Transport modifié avec succès.")
             if self.callback_on_save:
@@ -662,7 +751,9 @@ class TransportQuotation:
 
         row = save_transport_quotation_to_excel(form_data)
         if row == -2:
-            messagebox.showerror("Fichier verrouillé", "Fermez data.xlsx puis réessayez.")
+            messagebox.showerror(
+                "Fichier verrouillé", "Fermez data.xlsx puis réessayez."
+            )
             return
         if row == -1:
             messagebox.showerror("Erreur", "Échec de l'enregistrement dans TRANSPORT.")
@@ -687,7 +778,10 @@ class TransportQuotation:
 
         success = delete_transport_from_excel(self.row_number)
         if not success:
-            messagebox.showerror("Erreur", "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert.")
+            messagebox.showerror(
+                "Erreur",
+                "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert.",
+            )
             return
 
         messagebox.showinfo("Succès", "Enregistrement transport supprimé avec succès.")

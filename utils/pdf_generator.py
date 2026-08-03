@@ -9,8 +9,8 @@ try:
     from reportlab.lib.pagesizes import A4, letter
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import cm, inch
+    from reportlab.platypus import Image as RLImage
     from reportlab.platypus import (
-        Image as RLImage,
         PageBreak,
         Paragraph,
         SimpleDocTemplate,
@@ -131,7 +131,11 @@ class QuotationPDF:
         if logo_path and os.path.exists(logo_path):
             try:
                 logo = RLImage(logo_path, width=2.6 * cm, height=2.6 * cm)
-                header_data = [[logo, title_block[0]], ["", title_block[1]], ["", title_block[2]]]
+                header_data = [
+                    [logo, title_block[0]],
+                    ["", title_block[1]],
+                    ["", title_block[2]],
+                ]
                 table = Table(header_data, colWidths=[3.0 * cm, 16 * cm])
                 table.setStyle(
                     TableStyle(
@@ -467,9 +471,7 @@ def generate_hotel_quotation_pdf(
         pdf = QuotationPDF(filename)
 
         # Build PDF content
-        pdf.add_header(
-            COMPANY_NAME, COMPANY_TAGLINE, logo_path=LOGO_PATH
-        )
+        pdf.add_header(COMPANY_NAME, COMPANY_TAGLINE, logo_path=LOGO_PATH)
 
         pdf.add_quotation_info(quote_number, quote_date, client_name, client_email)
 
@@ -544,9 +546,7 @@ def generate_multi_hotel_quotation_pdf(
         filename = os.path.join(output_dir, f"{quote_number}.pdf")
         pdf = QuotationPDF(filename)
 
-        pdf.add_header(
-            COMPANY_NAME, COMPANY_TAGLINE, logo_path=LOGO_PATH
-        )
+        pdf.add_header(COMPANY_NAME, COMPANY_TAGLINE, logo_path=LOGO_PATH)
         pdf.add_quotation_info(quote_number, quote_date, client_name, client_email)
         pdf.add_client_contact(client_phone)
 
@@ -599,9 +599,7 @@ def generate_client_quotation_pdf(
         filename = os.path.join(output_dir, f"{quote_number}.pdf")
         pdf = QuotationPDF(filename)
 
-        pdf.add_header(
-            COMPANY_NAME, COMPANY_TAGLINE, logo_path=LOGO_PATH
-        )
+        pdf.add_header(COMPANY_NAME, COMPANY_TAGLINE, logo_path=LOGO_PATH)
         pdf.add_quotation_info(quote_number, quote_date, client_name, client_email)
         pdf.add_client_contact(client_phone)
 
@@ -630,7 +628,9 @@ def generate_client_quotation_pdf(
         raise
 
 
-def generate_air_ticket_cotation_pdf(client: dict, rows: list, output_dir: str = None) -> str:
+def generate_air_ticket_cotation_pdf(
+    client: dict, rows: list, output_dir: str = None
+) -> str:
     """
     Génère un devis PDF de cotation avion client.
 
@@ -650,11 +650,11 @@ def generate_air_ticket_cotation_pdf(client: dict, rows: list, output_dir: str =
     out_dir = output_dir or DEVIS_FOLDER
     os.makedirs(out_dir, exist_ok=True)
 
-    nom    = str(client.get("nom", "") or "").strip()
+    nom = str(client.get("nom", "") or "").strip()
     prenom = str(client.get("prenom", "") or "").strip()
     dossier = str(client.get("numero_dossier", "") or "").strip()
-    ref     = str(client.get("ref_client", "") or "").strip()
-    safe    = re.sub(r"[^\w\-]", "_", f"{ref}_{nom}_{prenom}")
+    ref = str(client.get("ref_client", "") or "").strip()
+    safe = re.sub(r"[^\w\-]", "_", f"{ref}_{nom}_{prenom}")
     filename = os.path.join(out_dir, f"devis_avion_{safe}.pdf")
 
     try:
@@ -672,9 +672,18 @@ def generate_air_ticket_cotation_pdf(client: dict, rows: list, output_dir: str =
 
         # Tableau des vols
         col_headers = [
-            "Date vol", "N° vol", "Trajet", "Compagnie", "Classe",
-            "Adultes", "Enfants", "Tarif adulte", "Tarif enfant",
-            "Sous-total", "Marge %", "Total (Ar)",
+            "Date vol",
+            "N° vol",
+            "Trajet",
+            "Compagnie",
+            "Classe",
+            "Adultes",
+            "Enfants",
+            "Tarif adulte",
+            "Tarif enfant",
+            "Sous-total",
+            "Marge %",
+            "Total (Ar)",
         ]
 
         def _f(v):
@@ -686,52 +695,75 @@ def generate_air_ticket_cotation_pdf(client: dict, rows: list, output_dir: str =
         data_rows = [col_headers]
         for r in rows:
             trajet = f"{r.get('ville_depart', '')} → {r.get('ville_arrivee', '')}"
-            data_rows.append([
-                r.get("date_vol", ""),
-                r.get("numero_vol", ""),
-                f"{r.get('type_trajet', '')} — {trajet}",
-                r.get("compagnie", ""),
-                r.get("classe", "Éco"),
-                r.get("nb_adultes", ""),
-                r.get("nb_enfants", ""),
-                _f(r.get("tarif_adulte", 0)),
-                _f(r.get("tarif_enfant", 0)),
-                _f(r.get("sous_total", 0)),
-                f"{r.get('marge_pct', '0')} %",
-                _f(r.get("total", 0)),
-            ])
+            data_rows.append(
+                [
+                    r.get("date_vol", ""),
+                    r.get("numero_vol", ""),
+                    f"{r.get('type_trajet', '')} — {trajet}",
+                    r.get("compagnie", ""),
+                    r.get("classe", "Éco"),
+                    r.get("nb_adultes", ""),
+                    r.get("nb_enfants", ""),
+                    _f(r.get("tarif_adulte", 0)),
+                    _f(r.get("tarif_enfant", 0)),
+                    _f(r.get("sous_total", 0)),
+                    f"{r.get('marge_pct', '0')} %",
+                    _f(r.get("total", 0)),
+                ]
+            )
 
         grand_total = sum(float(r.get("total") or 0) for r in rows)
         total_adultes = sum(float(r.get("montant_adultes") or 0) for r in rows)
         total_enfants = sum(float(r.get("montant_enfants") or 0) for r in rows)
 
         # Ligne totaux
-        data_rows.append([
-            "", "", "", "", "TOTAUX",
-            "", "", _f(total_adultes), _f(total_enfants),
-            "", "", _f(grand_total),
-        ])
+        data_rows.append(
+            [
+                "",
+                "",
+                "",
+                "",
+                "TOTAUX",
+                "",
+                "",
+                _f(total_adultes),
+                _f(total_enfants),
+                "",
+                "",
+                _f(grand_total),
+            ]
+        )
 
         col_widths = [55, 50, 130, 75, 55, 40, 40, 65, 65, 65, 45, 70]
 
         table = Table(data_rows, colWidths=[w * 0.75 for w in col_widths])
-        table.setStyle(TableStyle([
-            ("BACKGROUND",  (0, 0), (-1, 0),  colors.HexColor("#0F7D8A")),
-            ("TEXTCOLOR",   (0, 0), (-1, 0),  colors.white),
-            ("FONTNAME",    (0, 0), (-1, 0),  "Helvetica-Bold"),
-            ("FONTSIZE",    (0, 0), (-1, 0),  7),
-            ("FONTSIZE",    (0, 1), (-1, -1), 7),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#EAF4F7")]),
-            ("BACKGROUND",  (0, -1), (-1, -1), colors.HexColor("#DCEFF3")),
-            ("FONTNAME",    (0, -1), (-1, -1), "Helvetica-Bold"),
-            ("GRID",        (0, 0), (-1, -1),  0.3, colors.HexColor("#AABBCC")),
-            ("ALIGN",       (5, 1), (-1, -1),  "RIGHT"),
-            ("VALIGN",      (0, 0), (-1, -1),  "MIDDLE"),
-            ("TOPPADDING",  (0, 0), (-1, -1),  3),
-            ("BOTTOMPADDING",(0, 0), (-1, -1), 3),
-        ]))
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F7D8A")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, 0), 7),
+                    ("FONTSIZE", (0, 1), (-1, -1), 7),
+                    (
+                        "ROWBACKGROUNDS",
+                        (0, 1),
+                        (-1, -2),
+                        [colors.white, colors.HexColor("#EAF4F7")],
+                    ),
+                    ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#DCEFF3")),
+                    ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#AABBCC")),
+                    ("ALIGN", (5, 1), (-1, -1), "RIGHT"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]
+            )
+        )
 
         from reportlab.platypus import Spacer
+
         pdf.elements.append(table)
         pdf.elements.append(Spacer(1, 0.4 * cm))
 
@@ -793,9 +825,7 @@ def generate_invoice_pdf(
         filename = os.path.join(output_dir, f"{invoice_number}.pdf")
         pdf = QuotationPDF(filename)
 
-        pdf.add_header(
-            COMPANY_NAME, COMPANY_TAGLINE, logo_path=LOGO_PATH
-        )
+        pdf.add_header(COMPANY_NAME, COMPANY_TAGLINE, logo_path=LOGO_PATH)
         pdf.add_quotation_info(
             quote_number=invoice_number,
             quote_date=invoice_date,

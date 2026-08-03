@@ -20,7 +20,10 @@ from config import (
     TEXT_COLOR,
     TITLE_FONT,
 )
-from utils.client_billing import convert_quote_to_invoice, invoice_requires_detail_refresh
+from utils.client_billing import (
+    convert_quote_to_invoice,
+    invoice_requires_detail_refresh,
+)
 from utils.excel_handler import (
     load_active_client_invoice_from_excel,
     load_active_client_quote_from_excel,
@@ -75,7 +78,9 @@ class ClientInvoicePage:
                 pady=6,
             ).pack(side="left", padx=12, pady=12)
 
-        client_name = f"{self.client.get('prenom', '')} {self.client.get('nom', '')}".strip()
+        client_name = (
+            f"{self.client.get('prenom', '')} {self.client.get('nom', '')}".strip()
+        )
         tk.Label(
             header,
             text=f"FACTURE CLIENT · {client_name or 'Client'}",
@@ -87,7 +92,11 @@ class ClientInvoicePage:
         actions = tk.Frame(root, bg=MAIN_BG_COLOR)
         actions.pack(fill="x", pady=(0, 10))
         for text, cmd, color in (
-            ("🔁 Régénérer depuis le devis actif", self._rebuild_from_quote, BUTTON_BLUE),
+            (
+                "🔁 Régénérer depuis le devis actif",
+                self._rebuild_from_quote,
+                BUTTON_BLUE,
+            ),
             ("💾 Enregistrer la facture", self._save_invoice, BUTTON_GREEN),
             ("📄 Générer la facture en PDF", self._generate_pdf, BUTTON_GREEN),
         ):
@@ -105,7 +114,9 @@ class ClientInvoicePage:
         table_wrap = tk.Frame(root, bg=MAIN_BG_COLOR)
         table_wrap.pack(fill="both", expand=True)
         columns = ("category", "designation", "quantity", "unit_price", "total_price")
-        self.tree = ttk.Treeview(table_wrap, columns=columns, show="headings", height=12)
+        self.tree = ttk.Treeview(
+            table_wrap, columns=columns, show="headings", height=12
+        )
         headings = {
             "category": "Catégorie",
             "designation": "Désignation",
@@ -142,7 +153,13 @@ class ClientInvoicePage:
 
         footer = tk.Frame(root, bg=PANEL_BG_COLOR)
         footer.pack(fill="x")
-        self.total_label = tk.Label(footer, text="Total facture: 0.00", font=TITLE_FONT, fg=BUTTON_GREEN, bg=PANEL_BG_COLOR)
+        self.total_label = tk.Label(
+            footer,
+            text="Total facture: 0.00",
+            font=TITLE_FONT,
+            fg=BUTTON_GREEN,
+            bg=PANEL_BG_COLOR,
+        )
         self.total_label.pack(side="right", padx=12, pady=10)
 
     def _load_document(self):
@@ -152,7 +169,9 @@ class ClientInvoicePage:
             if quote_document:
                 self.document = convert_quote_to_invoice(quote_document)
                 save_active_client_invoice_to_excel(self.client, self.document)
-        elif quote_document and invoice_requires_detail_refresh(self.document, quote_document):
+        elif quote_document and invoice_requires_detail_refresh(
+            self.document, quote_document
+        ):
             self.document = convert_quote_to_invoice(quote_document)
             save_active_client_invoice_to_excel(self.client, self.document)
         self._render_document()
@@ -172,7 +191,10 @@ class ClientInvoicePage:
                     _fmt(line.get("total_price", 0)),
                 ),
             )
-        total = sum(_to_float(line.get("total_price", 0)) for line in self.document.get("lines", []))
+        total = sum(
+            _to_float(line.get("total_price", 0))
+            for line in self.document.get("lines", [])
+        )
         self.total_label.config(text=f"Total facture: {_fmt(total)} Ar")
 
     def _selected_index(self):
@@ -191,10 +213,25 @@ class ClientInvoicePage:
         win = tk.Toplevel(self.parent)
         win.title("Modifier la ligne facture")
         win.configure(bg=MAIN_BG_COLOR)
-        tk.Label(win, text=line.get("designation", ""), font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).pack(anchor="w", padx=12, pady=(12, 6))
-        tk.Label(win, text="Prix unitaire", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).pack(anchor="w", padx=12)
+        tk.Label(
+            win,
+            text=line.get("designation", ""),
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).pack(anchor="w", padx=12, pady=(12, 6))
+        tk.Label(
+            win, text="Prix unitaire", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR
+        ).pack(anchor="w", padx=12)
         unit_var = tk.StringVar(value=str(line.get("unit_price", 0)))
-        tk.Entry(win, textvariable=unit_var, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR, width=24).pack(anchor="w", padx=12, pady=(0, 12))
+        tk.Entry(
+            win,
+            textvariable=unit_var,
+            font=ENTRY_FONT,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR,
+            width=24,
+        ).pack(anchor="w", padx=12, pady=(0, 12))
 
         def _apply():
             unit_price = max(0.0, _to_float(unit_var.get()))
@@ -209,8 +246,22 @@ class ClientInvoicePage:
 
         btns = tk.Frame(win, bg=MAIN_BG_COLOR)
         btns.pack(fill="x", padx=12, pady=(0, 12))
-        tk.Button(btns, text="Appliquer", command=_apply, bg=BUTTON_GREEN, fg="white", font=BUTTON_FONT).pack(side="left", padx=(0, 8))
-        tk.Button(btns, text="Annuler", command=win.destroy, bg=BUTTON_RED, fg="white", font=BUTTON_FONT).pack(side="left")
+        tk.Button(
+            btns,
+            text="Appliquer",
+            command=_apply,
+            bg=BUTTON_GREEN,
+            fg="white",
+            font=BUTTON_FONT,
+        ).pack(side="left", padx=(0, 8))
+        tk.Button(
+            btns,
+            text="Annuler",
+            command=win.destroy,
+            bg=BUTTON_RED,
+            fg="white",
+            font=BUTTON_FONT,
+        ).pack(side="left")
 
     def _rebuild_from_quote(self):
         quote_document = load_active_client_quote_from_excel(self.client)
@@ -232,13 +283,18 @@ class ClientInvoicePage:
 
     def _generate_pdf(self):
         if not REPORTLAB_AVAILABLE:
-            messagebox.showerror("PDF", "ReportLab n'est pas disponible pour générer le PDF.")
+            messagebox.showerror(
+                "PDF", "ReportLab n'est pas disponible pour générer le PDF."
+            )
             return
         if not self.document.get("lines"):
             messagebox.showwarning("PDF", "Aucune ligne de facture à exporter.")
             return
 
-        total = sum(_to_float(line.get("total_price", 0)) for line in self.document.get("lines", []))
+        total = sum(
+            _to_float(line.get("total_price", 0))
+            for line in self.document.get("lines", [])
+        )
         invoice_number = f"FAC-{self.client.get('ref_client', 'CLIENT')}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
         items = [
             {

@@ -2,7 +2,6 @@
 
 from copy import deepcopy
 
-
 CATEGORY_HOTEL = "Hébergement"
 CATEGORY_RESTAURATION = "Restauration"
 CATEGORY_TRANSPORT = "Transport"
@@ -81,7 +80,9 @@ def _line(
         "designation": designation,
         "quantity": quantity,
         "unit": "unité",
-        "cost_unit": cost_unit if cost_unit > 0 else (cost_total / quantity if quantity else 0.0),
+        "cost_unit": (
+            cost_unit if cost_unit > 0 else (cost_total / quantity if quantity else 0.0)
+        ),
         "cost_total": cost_total,
         "margin_pct": margin_pct,
         "margin_editable": bool(margin_editable),
@@ -150,7 +151,9 @@ def build_client_quote(client, source_rows=None):
         lines.append(
             _line(
                 CATEGORY_HOTEL,
-                f"{_safe_strip(row.get('hotel'))} - {_safe_strip(row.get('ville'))}".strip(" -"),
+                f"{_safe_strip(row.get('hotel'))} - {_safe_strip(row.get('ville'))}".strip(
+                    " -"
+                ),
                 row.get("nuits", 1),
                 row.get("prix_unitaire", 0),
                 row.get("depense", 0),
@@ -165,7 +168,9 @@ def build_client_quote(client, source_rows=None):
         lines.append(
             _line(
                 CATEGORY_RESTAURATION,
-                f"{_safe_strip(row.get('hotel'))} - {_safe_strip(row.get('forfait'))}".strip(" -"),
+                f"{_safe_strip(row.get('hotel'))} - {_safe_strip(row.get('forfait'))}".strip(
+                    " -"
+                ),
                 row.get("nuits", 1),
                 row.get("prix_unitaire", 0),
                 total,
@@ -180,7 +185,9 @@ def build_client_quote(client, source_rows=None):
         lines.append(
             _line(
                 CATEGORY_TRANSPORT,
-                f"{_safe_strip(row.get('depart'))} -> {_safe_strip(row.get('arrivee'))} - {_safe_strip(row.get('type_voiture'))}".strip(" -"),
+                f"{_safe_strip(row.get('depart'))} -> {_safe_strip(row.get('arrivee'))} - {_safe_strip(row.get('type_voiture'))}".strip(
+                    " -"
+                ),
                 row.get("nb_vehicules", 1),
                 total,
                 total,
@@ -199,7 +206,9 @@ def build_client_quote(client, source_rows=None):
         lines.append(
             _line(
                 CATEGORY_AIR_TICKET,
-                f"{_safe_strip(row.get('compagnie'))} - {_safe_strip(row.get('ville_depart'))} -> {_safe_strip(row.get('ville_arrivee'))}".strip(" -"),
+                f"{_safe_strip(row.get('compagnie'))} - {_safe_strip(row.get('ville_depart'))} -> {_safe_strip(row.get('ville_arrivee'))}".strip(
+                    " -"
+                ),
                 1,
                 cost_total,
                 cost_total,
@@ -212,11 +221,15 @@ def build_client_quote(client, source_rows=None):
     for row in rows.get("visite_excursion", []):
         quantity = row.get("Quantité", 1)
         cost_unit = row.get("Montant", 0)
-        cost_total = row.get("Total", 0) or (_to_float(cost_unit) * max(1, _to_int(quantity, 1)))
+        cost_total = row.get("Total", 0) or (
+            _to_float(cost_unit) * max(1, _to_int(quantity, 1))
+        )
         lines.append(
             _line(
                 CATEGORY_VISIT,
-                f"{_safe_strip(row.get('Prestation'))} - {_safe_strip(row.get('Désignation'))}".strip(" -"),
+                f"{_safe_strip(row.get('Prestation'))} - {_safe_strip(row.get('Désignation'))}".strip(
+                    " -"
+                ),
                 quantity,
                 cost_unit,
                 cost_total,
@@ -230,7 +243,9 @@ def build_client_quote(client, source_rows=None):
         lines.append(
             _line(
                 CATEGORY_COLLECTIVE,
-                f"{_safe_strip(row.get('prestataire'))} - {_safe_strip(row.get('designation'))}".strip(" -"),
+                f"{_safe_strip(row.get('prestataire'))} - {_safe_strip(row.get('designation'))}".strip(
+                    " -"
+                ),
                 row.get("quantite", 1),
                 row.get("prix_unitaire", 0),
                 row.get("depense", 0),

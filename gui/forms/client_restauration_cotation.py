@@ -43,11 +43,11 @@ from utils.validators import convert_currency, get_exchange_rates
 
 # Clés repas : (clé interne, libellé court, libellé complet)
 _MEAL_TYPES = [
-    ("petit_dejeuner", "PDJ",             "Petit-déjeuner"),
-    ("dejeuner",       "DJ",              "Déjeuner"),
-    ("diner",          "DR",              "Dîner"),
-    ("repas_guide",    "Repas guide",     "Repas guide"),
-    ("repas_chauffeur","Repas chauffeur", "Repas chauffeur"),
+    ("petit_dejeuner", "PDJ", "Petit-déjeuner"),
+    ("dejeuner", "DJ", "Déjeuner"),
+    ("diner", "DR", "Dîner"),
+    ("repas_guide", "Repas guide", "Repas guide"),
+    ("repas_chauffeur", "Repas chauffeur", "Repas chauffeur"),
 ]
 
 # Repas pouvant être marqués "Gratuit" (inclus dans le prix chambre)
@@ -55,24 +55,35 @@ _GRATUIT_ALLOWED = {"petit_dejeuner", "dejeuner", "diner"}
 
 # Repas inclus selon le forfait
 _FORFAIT_MEALS: dict = {
-    "Sans restauration":   [],
-    "Petit déjeuner":      ["petit_dejeuner"],
-    "Demi-pension":        ["petit_dejeuner", "diner"],
-    "Pension complète":    ["petit_dejeuner", "dejeuner", "diner"],
-    "All inclusive soft":  ["petit_dejeuner", "dejeuner", "diner"],
-    "All inclusive":       ["petit_dejeuner", "dejeuner", "diner",
-                            "repas_guide", "repas_chauffeur"],
-    "Ultra all inclusive": ["petit_dejeuner", "dejeuner", "diner",
-                            "repas_guide", "repas_chauffeur"],
+    "Sans restauration": [],
+    "Petit déjeuner": ["petit_dejeuner"],
+    "Demi-pension": ["petit_dejeuner", "diner"],
+    "Pension complète": ["petit_dejeuner", "dejeuner", "diner"],
+    "All inclusive soft": ["petit_dejeuner", "dejeuner", "diner"],
+    "All inclusive": [
+        "petit_dejeuner",
+        "dejeuner",
+        "diner",
+        "repas_guide",
+        "repas_chauffeur",
+    ],
+    "Ultra all inclusive": [
+        "petit_dejeuner",
+        "dejeuner",
+        "diner",
+        "repas_guide",
+        "repas_chauffeur",
+    ],
 }
 
 _HOVER_GREEN = "#0A6870"
-_HOVER_BLUE  = "#0B6080"
-_HOVER_RED   = "#A82020"
-_HOVER_GREY  = "#9EA7AA"
+_HOVER_BLUE = "#0B6080"
+_HOVER_RED = "#A82020"
+_HOVER_GREY = "#9EA7AA"
 
 
 # ── Utilitaires ───────────────────────────────────────────────────────────────
+
 
 def _normalize(name: str) -> str:
     if not name:
@@ -124,46 +135,49 @@ def _build_meal_summary(meal_prices: dict) -> str:
     return ", ".join(parts) if parts else "—"
 
 
-def _make_row(ville="", nuits="", hotel="", nb_pax="",
-              forfait="", meal_prices=None) -> dict:
+def _make_row(
+    ville="", nuits="", hotel="", nb_pax="", forfait="", meal_prices=None
+) -> dict:
     if meal_prices is None:
-        meal_prices = {mk: {"count": 0, "price": 0.0, "gratuit": False}
-                       for mk, _, _ in _MEAL_TYPES}
-    prix  = _compute_prix_unitaire(meal_prices)
-    n     = _to_float(nuits, 1.0)
+        meal_prices = {
+            mk: {"count": 0, "price": 0.0, "gratuit": False} for mk, _, _ in _MEAL_TYPES
+        }
+    prix = _compute_prix_unitaire(meal_prices)
+    n = _to_float(nuits, 1.0)
     total = prix * n
     return {
-        "ville":         ville,
-        "nuits":         nuits,
-        "hotel":         hotel,
-        "nb_pax":        nb_pax,
-        "forfait":       forfait,
-        "meal_prices":   meal_prices,
+        "ville": ville,
+        "nuits": nuits,
+        "hotel": hotel,
+        "nb_pax": nb_pax,
+        "forfait": forfait,
+        "meal_prices": meal_prices,
         "prix_unitaire": prix,
-        "total":         total,
+        "total": total,
     }
 
 
 # ── Classe principale ─────────────────────────────────────────────────────────
 
+
 class ClientRestaurationCotation:
     """Tableau de cotation restauration par hôtel/ville pour un client donné."""
 
     _COLS = [
-        ("ville",         "Ville",          130),
-        ("nuits",         "Nuits",           50),
-        ("hotel",         "Hôtel",          180),
-        ("nb_pax",        "Nb pax",          55),
-        ("forfait",       "Forfait",        145),
-        ("repas",         "Repas inclus",   180),
-        ("prix_unitaire", "Prix unitaire",  115),
-        ("total",         "Total",          115),
+        ("ville", "Ville", 130),
+        ("nuits", "Nuits", 50),
+        ("hotel", "Hôtel", 180),
+        ("nb_pax", "Nb pax", 55),
+        ("forfait", "Forfait", 145),
+        ("repas", "Repas inclus", 180),
+        ("prix_unitaire", "Prix unitaire", 115),
+        ("total", "Total", 115),
     ]
 
     def __init__(self, parent: tk.Widget, client: dict, on_back=None, embedded=False):
-        self.parent   = parent
-        self.client   = client
-        self.on_back  = on_back
+        self.parent = parent
+        self.client = client
+        self.on_back = on_back
         self.embedded = embedded
         self._rows: list = []
 
@@ -174,10 +188,10 @@ class ClientRestaurationCotation:
         self._hotels_by_city: dict = {}
         seen: set = set()
         for h in raw_hotels:
-            nom  = (h.get("nom") or "").strip()
+            nom = (h.get("nom") or "").strip()
             lieu = (h.get("lieu") or "").strip()
-            cat  = (h.get("categorie") or "").strip()
-            lbl  = f"{nom} — {lieu}" + (f" ({cat})" if cat else "")
+            cat = (h.get("categorie") or "").strip()
+            lbl = f"{nom} — {lieu}" + (f" ({cat})" if cat else "")
             if lbl not in seen:
                 seen.add(lbl)
                 self._hotel_labels.append(lbl)
@@ -201,36 +215,49 @@ class ClientRestaurationCotation:
     # ── Construction de l'interface ────────────────────────────────────────────
 
     def _build_ui(self):
-        client  = self.client
-        nom     = client.get("nom", "")
-        prenom  = client.get("prenom", "")
+        client = self.client
+        nom = client.get("nom", "")
+        prenom = client.get("prenom", "")
         dossier = client.get("numero_dossier", "")
-        pax     = str(client.get("nombre_participants") or client.get("nombre_adultes") or "")
-        sejour  = str(client.get("duree_sejour") or "")
+        pax = str(
+            client.get("nombre_participants") or client.get("nombre_adultes") or ""
+        )
+        sejour = str(client.get("duree_sejour") or "")
 
         # ── Mode page complète (non embarqué) ─────────────────────────────────
         if not self.embedded:
             tk.Label(
                 self.parent,
                 text="COTATION RESTAURATION",
-                font=TITLE_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR,
+                font=TITLE_FONT,
+                fg=TEXT_COLOR,
+                bg=MAIN_BG_COLOR,
             ).pack(pady=(20, 4))
 
             client_name = f"{prenom} {nom}".strip() or "—"
             tk.Label(
                 self.parent,
-                text="Client : " + client_name + (f"   |   Dossier : {dossier}" if dossier else ""),
-                font=ENTRY_FONT, fg=MUTED_TEXT_COLOR, bg=MAIN_BG_COLOR,
+                text="Client : "
+                + client_name
+                + (f"   |   Dossier : {dossier}" if dossier else ""),
+                font=ENTRY_FONT,
+                fg=MUTED_TEXT_COLOR,
+                bg=MAIN_BG_COLOR,
             ).pack(pady=(0, 2))
 
             if self.on_back:
                 back_bar = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
                 back_bar.pack(fill="x", padx=20, pady=(4, 0))
                 ctk.CTkButton(
-                    back_bar, text="⬅  Retour à l'accueil",
+                    back_bar,
+                    text="⬅  Retour à l'accueil",
                     command=self.on_back,
-                    fg_color=BUTTON_BLUE, hover_color=_HOVER_BLUE, text_color="white",
-                    font=BUTTON_FONT, corner_radius=8, cursor="hand2",
+                    fg_color=BUTTON_BLUE,
+                    hover_color=_HOVER_BLUE,
+                    text_color="white",
+                    font=BUTTON_FONT,
+                    corner_radius=8,
+                    cursor="hand2",
                 ).pack(side="left")
 
             root = tk.Frame(self.parent, bg=MAIN_BG_COLOR)
@@ -240,61 +267,99 @@ class ClientRestaurationCotation:
             info_card = tk.Frame(root, bg=PANEL_BG_COLOR)
             info_card.pack(fill="x", pady=(0, 10))
             tk.Label(
-                info_card, text="Informations client",
-                font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+                info_card,
+                text="Informations client",
+                font=LABEL_FONT,
+                fg=TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
             ).pack(anchor="w", padx=12, pady=(8, 2))
             info_inner = tk.Frame(info_card, bg=PANEL_BG_COLOR)
             info_inner.pack(fill="x", padx=12, pady=(0, 8))
-            for col_i, (lbl_text, val_text) in enumerate([
-                ("Participants :", pax or "—"),
-                ("Durée séjour :", f"{sejour} j" if sejour else "—"),
-                ("Formule :", str(client.get("restauration") or "—")),
-            ]):
-                tk.Label(info_inner, text=lbl_text,
-                         font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
-                         ).grid(row=0, column=col_i * 2,
-                                sticky="w", padx=(0 if col_i == 0 else 20, 4), pady=4)
-                tk.Label(info_inner, text=val_text,
-                         font=ENTRY_FONT, fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR,
-                         ).grid(row=0, column=col_i * 2 + 1, sticky="w", pady=4)
+            for col_i, (lbl_text, val_text) in enumerate(
+                [
+                    ("Participants :", pax or "—"),
+                    ("Durée séjour :", f"{sejour} j" if sejour else "—"),
+                    ("Formule :", str(client.get("restauration") or "—")),
+                ]
+            ):
+                tk.Label(
+                    info_inner,
+                    text=lbl_text,
+                    font=LABEL_FONT,
+                    fg=TEXT_COLOR,
+                    bg=PANEL_BG_COLOR,
+                ).grid(
+                    row=0,
+                    column=col_i * 2,
+                    sticky="w",
+                    padx=(0 if col_i == 0 else 20, 4),
+                    pady=4,
+                )
+                tk.Label(
+                    info_inner,
+                    text=val_text,
+                    font=ENTRY_FONT,
+                    fg=ACCENT_TEXT_COLOR,
+                    bg=PANEL_BG_COLOR,
+                ).grid(row=0, column=col_i * 2 + 1, sticky="w", pady=4)
 
             container = root
-            btn_bg    = MAIN_BG_COLOR
+            btn_bg = MAIN_BG_COLOR
         else:
             # ── Mode embarqué ──────────────────────────────────────────────────
             container = self.parent
-            btn_bg    = PANEL_BG_COLOR
+            btn_bg = PANEL_BG_COLOR
 
         # ── Barre d'actions ────────────────────────────────────────────────────
         action_bar = tk.Frame(container, bg=btn_bg)
         action_bar.pack(fill="x", pady=(0, 6))
 
         ctk.CTkButton(
-            action_bar, text="＋  Ajouter une ligne",
+            action_bar,
+            text="＋  Ajouter une ligne",
             command=self._add_row_dialog,
-            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN, text_color="white",
-            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
+            fg_color=BUTTON_GREEN,
+            hover_color=_HOVER_GREEN,
+            text_color="white",
+            font=BUTTON_FONT,
+            corner_radius=8,
+            cursor="hand2",
         ).pack(side="left", padx=(0, 6))
 
         ctk.CTkButton(
-            action_bar, text="✏️  Modifier la ligne",
+            action_bar,
+            text="✏️  Modifier la ligne",
             command=self._edit_selected,
-            fg_color=BUTTON_BLUE, hover_color=_HOVER_BLUE, text_color="white",
-            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
+            fg_color=BUTTON_BLUE,
+            hover_color=_HOVER_BLUE,
+            text_color="white",
+            font=BUTTON_FONT,
+            corner_radius=8,
+            cursor="hand2",
         ).pack(side="left", padx=(0, 6))
 
         ctk.CTkButton(
-            action_bar, text="🗑️  Supprimer la ligne",
+            action_bar,
+            text="🗑️  Supprimer la ligne",
             command=self._delete_selected,
-            fg_color=BUTTON_RED, hover_color=_HOVER_RED, text_color="white",
-            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
+            fg_color=BUTTON_RED,
+            hover_color=_HOVER_RED,
+            text_color="white",
+            font=BUTTON_FONT,
+            corner_radius=8,
+            cursor="hand2",
         ).pack(side="left")
 
         ctk.CTkButton(
-            action_bar, text="💾  Sauvegarder",
+            action_bar,
+            text="💾  Sauvegarder",
             command=self._save_to_excel,
-            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN, text_color="white",
-            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
+            fg_color=BUTTON_GREEN,
+            hover_color=_HOVER_GREEN,
+            text_color="white",
+            font=BUTTON_FONT,
+            corner_radius=8,
+            cursor="hand2",
         ).pack(side="right")
 
         # ── Tableau ────────────────────────────────────────────────────────────
@@ -306,23 +371,30 @@ class ClientRestaurationCotation:
         style = ttk.Style()
         style.configure(
             "Rest.Treeview",
-            background=INPUT_BG_COLOR, foreground=TEXT_COLOR,
-            fieldbackground=INPUT_BG_COLOR, rowheight=30,
+            background=INPUT_BG_COLOR,
+            foreground=TEXT_COLOR,
+            fieldbackground=INPUT_BG_COLOR,
+            rowheight=30,
         )
         style.configure("Rest.Treeview.Heading", font=LABEL_FONT)
         style.map("Rest.Treeview", background=[("selected", BUTTON_BLUE)])
 
         col_ids = [c[0] for c in self._COLS]
         self._tree = ttk.Treeview(
-            table_inner, columns=col_ids, show="headings",
-            height=10, style="Rest.Treeview",
+            table_inner,
+            columns=col_ids,
+            show="headings",
+            height=10,
+            style="Rest.Treeview",
         )
         for key, heading, width in self._COLS:
             self._tree.heading(key, text=heading)
-            anchor = "e" if key in ("nuits", "nb_pax", "prix_unitaire", "total") else "w"
+            anchor = (
+                "e" if key in ("nuits", "nb_pax", "prix_unitaire", "total") else "w"
+            )
             self._tree.column(key, width=width, anchor=anchor, stretch=False)
 
-        vsb = ttk.Scrollbar(table_inner, orient="vertical",   command=self._tree.yview)
+        vsb = ttk.Scrollbar(table_inner, orient="vertical", command=self._tree.yview)
         hsb = ttk.Scrollbar(table_inner, orient="horizontal", command=self._tree.xview)
         self._tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
         self._tree.grid(row=0, column=0, sticky="nsew")
@@ -331,7 +403,7 @@ class ClientRestaurationCotation:
         table_inner.grid_rowconfigure(0, weight=1)
         table_inner.grid_columnconfigure(0, weight=1)
         self._tree.bind("<Double-1>", lambda e: self._edit_selected())
-        self._tree.tag_configure("odd",  background="#E4F2F6")
+        self._tree.tag_configure("odd", background="#E4F2F6")
         self._tree.tag_configure("even", background=INPUT_BG_COLOR)
 
         # ── Totaux ─────────────────────────────────────────────────────────────
@@ -341,13 +413,19 @@ class ClientRestaurationCotation:
         totals_inner.pack(fill="x", padx=12, pady=(4, 8))
 
         tk.Label(
-            totals_inner, text="Total restauration :",
-            font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+            totals_inner,
+            text="Total restauration :",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
         ).grid(row=0, column=0, sticky="w", padx=(0, 6), pady=4)
 
         self._lbl_total = tk.Label(
-            totals_inner, text="0.00",
-            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=PANEL_BG_COLOR,
+            totals_inner,
+            text="0.00",
+            font=LABEL_FONT,
+            fg=ACCENT_TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
         )
         self._lbl_total.grid(row=0, column=1, sticky="w", pady=4)
 
@@ -360,22 +438,27 @@ class ClientRestaurationCotation:
             return
 
         hotel_rows = load_client_hotel_cotation(self.client)
-        pax = str(self.client.get("nombre_participants") or
-                  self.client.get("nombre_adultes") or "")
+        pax = str(
+            self.client.get("nombre_participants")
+            or self.client.get("nombre_adultes")
+            or ""
+        )
         forfait_client = str(self.client.get("restauration") or "")
 
         if hotel_rows:
             for hr in hotel_rows:
-                hotel_lbl  = hr.get("hotel", "")
+                hotel_lbl = hr.get("hotel", "")
                 meal_prices = self._default_meal_prices(hotel_lbl, pax, forfait_client)
-                self._rows.append(_make_row(
-                    ville       = hr.get("ville", ""),
-                    nuits       = hr.get("nuits", ""),
-                    hotel       = hotel_lbl,
-                    nb_pax      = hr.get("nb_pax", pax),
-                    forfait     = forfait_client,
-                    meal_prices = meal_prices,
-                ))
+                self._rows.append(
+                    _make_row(
+                        ville=hr.get("ville", ""),
+                        nuits=hr.get("nuits", ""),
+                        hotel=hotel_lbl,
+                        nb_pax=hr.get("nb_pax", pax),
+                        forfait=forfait_client,
+                        meal_prices=meal_prices,
+                    )
+                )
         else:
             self._rows.append(_make_row(nb_pax=pax, forfait=forfait_client))
 
@@ -383,7 +466,7 @@ class ClientRestaurationCotation:
         """Construit meal_prices depuis la BD hôtels selon le forfait."""
         h = self._hotels_by_label.get(hotel_label)
         pax_count = _to_int(pax, 0)
-        included  = _FORFAIT_MEALS.get(forfait, [])
+        included = _FORFAIT_MEALS.get(forfait, [])
         mp = {}
         for mk, _, _ in _MEAL_TYPES:
             price = 0.0
@@ -392,7 +475,9 @@ class ClientRestaurationCotation:
                 unite = (h.get("unite") or "MGA").strip().upper()
                 if raw_price and unite not in ("MGA", "ARIARY", "AR", ""):
                     try:
-                        raw_price = convert_currency(float(raw_price), unite, "MGA", self._rates)
+                        raw_price = convert_currency(
+                            float(raw_price), unite, "MGA", self._rates
+                        )
                     except Exception:
                         pass
                 price = float(raw_price)
@@ -436,19 +521,25 @@ class ClientRestaurationCotation:
         self._tree.delete(*self._tree.get_children())
         for i, rd in enumerate(self._rows):
             repas_str = _build_meal_summary(rd["meal_prices"])
-            prix  = rd["prix_unitaire"]
+            prix = rd["prix_unitaire"]
             total = rd["total"]
-            tag   = "odd" if i % 2 else "even"
-            self._tree.insert("", "end", iid=str(i), values=(
-                rd["ville"],
-                rd["nuits"],
-                rd["hotel"],
-                rd["nb_pax"],
-                rd.get("forfait", ""),
-                repas_str,
-                _fmt(prix)  if prix  else "",
-                _fmt(total) if total else "",
-            ), tags=(tag,))
+            tag = "odd" if i % 2 else "even"
+            self._tree.insert(
+                "",
+                "end",
+                iid=str(i),
+                values=(
+                    rd["ville"],
+                    rd["nuits"],
+                    rd["hotel"],
+                    rd["nb_pax"],
+                    rd.get("forfait", ""),
+                    repas_str,
+                    _fmt(prix) if prix else "",
+                    _fmt(total) if total else "",
+                ),
+                tags=(tag,),
+            )
 
     def _refresh_totals(self):
         self._lbl_total.configure(text=_fmt(sum(r["total"] for r in self._rows)))
@@ -457,7 +548,9 @@ class ClientRestaurationCotation:
 
     def _save_to_excel(self):
         if not self._rows:
-            messagebox.showwarning("Aucune donnée", "Le tableau est vide. Rien à sauvegarder.")
+            messagebox.showwarning(
+                "Aucune donnée", "Le tableau est vide. Rien à sauvegarder."
+            )
             return
         result = save_client_restauration_cotation_to_excel(self.client, self._rows)
         if result > 0:
@@ -480,22 +573,29 @@ class ClientRestaurationCotation:
     # ── Actions ────────────────────────────────────────────────────────────────
 
     def _add_row_dialog(self):
-        pax     = str(self.client.get("nombre_participants") or
-                      self.client.get("nombre_adultes") or "")
+        pax = str(
+            self.client.get("nombre_participants")
+            or self.client.get("nombre_adultes")
+            or ""
+        )
         forfait = str(self.client.get("restauration") or "")
         self._open_row_dialog(_make_row(nb_pax=pax, forfait=forfait), row_index=None)
 
     def _edit_selected(self):
         sel = self._tree.selection()
         if not sel:
-            messagebox.showwarning("Aucune sélection", "Sélectionnez une ligne à modifier.")
+            messagebox.showwarning(
+                "Aucune sélection", "Sélectionnez une ligne à modifier."
+            )
             return
         self._open_row_dialog(self._rows[int(sel[0])], row_index=int(sel[0]))
 
     def _delete_selected(self):
         sel = self._tree.selection()
         if not sel:
-            messagebox.showwarning("Aucune sélection", "Sélectionnez une ligne à supprimer.")
+            messagebox.showwarning(
+                "Aucune sélection", "Sélectionnez une ligne à supprimer."
+            )
             return
         if not messagebox.askyesno("Supprimer", "Supprimer la ligne sélectionnée ?"):
             return
@@ -514,16 +614,16 @@ class ClientRestaurationCotation:
         win.after(0, lambda: [win.lift(), win.focus_set()])
 
         # ── Variables ──────────────────────────────────────────────────────────
-        v_ville   = tk.StringVar(value=row["ville"])
-        v_nuits   = tk.StringVar(value=row["nuits"])
-        v_hotel   = tk.StringVar(value=row["hotel"])
-        v_pax     = tk.StringVar(value=row["nb_pax"])
+        v_ville = tk.StringVar(value=row["ville"])
+        v_nuits = tk.StringVar(value=row["nuits"])
+        v_hotel = tk.StringVar(value=row["hotel"])
+        v_pax = tk.StringVar(value=row["nb_pax"])
         v_forfait = tk.StringVar(value=row.get("forfait", ""))
 
         local_mp: dict = {
             mk: {
-                "count":  _to_int(row["meal_prices"].get(mk, {}).get("count", 0)),
-                "price":  _to_float(row["meal_prices"].get(mk, {}).get("price", 0)),
+                "count": _to_int(row["meal_prices"].get(mk, {}).get("count", 0)),
+                "price": _to_float(row["meal_prices"].get(mk, {}).get("price", 0)),
                 "gratuit": bool(row["meal_prices"].get(mk, {}).get("gratuit", False)),
             }
             for mk, _, _ in _MEAL_TYPES
@@ -531,8 +631,10 @@ class ClientRestaurationCotation:
 
         mp_vars: dict = {
             mk: {
-                "count":  tk.StringVar(value=str(local_mp[mk]["count"])),
-                "price":  tk.StringVar(value=str(local_mp[mk]["price"]) if local_mp[mk]["price"] else ""),
+                "count": tk.StringVar(value=str(local_mp[mk]["count"])),
+                "price": tk.StringVar(
+                    value=str(local_mp[mk]["price"]) if local_mp[mk]["price"] else ""
+                ),
                 "gratuit": tk.BooleanVar(value=local_mp[mk]["gratuit"]),
             }
             for mk, _, _ in _MEAL_TYPES
@@ -546,16 +648,25 @@ class ClientRestaurationCotation:
 
         def _lbl(parent, text, r, c=0, span=1, bg=None):
             tk.Label(
-                parent, text=text,
-                font=LABEL_FONT, fg=TEXT_COLOR, bg=bg or SEC, anchor="w",
+                parent,
+                text=text,
+                font=LABEL_FONT,
+                fg=TEXT_COLOR,
+                bg=bg or SEC,
+                anchor="w",
             ).grid(row=r, column=c, columnspan=span, sticky="w", padx=(0, 10), pady=5)
 
         def _entry(parent, var, r, c=1, w=28, justify="left"):
             e = tk.Entry(
-                parent, textvariable=var,
-                font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
-                width=w, justify=justify,
-                insertbackground=TEXT_COLOR, relief="flat",
+                parent,
+                textvariable=var,
+                font=ENTRY_FONT,
+                bg=INPUT_BG_COLOR,
+                fg=TEXT_COLOR,
+                width=w,
+                justify=justify,
+                insertbackground=TEXT_COLOR,
+                relief="flat",
             )
             e.grid(row=r, column=c, sticky="ew", pady=5)
             return e
@@ -563,8 +674,13 @@ class ClientRestaurationCotation:
         def _make_section(title):
             card = tk.Frame(outer, bg=SEC)
             card.pack(fill="x", pady=(0, 10))
-            tk.Label(card, text=title, font=LABEL_FONT, fg=TEXT_COLOR, bg=SEC,
-                     ).pack(anchor="w", padx=10, pady=(8, 2))
+            tk.Label(
+                card,
+                text=title,
+                font=LABEL_FONT,
+                fg=TEXT_COLOR,
+                bg=SEC,
+            ).pack(anchor="w", padx=10, pady=(8, 2))
             inner = tk.Frame(card, bg=SEC)
             inner.pack(fill="x", padx=10, pady=(0, 8))
             return inner
@@ -580,14 +696,18 @@ class ClientRestaurationCotation:
 
         _lbl(s1, "Hôtel :", 2)
         combo_hotel = ttk.Combobox(
-            s1, textvariable=v_hotel,
+            s1,
+            textvariable=v_hotel,
             values=self._hotels_for_city(row["ville"]),
-            font=ENTRY_FONT, width=33, state="normal",
+            font=ENTRY_FONT,
+            width=33,
+            state="normal",
         )
         combo_hotel.grid(row=2, column=1, sticky="ew", pady=5)
 
-        lbl_devise = tk.Label(s1, text="", font=ENTRY_FONT,
-                              fg=ACCENT_TEXT_COLOR, bg=SEC, anchor="w")
+        lbl_devise = tk.Label(
+            s1, text="", font=ENTRY_FONT, fg=ACCENT_TEXT_COLOR, bg=SEC, anchor="w"
+        )
         lbl_devise.grid(row=2, column=2, sticky="w", padx=(8, 0), pady=5)
 
         _lbl(s1, "Nb pax :", 3)
@@ -595,9 +715,12 @@ class ClientRestaurationCotation:
 
         _lbl(s1, "Forfait :", 4)
         combo_forfait = ttk.Combobox(
-            s1, textvariable=v_forfait,
+            s1,
+            textvariable=v_forfait,
             values=[""] + list(RESTAURATIONS),
-            font=ENTRY_FONT, width=28, state="readonly",
+            font=ENTRY_FONT,
+            width=28,
+            state="readonly",
         )
         combo_forfait.grid(row=4, column=1, sticky="ew", pady=5)
 
@@ -605,34 +728,51 @@ class ClientRestaurationCotation:
         s2 = _make_section("Repas — détail par type")
 
         # En-têtes
-        for c_i, (hdr, w) in enumerate([
-            ("Type", 16), ("Nb personnes", 13), ("Prix / repas", 15),
-            ("Sous-total", 12), ("Gratuit", 7),
-        ]):
+        for c_i, (hdr, w) in enumerate(
+            [
+                ("Type", 16),
+                ("Nb personnes", 13),
+                ("Prix / repas", 15),
+                ("Sous-total", 12),
+                ("Gratuit", 7),
+            ]
+        ):
             tk.Label(
-                s2, text=hdr,
-                font=LABEL_FONT, fg=MUTED_TEXT_COLOR, bg=SEC,
-                width=w, anchor="center",
+                s2,
+                text=hdr,
+                font=LABEL_FONT,
+                fg=MUTED_TEXT_COLOR,
+                bg=SEC,
+                width=w,
+                anchor="center",
             ).grid(row=0, column=c_i, padx=4, pady=(0, 2))
 
         tk.Frame(s2, bg=MUTED_TEXT_COLOR, height=1).grid(
-            row=1, column=0, columnspan=5, sticky="ew", padx=2, pady=(0, 4),
+            row=1,
+            column=0,
+            columnspan=5,
+            sticky="ew",
+            padx=2,
+            pady=(0, 4),
         )
 
         subtotal_labels: dict = {}
-        price_entries:   dict = {}
+        price_entries: dict = {}
 
         def _update_subtotal(mk, *_):
             entry = mp_vars[mk]
-            count   = _to_int(entry["count"].get())
-            price   = _to_float(entry["price"].get())
+            count = _to_int(entry["count"].get())
+            price = _to_float(entry["price"].get())
             gratuit = entry["gratuit"].get()
             sub = 0.0 if gratuit else count * price
             if mk in subtotal_labels:
                 subtotal_labels[mk].configure(
                     text=_fmt(sub) if (sub or gratuit) else "0.00",
-                    fg=MUTED_TEXT_COLOR if gratuit else (
-                        ACCENT_TEXT_COLOR if sub > 0 else MUTED_TEXT_COLOR),
+                    fg=(
+                        MUTED_TEXT_COLOR
+                        if gratuit
+                        else (ACCENT_TEXT_COLOR if sub > 0 else MUTED_TEXT_COLOR)
+                    ),
                 )
             # Griser le champ prix si gratuit
             if mk in price_entries:
@@ -643,63 +783,108 @@ class ClientRestaurationCotation:
             _update_preview()
 
         for row_i, (mk, short, full) in enumerate(_MEAL_TYPES):
-            grid_r      = row_i + 2
+            grid_r = row_i + 2
             can_gratuit = mk in _GRATUIT_ALLOWED
 
-            tk.Label(s2, text=full, font=LABEL_FONT, fg=TEXT_COLOR,
-                     bg=SEC, width=16, anchor="w",
-                     ).grid(row=grid_r, column=0, padx=4, pady=3)
+            tk.Label(
+                s2,
+                text=full,
+                font=LABEL_FONT,
+                fg=TEXT_COLOR,
+                bg=SEC,
+                width=16,
+                anchor="w",
+            ).grid(row=grid_r, column=0, padx=4, pady=3)
 
             e_count = tk.Entry(
-                s2, textvariable=mp_vars[mk]["count"],
-                font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
-                width=13, justify="center", relief="flat",
+                s2,
+                textvariable=mp_vars[mk]["count"],
+                font=ENTRY_FONT,
+                bg=INPUT_BG_COLOR,
+                fg=TEXT_COLOR,
+                width=13,
+                justify="center",
+                relief="flat",
                 insertbackground=TEXT_COLOR,
             )
             e_count.grid(row=grid_r, column=1, padx=4, pady=3)
 
             e_price = tk.Entry(
-                s2, textvariable=mp_vars[mk]["price"],
-                font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
-                width=15, justify="right", relief="flat",
+                s2,
+                textvariable=mp_vars[mk]["price"],
+                font=ENTRY_FONT,
+                bg=INPUT_BG_COLOR,
+                fg=TEXT_COLOR,
+                width=15,
+                justify="right",
+                relief="flat",
                 insertbackground=TEXT_COLOR,
             )
             e_price.grid(row=grid_r, column=2, padx=4, pady=3)
             price_entries[mk] = e_price
 
-            lbl_sub = tk.Label(s2, text="0.00", font=ENTRY_FONT,
-                               fg=MUTED_TEXT_COLOR, bg=SEC, width=12, anchor="e")
+            lbl_sub = tk.Label(
+                s2,
+                text="0.00",
+                font=ENTRY_FONT,
+                fg=MUTED_TEXT_COLOR,
+                bg=SEC,
+                width=12,
+                anchor="e",
+            )
             lbl_sub.grid(row=grid_r, column=3, padx=4, pady=3)
             subtotal_labels[mk] = lbl_sub
 
             if can_gratuit:
                 chk = tk.Checkbutton(
-                    s2, text="",
+                    s2,
+                    text="",
                     variable=mp_vars[mk]["gratuit"],
-                    bg=SEC, activebackground=SEC,
+                    bg=SEC,
+                    activebackground=SEC,
                     selectcolor=BUTTON_GREEN,
                     command=lambda m=mk: _update_subtotal(m),
                 )
                 chk.grid(row=grid_r, column=4, padx=4, pady=3)
             else:
                 tk.Label(s2, text="", bg=SEC, width=7).grid(
-                    row=grid_r, column=4, padx=4, pady=3)
+                    row=grid_r, column=4, padx=4, pady=3
+                )
 
-            mp_vars[mk]["count"].trace_add("write", lambda *_, m=mk: _update_subtotal(m))
-            mp_vars[mk]["price"].trace_add("write", lambda *_, m=mk: _update_subtotal(m))
+            mp_vars[mk]["count"].trace_add(
+                "write", lambda *_, m=mk: _update_subtotal(m)
+            )
+            mp_vars[mk]["price"].trace_add(
+                "write", lambda *_, m=mk: _update_subtotal(m)
+            )
 
         # Séparateur + prix total
         sep_r = len(_MEAL_TYPES) + 2
         tk.Frame(s2, bg=MUTED_TEXT_COLOR, height=1).grid(
-            row=sep_r, column=0, columnspan=5, sticky="ew", padx=2, pady=(4, 2),
+            row=sep_r,
+            column=0,
+            columnspan=5,
+            sticky="ew",
+            padx=2,
+            pady=(4, 2),
         )
-        tk.Label(s2, text="Prix unitaire total :",
-                 font=LABEL_FONT, fg=TEXT_COLOR, bg=SEC,
-                 ).grid(row=sep_r + 1, column=2, columnspan=2, sticky="e", padx=(0, 4), pady=4)
+        tk.Label(
+            s2,
+            text="Prix unitaire total :",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=SEC,
+        ).grid(row=sep_r + 1, column=2, columnspan=2, sticky="e", padx=(0, 4), pady=4)
 
-        lbl_prix_total = tk.Label(s2, text="0.00",
-                                  font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=SEC,
-                                  width=12, anchor="e")
+        lbl_prix_total = tk.Label(
+            s2,
+            text="0.00",
+            font=LABEL_FONT,
+            fg=ACCENT_TEXT_COLOR,
+            bg=SEC,
+            width=12,
+            anchor="e",
+        )
         lbl_prix_total.grid(row=sep_r + 1, column=4, padx=4, pady=4)
 
         # ── Preview total ──────────────────────────────────────────────────────
@@ -707,15 +892,22 @@ class ClientRestaurationCotation:
         s3.pack(fill="x", pady=(0, 8))
 
         lbl_prev = tk.Label(
-            s3, text="Total : —",
-            font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=MAIN_BG_COLOR,
+            s3,
+            text="Total : —",
+            font=LABEL_FONT,
+            fg=ACCENT_TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
         )
         lbl_prev.pack(anchor="w")
 
         def _update_preview(*_):
-            prix  = sum(
-                (0.0 if mp_vars[mk]["gratuit"].get() else
-                 _to_int(mp_vars[mk]["count"].get()) * _to_float(mp_vars[mk]["price"].get()))
+            prix = sum(
+                (
+                    0.0
+                    if mp_vars[mk]["gratuit"].get()
+                    else _to_int(mp_vars[mk]["count"].get())
+                    * _to_float(mp_vars[mk]["price"].get())
+                )
                 for mk, _, _ in _MEAL_TYPES
             )
             nuits = _to_float(v_nuits.get(), 1.0)
@@ -729,7 +921,7 @@ class ClientRestaurationCotation:
 
         # ── Auto-remplissage depuis le forfait ─────────────────────────────────
         def _apply_forfait(*_):
-            forfait  = v_forfait.get()
+            forfait = v_forfait.get()
             included = _FORFAIT_MEALS.get(forfait, None)
             if included is None:
                 return
@@ -758,8 +950,11 @@ class ClientRestaurationCotation:
             if unite not in ("MGA", "ARIARY", "AR", ""):
                 rate = self._rates.get(unite)
                 lbl_devise.configure(
-                    text=(f"⚠ {unite} → MGA  (1 {unite} ≈ {rate:,.0f} Ar)" if rate
-                          else f"⚠ {unite} → MGA")
+                    text=(
+                        f"⚠ {unite} → MGA  (1 {unite} ≈ {rate:,.0f} Ar)"
+                        if rate
+                        else f"⚠ {unite} → MGA"
+                    )
                 )
             else:
                 lbl_devise.configure(text="")
@@ -785,19 +980,19 @@ class ClientRestaurationCotation:
         def _save():
             new_mp = {
                 mk: {
-                    "count":  _to_int(mp_vars[mk]["count"].get()),
-                    "price":  _to_float(mp_vars[mk]["price"].get()),
+                    "count": _to_int(mp_vars[mk]["count"].get()),
+                    "price": _to_float(mp_vars[mk]["price"].get()),
                     "gratuit": mp_vars[mk]["gratuit"].get(),
                 }
                 for mk, _, _ in _MEAL_TYPES
             }
             new_row = _make_row(
-                ville       = v_ville.get().strip(),
-                nuits       = v_nuits.get().strip(),
-                hotel       = v_hotel.get().strip(),
-                nb_pax      = v_pax.get().strip(),
-                forfait     = v_forfait.get().strip(),
-                meal_prices = new_mp,
+                ville=v_ville.get().strip(),
+                nuits=v_nuits.get().strip(),
+                hotel=v_hotel.get().strip(),
+                nb_pax=v_pax.get().strip(),
+                forfait=v_forfait.get().strip(),
+                meal_prices=new_mp,
             )
             if row_index is None:
                 self._rows.append(new_row)
@@ -808,17 +1003,27 @@ class ClientRestaurationCotation:
             win.destroy()
 
         ctk.CTkButton(
-            btn_bar, text="✔  Valider",
+            btn_bar,
+            text="✔  Valider",
             command=_save,
-            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN, text_color="white",
-            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
+            fg_color=BUTTON_GREEN,
+            hover_color=_HOVER_GREEN,
+            text_color="white",
+            font=BUTTON_FONT,
+            corner_radius=8,
+            cursor="hand2",
         ).pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
-            btn_bar, text="Annuler",
+            btn_bar,
+            text="Annuler",
             command=win.destroy,
-            fg_color="#9EA7AA", hover_color=_HOVER_GREY, text_color="white",
-            font=BUTTON_FONT, corner_radius=8, cursor="hand2",
+            fg_color="#9EA7AA",
+            hover_color=_HOVER_GREY,
+            text_color="white",
+            font=BUTTON_FONT,
+            corner_radius=8,
+            cursor="hand2",
         ).pack(side="left")
 
         # Centrer

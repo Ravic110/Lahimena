@@ -100,17 +100,17 @@ class ClientList:
         ).pack(side="left")
 
         self._STATUT_COLORS = {
-            "Tous":       None,
-            "En cours":   "#00BCD4",
-            "Accepté":    "#4CAF50",
+            "Tous": None,
+            "En cours": "#00BCD4",
+            "Accepté": "#4CAF50",
             "En circuit": "#FF9800",
-            "Annulé":     "#F44336",
+            "Annulé": "#F44336",
         }
         self._STATUT_ROW_BG = {
-            "En cours":   "#E0F7FA",
-            "Accepté":    "#E8F5E9",
+            "En cours": "#E0F7FA",
+            "Accepté": "#E8F5E9",
             "En circuit": "#FFF3E0",
-            "Annulé":     "#FFEBEE",
+            "Annulé": "#FFEBEE",
         }
 
         self.statut_filter_var = tk.StringVar(value="Tous")
@@ -249,17 +249,17 @@ class ClientList:
 
         # Configure columns
         column_headers = {
-            "statut":       "Statut",
-            "row":          "N°",
-            "timestamp":    "Date création",
-            "ref_client":   "Réf. Client",
-            "nom":          "Nom",
-            "telephone":    "Téléphone",
-            "email":        "Email",
-            "periode":      "Période",
-            "circuit":      "Circuit",
+            "statut": "Statut",
+            "row": "N°",
+            "timestamp": "Date création",
+            "ref_client": "Réf. Client",
+            "nom": "Nom",
+            "telephone": "Téléphone",
+            "email": "Email",
+            "periode": "Période",
+            "circuit": "Circuit",
             "date_arrivee": "Arrivée",
-            "date_depart":  "Départ",
+            "date_depart": "Départ",
             "duree_sejour": "Durée",
         }
 
@@ -267,15 +267,15 @@ class ClientList:
             self.tree.heading(col, text=column_headers[col])
             self.tree.column(col, width=100, minwidth=80)
 
-        self.tree.column("statut",      width=110, minwidth=90)
-        self.tree.column("row",         width=40,  minwidth=30)
-        self.tree.column("ref_client",  width=120, minwidth=100)
-        self.tree.column("nom",         width=160, minwidth=120)
-        self.tree.column("email",       width=180, minwidth=140)
-        self.tree.column("circuit",     width=180, minwidth=140)
-        self.tree.column("date_arrivee",width=100, minwidth=80)
+        self.tree.column("statut", width=110, minwidth=90)
+        self.tree.column("row", width=40, minwidth=30)
+        self.tree.column("ref_client", width=120, minwidth=100)
+        self.tree.column("nom", width=160, minwidth=120)
+        self.tree.column("email", width=180, minwidth=140)
+        self.tree.column("circuit", width=180, minwidth=140)
+        self.tree.column("date_arrivee", width=100, minwidth=80)
         self.tree.column("date_depart", width=100, minwidth=80)
-        self.tree.column("duree_sejour",width=70,  minwidth=50)
+        self.tree.column("duree_sejour", width=70, minwidth=50)
 
         # Color tags per statut
         for s, bg in self._STATUT_ROW_BG.items():
@@ -319,8 +319,13 @@ class ClientList:
             self.btn_reintegrer.config(state="normal" if is_annule else "disabled")
             self.btn_delete.config(state="normal")
         else:
-            for btn in (self.btn_voir, self.btn_edit, self.btn_annuler,
-                        self.btn_reintegrer, self.btn_delete):
+            for btn in (
+                self.btn_voir,
+                self.btn_edit,
+                self.btn_annuler,
+                self.btn_reintegrer,
+                self.btn_delete,
+            ):
                 btn.config(state="disabled")
 
     def _load_clients(self):
@@ -355,9 +360,7 @@ class ClientList:
                 client.get("date_depart", ""),
                 client.get("duree_sejour", ""),
             )
-            self.tree.insert(
-                "", "end", values=values, tags=(statut,)
-            )
+            self.tree.insert("", "end", values=values, tags=(statut,))
 
         # Update status label
         total_clients = len(self.clients)
@@ -375,9 +378,13 @@ class ClientList:
         statut_filter = self.statut_filter_var.get()
 
         self.filtered_clients = [
-            client for client in self.clients
+            client
+            for client in self.clients
             if (
-                (statut_filter == "Tous" or (client.get("statut") or "En cours") == statut_filter)
+                (
+                    statut_filter == "Tous"
+                    or (client.get("statut") or "En cours") == statut_filter
+                )
                 and (
                     not search_text
                     or search_text in client["nom"].lower()

@@ -15,13 +15,13 @@ from config import (
     BUTTON_FONT,
     BUTTON_GREEN,
     BUTTON_RED,
+    DEVIS_FOLDER,
     ENTRY_FONT,
     INPUT_BG_COLOR,
     LABEL_FONT,
     MAIN_BG_COLOR,
     TEXT_COLOR,
     TITLE_FONT,
-    DEVIS_FOLDER,
 )
 from utils.excel_handler import (
     load_all_clients,
@@ -82,7 +82,9 @@ class ClientQuotation:
         except Exception as e:
             logger.warning(f"Failed to load client info: {e}")
 
-        for ref, info in sorted(self.client_info_map.items(), key=lambda kv: kv[0].lower()):
+        for ref, info in sorted(
+            self.client_info_map.items(), key=lambda kv: kv[0].lower()
+        ):
             display = f"{ref} - {info.get('name', ref)}"
             self.clients.append(display)
             self.client_display_map[display] = ref
@@ -460,7 +462,9 @@ class ClientQuotation:
             self._update_totals(0, 0, 0, 0)
             return
 
-        currencies = sorted({line.get("currency") or "Ariary" for line in self.all_client_lines})
+        currencies = sorted(
+            {line.get("currency") or "Ariary" for line in self.all_client_lines}
+        )
         self.currency_combo["values"] = ["Toutes"] + currencies
         if len(currencies) == 1:
             self.currency_var.set(currencies[0])
@@ -475,7 +479,9 @@ class ClientQuotation:
             filtered = list(self.all_client_lines)
         else:
             filtered = [
-                q for q in self.all_client_lines if (q.get("currency") or "Ariary") == filter_value
+                q
+                for q in self.all_client_lines
+                if (q.get("currency") or "Ariary") == filter_value
             ]
 
         if not filtered:
@@ -500,8 +506,12 @@ class ClientQuotation:
 
         self.current_items = []
         for line in filtered:
-            qty = max(1, int(self._to_number(line.get("nights", line.get("quantity", 1)))))
-            total = float(self._to_number(line.get("total", line.get("total_price", 0))))
+            qty = max(
+                1, int(self._to_number(line.get("nights", line.get("quantity", 1))))
+            )
+            total = float(
+                self._to_number(line.get("total", line.get("total_price", 0)))
+            )
             unit = float(line.get("unit_price", 0)) or (total / qty if qty else 0)
             designation = str(line.get("designation") or "").strip()
             self.current_items.append(
@@ -521,12 +531,23 @@ class ClientQuotation:
             return ""
         text = str(value).strip().lower()
         for src, dst in (
-            ("é", "e"), ("è", "e"), ("ê", "e"), ("ë", "e"),
-            ("à", "a"), ("â", "a"), ("ä", "a"),
-            ("î", "i"), ("ï", "i"),
-            ("ô", "o"), ("ö", "o"),
-            ("ù", "u"), ("û", "u"), ("ü", "u"),
-            ("ç", "c"), ("_", " "), ("-", " "),
+            ("é", "e"),
+            ("è", "e"),
+            ("ê", "e"),
+            ("ë", "e"),
+            ("à", "a"),
+            ("â", "a"),
+            ("ä", "a"),
+            ("î", "i"),
+            ("ï", "i"),
+            ("ô", "o"),
+            ("ö", "o"),
+            ("ù", "u"),
+            ("û", "u"),
+            ("ü", "u"),
+            ("ç", "c"),
+            ("_", " "),
+            ("-", " "),
         ):
             text = text.replace(src, dst)
         return " ".join(text.split())
@@ -585,15 +606,45 @@ class ClientQuotation:
             )
 
         for row in self.collective_quotes:
-            row_id = self._normalize_key(self._find_value(row, ["ID_CLIENT", "id client", "ref client", "reference"], contains=True))
-            row_name = self._normalize_key(self._find_value(row, ["Nom", "nom client", "client"], contains=True))
+            row_id = self._normalize_key(
+                self._find_value(
+                    row,
+                    ["ID_CLIENT", "id client", "ref client", "reference"],
+                    contains=True,
+                )
+            )
+            row_name = self._normalize_key(
+                self._find_value(row, ["Nom", "nom client", "client"], contains=True)
+            )
             if client_ref_norm and row_id and row_id != client_ref_norm:
                 continue
-            if client_ref_norm and not row_id and client_name_norm and row_name and row_name not in client_name_norm:
+            if (
+                client_ref_norm
+                and not row_id
+                and client_name_norm
+                and row_name
+                and row_name not in client_name_norm
+            ):
                 continue
-            qty = max(1, int(self._to_number(self._find_value(row, ["Quantité", "quantite", "qte", "nombre"], contains=True) or 1)))
-            total = self._to_number(self._find_value(row, ["Total", "montant total"], contains=True))
-            unit = self._to_number(self._find_value(row, ["Montant", "prix unitaire"], contains=True))
+            qty = max(
+                1,
+                int(
+                    self._to_number(
+                        self._find_value(
+                            row,
+                            ["Quantité", "quantite", "qte", "nombre"],
+                            contains=True,
+                        )
+                        or 1
+                    )
+                ),
+            )
+            total = self._to_number(
+                self._find_value(row, ["Total", "montant total"], contains=True)
+            )
+            unit = self._to_number(
+                self._find_value(row, ["Montant", "prix unitaire"], contains=True)
+            )
             if total <= 0 and unit > 0:
                 total = unit * qty
             if unit <= 0 and qty > 0:
@@ -601,7 +652,9 @@ class ClientQuotation:
             if total <= 0:
                 continue
             presta = self._find_value(row, ["Prestataire"], contains=True)
-            design = self._find_value(row, ["Désignation", "designation", "description"], contains=True)
+            design = self._find_value(
+                row, ["Désignation", "designation", "description"], contains=True
+            )
             designation = f"Frais collectifs - {presta} - {design}".strip(" -")
             lines.append(
                 {
@@ -609,28 +662,51 @@ class ClientQuotation:
                     "nights": qty,
                     "unit_price": unit,
                     "total": total,
-                    "currency": self._find_value(row, ["Devise", "currency"], contains=True) or "Ariary",
+                    "currency": self._find_value(
+                        row, ["Devise", "currency"], contains=True
+                    )
+                    or "Ariary",
                 }
             )
 
         for row in self.transport_quotes:
-            row_id = self._normalize_key(self._find_value(row, ["ID_CLIENT", "id client", "ref client", "reference"], contains=True))
-            row_name = self._normalize_key(self._find_value(row, ["Nom", "nom client", "client"], contains=True))
+            row_id = self._normalize_key(
+                self._find_value(
+                    row,
+                    ["ID_CLIENT", "id client", "ref client", "reference"],
+                    contains=True,
+                )
+            )
+            row_name = self._normalize_key(
+                self._find_value(row, ["Nom", "nom client", "client"], contains=True)
+            )
             if client_ref_norm and row_id and row_id != client_ref_norm:
                 continue
-            if client_ref_norm and not row_id and client_name_norm and row_name and row_name not in client_name_norm:
+            if (
+                client_ref_norm
+                and not row_id
+                and client_name_norm
+                and row_name
+                and row_name not in client_name_norm
+            ):
                 continue
 
             total = 0.0
             for key, value in row.items():
                 nk = self._normalize_key(key)
-                if "budget" in nk or ("total" in nk and "km" not in nk) or "montant" in nk:
+                if (
+                    "budget" in nk
+                    or ("total" in nk and "km" not in nk)
+                    or "montant" in nk
+                ):
                     total = max(total, self._to_number(value))
             if total <= 0:
                 continue
             depart = self._find_value(row, ["ville depart", "depart"], contains=True)
             arrivee = self._find_value(row, ["ville arrivee", "arrivee"], contains=True)
-            vehicule = self._find_value(row, ["type voiture", "voiture", "transport"], contains=True)
+            vehicule = self._find_value(
+                row, ["type voiture", "voiture", "transport"], contains=True
+            )
             designation = f"Transport - {depart} > {arrivee} - {vehicule}".strip(" -")
             lines.append(
                 {
@@ -638,7 +714,10 @@ class ClientQuotation:
                     "nights": 1,
                     "unit_price": total,
                     "total": total,
-                    "currency": self._find_value(row, ["Devise", "currency"], contains=True) or "Ariary",
+                    "currency": self._find_value(
+                        row, ["Devise", "currency"], contains=True
+                    )
+                    or "Ariary",
                 }
             )
 
@@ -662,7 +741,9 @@ class ClientQuotation:
     def _edit_selected_line(self, event=None):
         selection = self.items_tree.selection()
         if not selection:
-            messagebox.showwarning("Ligne", "Veuillez sélectionner une ligne à modifier.")
+            messagebox.showwarning(
+                "Ligne", "Veuillez sélectionner une ligne à modifier."
+            )
             return
         idx = int(selection[0])
         if idx < 0 or idx >= len(self.current_items):
@@ -676,17 +757,48 @@ class ClientQuotation:
         win.transient(self.parent)
         win.after(0, lambda: [win.lift(), win.focus_set()])
 
-        tk.Label(win, text="Désignation:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).grid(row=0, column=0, sticky="w", padx=10, pady=8)
+        tk.Label(
+            win, text="Désignation:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR
+        ).grid(row=0, column=0, sticky="w", padx=10, pady=8)
         designation_var = tk.StringVar(value=str(item.get("designation", "")))
-        tk.Entry(win, textvariable=designation_var, font=ENTRY_FONT, width=40, bg=INPUT_BG_COLOR, fg=TEXT_COLOR).grid(row=0, column=1, padx=10, pady=8)
+        tk.Entry(
+            win,
+            textvariable=designation_var,
+            font=ENTRY_FONT,
+            width=40,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR,
+        ).grid(row=0, column=1, padx=10, pady=8)
 
-        tk.Label(win, text="Nuits/Quantité:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).grid(row=1, column=0, sticky="w", padx=10, pady=8)
+        tk.Label(
+            win,
+            text="Nuits/Quantité:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).grid(row=1, column=0, sticky="w", padx=10, pady=8)
         nights_var = tk.StringVar(value=str(int(item.get("nights", 1))))
-        tk.Entry(win, textvariable=nights_var, font=ENTRY_FONT, width=20, bg=INPUT_BG_COLOR, fg=TEXT_COLOR).grid(row=1, column=1, sticky="w", padx=10, pady=8)
+        tk.Entry(
+            win,
+            textvariable=nights_var,
+            font=ENTRY_FONT,
+            width=20,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR,
+        ).grid(row=1, column=1, sticky="w", padx=10, pady=8)
 
-        tk.Label(win, text="Prix unitaire:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).grid(row=2, column=0, sticky="w", padx=10, pady=8)
+        tk.Label(
+            win, text="Prix unitaire:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR
+        ).grid(row=2, column=0, sticky="w", padx=10, pady=8)
         unit_var = tk.StringVar(value=str(float(item.get("unit_price", 0))))
-        tk.Entry(win, textvariable=unit_var, font=ENTRY_FONT, width=20, bg=INPUT_BG_COLOR, fg=TEXT_COLOR).grid(row=2, column=1, sticky="w", padx=10, pady=8)
+        tk.Entry(
+            win,
+            textvariable=unit_var,
+            font=ENTRY_FONT,
+            width=20,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR,
+        ).grid(row=2, column=1, sticky="w", padx=10, pady=8)
 
         def apply_changes():
             qty = max(1, int(self._to_number(nights_var.get())))
@@ -703,13 +815,33 @@ class ClientQuotation:
 
         btns = tk.Frame(win, bg=MAIN_BG_COLOR)
         btns.grid(row=3, column=0, columnspan=2, pady=(8, 10))
-        tk.Button(btns, text="✅ Appliquer", command=apply_changes, bg=BUTTON_GREEN, fg="white", font=BUTTON_FONT, padx=10, pady=4).pack(side="left", padx=5)
-        tk.Button(btns, text="❌ Annuler", command=win.destroy, bg=BUTTON_RED, fg="white", font=BUTTON_FONT, padx=10, pady=4).pack(side="left", padx=5)
+        tk.Button(
+            btns,
+            text="✅ Appliquer",
+            command=apply_changes,
+            bg=BUTTON_GREEN,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=10,
+            pady=4,
+        ).pack(side="left", padx=5)
+        tk.Button(
+            btns,
+            text="❌ Annuler",
+            command=win.destroy,
+            bg=BUTTON_RED,
+            fg="white",
+            font=BUTTON_FONT,
+            padx=10,
+            pady=4,
+        ).pack(side="left", padx=5)
 
     def _remove_selected_line(self):
         selection = self.items_tree.selection()
         if not selection:
-            messagebox.showwarning("Ligne", "Veuillez sélectionner une ligne à supprimer.")
+            messagebox.showwarning(
+                "Ligne", "Veuillez sélectionner une ligne à supprimer."
+            )
             return
         idx = int(selection[0])
         if idx < 0 or idx >= len(self.current_items):
@@ -746,9 +878,7 @@ class ClientQuotation:
 
     def _update_totals(self, subtotal, margin_amount, tva_amount, total):
         currency = self.current_currency
-        self.subtotal_label.config(
-            text=f"Sous-total: {subtotal:,.2f} {currency}"
-        )
+        self.subtotal_label.config(text=f"Sous-total: {subtotal:,.2f} {currency}")
         self.margin_label.config(text=f"Marge: {margin_amount:,.2f} {currency}")
         self.tva_label.config(text=f"TVA: {tva_amount:,.2f} {currency}")
         self.total_label.config(text=f"TOTAL: {total:,.2f} {currency}")
@@ -790,7 +920,11 @@ class ClientQuotation:
         client_phone = self.phone_var.get().strip()
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        quote_number = f"DEVIS_CLIENT_{client_id}_{timestamp}" if client_id else f"DEVIS_CLIENT_{timestamp}"
+        quote_number = (
+            f"DEVIS_CLIENT_{client_id}_{timestamp}"
+            if client_id
+            else f"DEVIS_CLIENT_{timestamp}"
+        )
 
         subtotal = sum(item["total"] for item in self.current_items)
         margin_amount = subtotal * (margin_pct / 100)
@@ -821,9 +955,11 @@ class ClientQuotation:
         )
         try:
             from utils.activity_log import log_activity
+
             client_name = self.client_var.get().strip()
-            log_activity("create_quotation",
-                         f"Devis généré pour : {client_name} — {filename}")
+            log_activity(
+                "create_quotation", f"Devis généré pour : {client_name} — {filename}"
+            )
         except Exception:
             pass
 
@@ -889,8 +1025,8 @@ class ClientQuotation:
         )
         try:
             from utils.activity_log import log_activity
+
             client_name = self.client_var.get().strip()
-            log_activity("create_invoice",
-                         f"Facture générée pour : {client_name}")
+            log_activity("create_invoice", f"Facture générée pour : {client_name}")
         except Exception:
             pass

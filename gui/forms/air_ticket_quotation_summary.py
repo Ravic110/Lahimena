@@ -94,7 +94,20 @@ class AirTicketQuotationSummary:
             "observation",
         ]
 
-        normalized_map = {h: self._normalize(h).replace("é", "e").replace("è", "e").replace("ê", "e").replace("à", "a").replace("â", "a").replace("ô", "o").replace("ï", "i").replace("î", "i").replace("'", " ").replace("’", " ") for h in headers}
+        normalized_map = {
+            h: self._normalize(h)
+            .replace("é", "e")
+            .replace("è", "e")
+            .replace("ê", "e")
+            .replace("à", "a")
+            .replace("â", "a")
+            .replace("ô", "o")
+            .replace("ï", "i")
+            .replace("î", "i")
+            .replace("'", " ")
+            .replace("’", " ")
+            for h in headers
+        }
 
         ordered = []
         used = set()
@@ -176,7 +189,9 @@ class AirTicketQuotationSummary:
         top_controls = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
         top_controls.pack(fill="x", padx=8, pady=(0, 10))
 
-        tk.Label(top_controls, text="Vue:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).pack(side="left")
+        tk.Label(
+            top_controls, text="Vue:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR
+        ).pack(side="left")
         view_combo = ttk.Combobox(
             top_controls,
             textvariable=self.view_var,
@@ -188,7 +203,13 @@ class AirTicketQuotationSummary:
         view_combo.pack(side="left", padx=(8, 16))
         view_combo.bind("<<ComboboxSelected>>", self._refresh_display)
 
-        tk.Label(top_controls, text="Recherche:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).pack(side="left")
+        tk.Label(
+            top_controls,
+            text="Recherche:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).pack(side="left")
         search_entry = tk.Entry(
             top_controls,
             textvariable=self.search_var,
@@ -274,12 +295,16 @@ class AirTicketQuotationSummary:
 
     def _on_edit_clicked(self):
         if self.tree is None:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à modifier.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à modifier."
+            )
             return
 
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à modifier.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à modifier."
+            )
             return
 
         selected_item = selection[0]
@@ -288,7 +313,9 @@ class AirTicketQuotationSummary:
         except (TypeError, ValueError):
             return
 
-        selected_row = next((row for row in self.rows if row.get("row_number") == row_number), None)
+        selected_row = next(
+            (row for row in self.rows if row.get("row_number") == row_number), None
+        )
         if selected_row is None:
             return
 
@@ -297,12 +324,16 @@ class AirTicketQuotationSummary:
 
     def _on_delete_clicked(self):
         if self.tree is None:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à supprimer.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à supprimer."
+            )
             return
 
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à supprimer.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à supprimer."
+            )
             return
 
         confirm = messagebox.askyesno(
@@ -323,7 +354,10 @@ class AirTicketQuotationSummary:
             messagebox.showinfo("Succès", "Réservation supprimée avec succès.")
             self._on_refresh_clicked()
         else:
-            messagebox.showerror("Erreur", "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert.")
+            messagebox.showerror(
+                "Erreur",
+                "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert.",
+            )
 
     def _matches_query(self, row, query):
         if not query:
@@ -396,16 +430,26 @@ class AirTicketQuotationSummary:
             self.tree = None
             return
 
-        headers = self._ordered_headers([key for key in rows[0].keys() if key != "row_number"])
-        self.tree = ttk.Treeview(self.content_frame, columns=headers, show="headings", selectmode="browse")
+        headers = self._ordered_headers(
+            [key for key in rows[0].keys() if key != "row_number"]
+        )
+        self.tree = ttk.Treeview(
+            self.content_frame, columns=headers, show="headings", selectmode="browse"
+        )
 
         for header in headers:
             self.tree.heading(header, text=self._display_header(header))
             self.tree.column(header, width=150, anchor="w")
 
-        scrollbar_y = ttk.Scrollbar(self.content_frame, orient="vertical", command=self.tree.yview)
-        scrollbar_x = ttk.Scrollbar(self.content_frame, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+        scrollbar_y = ttk.Scrollbar(
+            self.content_frame, orient="vertical", command=self.tree.yview
+        )
+        scrollbar_x = ttk.Scrollbar(
+            self.content_frame, orient="horizontal", command=self.tree.xview
+        )
+        self.tree.configure(
+            yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set
+        )
 
         for row in rows:
             values = [row.get(header, "") for header in headers]
@@ -443,7 +487,9 @@ class AirTicketQuotationSummary:
             grouped.setdefault(key, []).append(row)
 
         canvas = tk.Canvas(self.content_frame, bg=MAIN_BG_COLOR, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(self.content_frame, orient="vertical", command=canvas.yview)
+        scrollbar = ttk.Scrollbar(
+            self.content_frame, orient="vertical", command=canvas.yview
+        )
         inner = tk.Frame(canvas, bg=MAIN_BG_COLOR)
 
         inner.bind(
@@ -466,7 +512,9 @@ class AirTicketQuotationSummary:
             )
             frame.pack(fill="x", padx=8, pady=6)
 
-            headers = self._ordered_headers([key for key in group_rows[0].keys() if key != "row_number"])
+            headers = self._ordered_headers(
+                [key for key in group_rows[0].keys() if key != "row_number"]
+            )
             for row in group_rows:
                 line = " | ".join(f"{h}: {row.get(h, '')}" for h in headers[:5])
                 tk.Label(

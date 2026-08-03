@@ -11,7 +11,10 @@ import pandas as pd
 
 from finances.tsarakonta.config import CONFIG
 from finances.tsarakonta.models.data import DataManager, PCGManager
-from finances.tsarakonta.utils.exports import export_treeview_to_excel, export_treeview_to_pdf
+from finances.tsarakonta.utils.exports import (
+    export_treeview_to_excel,
+    export_treeview_to_pdf,
+)
 
 from .settings import format_header_text, load_header_settings
 

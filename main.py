@@ -5,7 +5,7 @@ Main entry point for the application
 """
 
 import sys
-import tkinter as   _tk
+import tkinter as _tk
 from tkinter import messagebox, ttk
 
 import customtkinter as ctk
@@ -108,7 +108,11 @@ def _patch_customtkinter_trackers():
     def _cancel_scaling_after(window=None):
         after_id = getattr(ScalingTracker, "_lahimena_after_id", None)
         after_window = getattr(ScalingTracker, "_lahimena_after_window", None)
-        if after_id and after_window is not None and (window is None or after_window is window):
+        if (
+            after_id
+            and after_window is not None
+            and (window is None or after_window is window)
+        ):
             try:
                 after_window.after_cancel(after_id)
             except Exception:
@@ -222,7 +226,9 @@ def _patch_customtkinter_trackers():
 
 _patch_customtkinter_trackers()
 
-from config import (
+# Les imports suivants viennent volontairement apres le patch : importer gui.*
+# instancie des widgets CustomTkinter, qui doivent deja etre traces.
+from config import (  # noqa: E402
     APP_GEOMETRY,
     APP_TITLE,
     APPEARANCE_MODE,
@@ -235,9 +241,9 @@ from config import (
     MUTED_TEXT_COLOR,
     TEXT_COLOR,
 )
-from gui.main_content import MainContent
-from gui.sidebar import Sidebar
-from utils.logger import logger
+from gui.main_content import MainContent  # noqa: E402
+from gui.sidebar import Sidebar  # noqa: E402
+from utils.logger import logger  # noqa: E402
 
 
 def _launch_main_app(user):
@@ -268,24 +274,64 @@ def _launch_main_app(user):
         accent_hover = BUTTON_RED
         border = "#C9DDE3"
 
-        style.configure(".", background=bg_main, foreground=fg_main, fieldbackground=bg_input)
-        style.configure("TCombobox", foreground=fg_main, fieldbackground=bg_input,
-                        background=bg_input, bordercolor=border, lightcolor=border,
-                        darkcolor=border, arrowcolor=fg_muted)
-        style.map("TCombobox", fieldbackground=[("readonly", bg_input)],
-                  foreground=[("readonly", fg_main)])
-        style.configure("Treeview", background=bg_input, fieldbackground=bg_input,
-                        foreground=fg_main, bordercolor=border, rowheight=26)
-        style.map("Treeview", background=[("selected", accent)],
-                  foreground=[("selected", "#FFFFFF")])
-        style.configure("Treeview.Heading", background=bg_main, foreground=fg_main,
-                        bordercolor=border, relief="flat", font=("Poppins", 10, "bold"))
-        style.map("Treeview.Heading", background=[("active", accent_hover)],
-                  foreground=[("active", "#FFFFFF")])
-        style.configure("Vertical.TScrollbar", background=bg_input, troughcolor=bg_main,
-                        bordercolor=border, arrowcolor=fg_muted)
-        style.configure("Horizontal.TScrollbar", background=bg_input, troughcolor=bg_main,
-                        bordercolor=border, arrowcolor=fg_muted)
+        style.configure(
+            ".", background=bg_main, foreground=fg_main, fieldbackground=bg_input
+        )
+        style.configure(
+            "TCombobox",
+            foreground=fg_main,
+            fieldbackground=bg_input,
+            background=bg_input,
+            bordercolor=border,
+            lightcolor=border,
+            darkcolor=border,
+            arrowcolor=fg_muted,
+        )
+        style.map(
+            "TCombobox",
+            fieldbackground=[("readonly", bg_input)],
+            foreground=[("readonly", fg_main)],
+        )
+        style.configure(
+            "Treeview",
+            background=bg_input,
+            fieldbackground=bg_input,
+            foreground=fg_main,
+            bordercolor=border,
+            rowheight=26,
+        )
+        style.map(
+            "Treeview",
+            background=[("selected", accent)],
+            foreground=[("selected", "#FFFFFF")],
+        )
+        style.configure(
+            "Treeview.Heading",
+            background=bg_main,
+            foreground=fg_main,
+            bordercolor=border,
+            relief="flat",
+            font=("Poppins", 10, "bold"),
+        )
+        style.map(
+            "Treeview.Heading",
+            background=[("active", accent_hover)],
+            foreground=[("active", "#FFFFFF")],
+        )
+        style.configure(
+            "Vertical.TScrollbar",
+            background=bg_input,
+            troughcolor=bg_main,
+            bordercolor=border,
+            arrowcolor=fg_muted,
+        )
+        style.configure(
+            "Horizontal.TScrollbar",
+            background=bg_input,
+            troughcolor=bg_main,
+            bordercolor=border,
+            arrowcolor=fg_muted,
+        )
 
     _apply_ui_theme_inner()
 
@@ -300,7 +346,9 @@ def _launch_main_app(user):
     if user.get("role") == "comptable":
         main_content.update_content("financial_home")
 
-    logger.info(f"Application démarrée — utilisateur : {user['username']} ({user['role']})")
+    logger.info(
+        f"Application démarrée — utilisateur : {user['username']} ({user['role']})"
+    )
     app.mainloop()
 
 

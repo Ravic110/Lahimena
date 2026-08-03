@@ -187,21 +187,41 @@ class InvoiceManagement:
         preview = tk.Frame(form, bg=INPUT_BG_COLOR, bd=1, relief="ridge")
         preview.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(10, 0))
         self.preview_labels["base"] = tk.Label(
-            preview, text="Base taxable HT: 0.00", font=LABEL_FONT, fg=TEXT_COLOR, bg=INPUT_BG_COLOR
+            preview,
+            text="Base taxable HT: 0.00",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=INPUT_BG_COLOR,
         )
-        self.preview_labels["base"].grid(row=0, column=0, sticky="w", padx=8, pady=(6, 2))
+        self.preview_labels["base"].grid(
+            row=0, column=0, sticky="w", padx=8, pady=(6, 2)
+        )
         self.preview_labels["tva"] = tk.Label(
             preview, text="TVA: 0.00", font=LABEL_FONT, fg=TEXT_COLOR, bg=INPUT_BG_COLOR
         )
-        self.preview_labels["tva"].grid(row=0, column=1, sticky="w", padx=8, pady=(6, 2))
+        self.preview_labels["tva"].grid(
+            row=0, column=1, sticky="w", padx=8, pady=(6, 2)
+        )
         self.preview_labels["ttc"] = tk.Label(
-            preview, text="Total TTC: 0.00", font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=INPUT_BG_COLOR
+            preview,
+            text="Total TTC: 0.00",
+            font=LABEL_FONT,
+            fg=ACCENT_TEXT_COLOR,
+            bg=INPUT_BG_COLOR,
         )
-        self.preview_labels["ttc"].grid(row=1, column=0, sticky="w", padx=8, pady=(0, 6))
+        self.preview_labels["ttc"].grid(
+            row=1, column=0, sticky="w", padx=8, pady=(0, 6)
+        )
         self.preview_labels["reste"] = tk.Label(
-            preview, text="Reste à payer: 0.00", font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=INPUT_BG_COLOR
+            preview,
+            text="Reste à payer: 0.00",
+            font=LABEL_FONT,
+            fg=ACCENT_TEXT_COLOR,
+            bg=INPUT_BG_COLOR,
         )
-        self.preview_labels["reste"].grid(row=1, column=1, sticky="w", padx=8, pady=(0, 6))
+        self.preview_labels["reste"].grid(
+            row=1, column=1, sticky="w", padx=8, pady=(0, 6)
+        )
 
         self.state_frame = tk.Frame(root, bg=MAIN_BG_COLOR)
         self.state_frame.pack(fill="x", pady=(0, 10))
@@ -229,7 +249,9 @@ class InvoiceManagement:
             "reste",
             "statut",
         )
-        self.invoice_tree = ttk.Treeview(table, columns=cols, show="headings", selectmode="browse")
+        self.invoice_tree = ttk.Treeview(
+            table, columns=cols, show="headings", selectmode="browse"
+        )
         headings = {
             "id": "Facture",
             "date": "Date",
@@ -258,7 +280,9 @@ class InvoiceManagement:
             fieldbackground=INPUT_BG_COLOR,
         )
 
-        scroll = ttk.Scrollbar(table, orient="vertical", command=self.invoice_tree.yview)
+        scroll = ttk.Scrollbar(
+            table, orient="vertical", command=self.invoice_tree.yview
+        )
         self.invoice_tree.configure(yscrollcommand=scroll.set)
         self.invoice_tree.pack(side="left", fill="both", expand=True)
         scroll.pack(side="right", fill="y")
@@ -277,7 +301,14 @@ class InvoiceManagement:
         widget.grid(row=row, column=1, sticky="w", pady=4)
 
     def _entry(self, parent, variable):
-        return tk.Entry(parent, textvariable=variable, font=ENTRY_FONT, width=24, bg=INPUT_BG_COLOR, fg=TEXT_COLOR)
+        return tk.Entry(
+            parent,
+            textvariable=variable,
+            font=ENTRY_FONT,
+            width=24,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR,
+        )
 
     def _source_type_combo(self, parent):
         combo = ttk.Combobox(
@@ -321,10 +352,19 @@ class InvoiceManagement:
             self.on_back_to_hub()
 
     def _bind_preview_updates(self):
-        for var in (self.montant_ht_var, self.cout_ht_var, self.marge_pct_var, self.tva_pct_var):
+        for var in (
+            self.montant_ht_var,
+            self.cout_ht_var,
+            self.marge_pct_var,
+            self.tva_pct_var,
+        ):
             var.trace_add("write", lambda *_args: self._refresh_preview())
-        self.acompte_pct_var.trace_add("write", lambda *_args: self._on_acompte_pct_changed())
-        self.acompte_var.trace_add("write", lambda *_args: self._on_acompte_amount_changed())
+        self.acompte_pct_var.trace_add(
+            "write", lambda *_args: self._on_acompte_pct_changed()
+        )
+        self.acompte_var.trace_add(
+            "write", lambda *_args: self._on_acompte_amount_changed()
+        )
         self._apply_acompte_lock()
         self._refresh_preview()
 
@@ -401,7 +441,10 @@ class InvoiceManagement:
             return
 
         status = self.statut_var.get()
-        if status == INVOICE_STATUS_UNPAID and self._to_number(self.acompte_var.get()) != 0:
+        if (
+            status == INVOICE_STATUS_UNPAID
+            and self._to_number(self.acompte_var.get()) != 0
+        ):
             self.acompte_var.set("0")
             return
         if status == INVOICE_STATUS_PAID:
@@ -500,7 +543,8 @@ class InvoiceManagement:
                         "source_type": source_type,
                         "row_number": row.get("row_number"),
                         "source_ref": f"{source_type}#{row.get('row_number')}",
-                        "client_id": row.get("ID_CLIENT", "") or row.get("Référence", ""),
+                        "client_id": row.get("ID_CLIENT", "")
+                        or row.get("Référence", ""),
                         "client": row.get("Nom", ""),
                         "devise": row.get("Devise", "Ariary"),
                         "montant_ht": self._to_number(row.get("Total", 0)),
@@ -510,8 +554,12 @@ class InvoiceManagement:
         elif source_type == "Billet avion":
             for row in load_all_air_ticket_quotations():
                 total = self._find_first_number(row, ["total"])
-                cout = self._find_first_number(row, ["montant adultes", "montant enfants", "cout", "coût"])
-                client_id = row.get("ID_CLIENT", "") or row.get("ID", "") or row.get("Ref", "")
+                cout = self._find_first_number(
+                    row, ["montant adultes", "montant enfants", "cout", "coût"]
+                )
+                client_id = (
+                    row.get("ID_CLIENT", "") or row.get("ID", "") or row.get("Ref", "")
+                )
                 client_name = row.get("Nom", "") or row.get("Client", "")
                 rows.append(
                     {
@@ -529,7 +577,11 @@ class InvoiceManagement:
             for row in load_all_transport_quotations():
                 total = self._find_first_number(row, ["budget", "total", "montant"])
                 cout = self._find_first_number(row, ["carburant", "cout", "coût"])
-                client_id = row.get("ID_CLIENT", "") or row.get("ID", "") or row.get("Référence", "")
+                client_id = (
+                    row.get("ID_CLIENT", "")
+                    or row.get("ID", "")
+                    or row.get("Référence", "")
+                )
                 client_name = row.get("Nom", "") or row.get("Client", "")
                 rows.append(
                     {
@@ -569,7 +621,9 @@ class InvoiceManagement:
                 grouped[key] = {
                     "source_type": "Client",
                     "row_number": "",
-                    "source_ref": f"Client#{client_id}" if client_id else f"Client#{client_name}",
+                    "source_ref": (
+                        f"Client#{client_id}" if client_id else f"Client#{client_name}"
+                    ),
                     "client_id": client_id,
                     "client": client_name,
                     "devise": str(row.get("devise") or "Ariary"),
@@ -588,7 +642,9 @@ class InvoiceManagement:
         else:
             rows = self._rows_for_source_type(source_type)
 
-        self.source_rows = [row for row in rows if self._to_number(row.get("montant_ht", 0)) > 0]
+        self.source_rows = [
+            row for row in rows if self._to_number(row.get("montant_ht", 0)) > 0
+        ]
         self.source_map = {self._display_source(row): row for row in self.source_rows}
         refs = sorted(self.source_map.keys())
         self.source_ref_combo["values"] = refs
@@ -601,7 +657,9 @@ class InvoiceManagement:
             self.cout_ht_var.set("0")
 
     def _apply_source(self, source_row):
-        self.montant_ht_var.set(f"{self._to_number(source_row.get('montant_ht', 0)):.2f}")
+        self.montant_ht_var.set(
+            f"{self._to_number(source_row.get('montant_ht', 0)):.2f}"
+        )
         self.cout_ht_var.set(f"{self._to_number(source_row.get('cout_ht', 0)):.2f}")
 
     def _on_source_type_changed(self, _event=None):
@@ -617,7 +675,9 @@ class InvoiceManagement:
         selected = self.source_ref_var.get()
         source_row = self.source_map.get(selected)
         if not source_row:
-            messagebox.showwarning("Source", "Sélectionnez une ligne source pour générer la facture.")
+            messagebox.showwarning(
+                "Source", "Sélectionnez une ligne source pour générer la facture."
+            )
             return
         if not self._validate_invoice_fields():
             return
@@ -638,13 +698,18 @@ class InvoiceManagement:
 
         row = save_invoice_to_excel(payload)
         if row == -2:
-            messagebox.showerror("Erreur", "Impossible d'écrire dans Excel. Fermez data.xlsx puis réessayez.")
+            messagebox.showerror(
+                "Erreur",
+                "Impossible d'écrire dans Excel. Fermez data.xlsx puis réessayez.",
+            )
             return
         if row < 0:
             messagebox.showerror("Erreur", "La facture n'a pas pu être créée.")
             return
 
-        messagebox.showinfo("Succès", "Facture créée et état financier mis à jour automatiquement.")
+        messagebox.showinfo(
+            "Succès", "Facture créée et état financier mis à jour automatiquement."
+        )
         self._refresh_all()
 
     def _load_invoices(self):
@@ -693,15 +758,21 @@ class InvoiceManagement:
             f" | Reste: {self._to_number(state.get('Restes_A_Encaisser', 0)):,.2f}"
         )
 
-        tk.Label(card, text=left, font=LABEL_FONT, fg=TEXT_COLOR, bg=INPUT_BG_COLOR).pack(anchor="w", padx=10, pady=(8, 2))
-        tk.Label(card, text=right, font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=INPUT_BG_COLOR).pack(anchor="w", padx=10, pady=(0, 8))
+        tk.Label(
+            card, text=left, font=LABEL_FONT, fg=TEXT_COLOR, bg=INPUT_BG_COLOR
+        ).pack(anchor="w", padx=10, pady=(8, 2))
+        tk.Label(
+            card, text=right, font=LABEL_FONT, fg=ACCENT_TEXT_COLOR, bg=INPUT_BG_COLOR
+        ).pack(anchor="w", padx=10, pady=(0, 8))
 
     def _on_invoice_selected(self, _event=None):
         selection = self.invoice_tree.selection()
         if not selection:
             return
         row_number = int(selection[0])
-        selected = next((row for row in self.invoices if row.get("row_number") == row_number), None)
+        selected = next(
+            (row for row in self.invoices if row.get("row_number") == row_number), None
+        )
         if not selected:
             return
 
@@ -717,7 +788,9 @@ class InvoiceManagement:
     def _update_selected_invoice(self):
         selection = self.invoice_tree.selection()
         if not selection:
-            messagebox.showwarning("Facture", "Sélectionnez une facture à mettre à jour.")
+            messagebox.showwarning(
+                "Facture", "Sélectionnez une facture à mettre à jour."
+            )
             return
         if not self._validate_invoice_fields():
             return
@@ -744,19 +817,26 @@ class InvoiceManagement:
 
         result = update_invoice_in_excel(row_number, data)
         if result == -2:
-            messagebox.showerror("Erreur", "Impossible d'écrire dans Excel. Fermez data.xlsx puis réessayez.")
+            messagebox.showerror(
+                "Erreur",
+                "Impossible d'écrire dans Excel. Fermez data.xlsx puis réessayez.",
+            )
             return
         if result < 0:
             messagebox.showerror("Erreur", "La mise à jour de la facture a échoué.")
             return
 
-        messagebox.showinfo("Succès", "Facture mise à jour et état financier recalculé.")
+        messagebox.showinfo(
+            "Succès", "Facture mise à jour et état financier recalculé."
+        )
         self._refresh_all()
 
     def _generate_selected_invoice_pdf(self):
         selection = self.invoice_tree.selection()
         if not selection:
-            messagebox.showwarning("Facture", "Sélectionnez une facture à exporter en PDF.")
+            messagebox.showwarning(
+                "Facture", "Sélectionnez une facture à exporter en PDF."
+            )
             return
 
         if not REPORTLAB_AVAILABLE:
@@ -771,7 +851,9 @@ class InvoiceManagement:
             (row for row in self.invoices if row.get("row_number") == row_number), None
         )
         if not invoice:
-            messagebox.showerror("Erreur", "Impossible de récupérer la facture sélectionnée.")
+            messagebox.showerror(
+                "Erreur", "Impossible de récupérer la facture sélectionnée."
+            )
             return
 
         invoice_number = str(invoice.get("ID_Facture") or f"FACTURE_{row_number}")
@@ -807,7 +889,9 @@ class InvoiceManagement:
                 base_taxable_ht=self._to_number(invoice.get("Base_Taxable_HT", 0)),
             )
         except Exception as e:
-            messagebox.showerror("Erreur PDF", f"Impossible de générer la facture PDF.\n\n{e}")
+            messagebox.showerror(
+                "Erreur PDF", f"Impossible de générer la facture PDF.\n\n{e}"
+            )
             return
 
         messagebox.showinfo("Succès", f"Facture PDF générée:\n{filepath}")
@@ -833,7 +917,9 @@ class InvoiceManagement:
             full_name = f"{name} {first}".strip()
 
             id_match = client_id and ref and ref == client_id
-            name_match = client_name and (client_name == name or client_name == full_name)
+            name_match = client_name and (
+                client_name == name or client_name == full_name
+            )
             if not id_match and not name_match:
                 continue
 
@@ -885,7 +971,11 @@ class InvoiceManagement:
                 row_number = None
             if row_number is not None:
                 quote = next(
-                    (q for q in hotel_quotes if int(q.get("row_number", -1)) == row_number),
+                    (
+                        q
+                        for q in hotel_quotes
+                        if int(q.get("row_number", -1)) == row_number
+                    ),
                     None,
                 )
                 if quote:
@@ -938,10 +1028,14 @@ class InvoiceManagement:
             return False
 
         if montant <= 0:
-            messagebox.showwarning("Montant HT", "Le montant HT doit être supérieur à 0.")
+            messagebox.showwarning(
+                "Montant HT", "Le montant HT doit être supérieur à 0."
+            )
             return False
         if cout < 0 or marge < 0 or tva < 0 or acompte < 0:
-            messagebox.showwarning("Valeurs invalides", "Les valeurs ne peuvent pas être négatives.")
+            messagebox.showwarning(
+                "Valeurs invalides", "Les valeurs ne peuvent pas être négatives."
+            )
             return False
         return True
 

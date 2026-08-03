@@ -89,13 +89,17 @@ class Sidebar:
         self._set_active(home_btn)
 
         # Client Information (direct access)
-        btn_clients = self._create_button("Infos Clients & Voyages", self._show_client_page)
+        btn_clients = self._create_button(
+            "Infos Clients & Voyages", self._show_client_page
+        )
 
         # Quotation module hub
         btn_cotation = self._create_button("Cotation", self._show_cotation_hub_page)
 
         # Invoices / Quotes hub
-        btn_facture = self._create_button("Facture/Devis", self._show_billing_quotes_hub_page)
+        btn_facture = self._create_button(
+            "Facture/Devis", self._show_billing_quotes_hub_page
+        )
 
         # Unified Databases section (dedicated hub page)
         btn_bdd = self._create_button(
@@ -111,6 +115,7 @@ class Sidebar:
         # Restrict navigation for comptable role
         try:
             from utils.auth_handler import current_role
+
             if current_role() == "comptable":
                 for btn in self.primary_buttons:
                     if btn.cget("text") != "Etat financier":
@@ -137,6 +142,7 @@ class Sidebar:
             height=36,
             corner_radius=16,
         )
+
         def _on_click():
             self._set_active(btn)
             if command:

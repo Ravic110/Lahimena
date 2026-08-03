@@ -3,7 +3,6 @@
 import calendar
 import tkinter as tk
 
-
 CALENDAR_MONTHS_FR = (
     "Janvier",
     "Février",

@@ -14,14 +14,14 @@ from config import (
     BUTTON_BLUE,
     BUTTON_GREEN,
     BUTTON_RED,
+    ENTRY_FONT,
     FINANCIAL_EXCEL_PATH,
+    INPUT_BG_COLOR,
+    LABEL_FONT,
     MAIN_BG_COLOR,
+    MUTED_TEXT_COLOR,
     PANEL_BG_COLOR,
     TEXT_COLOR,
-    MUTED_TEXT_COLOR,
-    INPUT_BG_COLOR,
-    ENTRY_FONT,
-    LABEL_FONT,
 )
 
 
@@ -81,6 +81,7 @@ class MainContent:
         # Detect comptable role once for this topbar
         try:
             from utils.auth_handler import current_role
+
             _is_comptable = current_role() == "comptable"
         except Exception:
             _is_comptable = False
@@ -133,6 +134,7 @@ class MainContent:
         # ── Comptes (admin uniquement) — côté gauche ─────────────────
         try:
             from utils.auth_handler import is_admin
+
             if is_admin():
                 ctk.CTkButton(
                     topbar,
@@ -168,8 +170,10 @@ class MainContent:
         """Open account management window (admin only)."""
         import traceback
         from tkinter import messagebox
+
         try:
             from gui.forms.account_management import AccountManagementWindow
+
             AccountManagementWindow(self._container)
         except Exception as e:
             messagebox.showerror(
@@ -206,16 +210,23 @@ class MainContent:
         # Trace la navigation
         try:
             from utils.activity_log import log_activity
+
             _NAV_LABELS = {
-                "client_form": "Formulaire client", "client_list": "Liste clients",
+                "client_form": "Formulaire client",
+                "client_list": "Liste clients",
                 "billing_quotes_hub_page": "Devis & Factures",
-                "cotation_hub_page": "Cotations", "database_hub_page": "Base de données",
-                "hotel_quotation": "Cotation hôtel", "current_quotes": "Devis en cours",
+                "cotation_hub_page": "Cotations",
+                "database_hub_page": "Base de données",
+                "hotel_quotation": "Cotation hôtel",
+                "current_quotes": "Devis en cours",
                 "collective_expense_quotation": "Frais collectifs",
-                "transport_page": "Transport", "air_ticket_page": "Billets avion",
+                "transport_page": "Transport",
+                "air_ticket_page": "Billets avion",
                 "visite_excursion_quotation": "Visites & Excursions",
-                "parametrage_page": "Paramétrage", "current_invoices": "Factures",
-                "financial_home": "État financier", "expenses_page": "Dépenses",
+                "parametrage_page": "Paramétrage",
+                "current_invoices": "Factures",
+                "financial_home": "État financier",
+                "expenses_page": "Dépenses",
             }
             page_label = _NAV_LABELS.get(content_type, content_type)
             log_activity("navigate", f"Page : {page_label}")
@@ -388,7 +399,9 @@ class MainContent:
             self.main_scroll,
             client=client,
             on_back=lambda: self.update_content("welcome"),
-            on_open_invoice=lambda: self.update_content("client_invoice_detail", client=client),
+            on_open_invoice=lambda: self.update_content(
+                "client_invoice_detail", client=client
+            ),
         )
 
     def _show_client_invoice_detail(self):
@@ -1025,12 +1038,26 @@ class _SearchDialog(tk.Toplevel):
         def _row(parent, label, attr):
             row = tk.Frame(parent, bg=PANEL_BG_COLOR)
             row.pack(fill="x", pady=3)
-            tk.Label(row, text=label, font=("Poppins", 10), fg=TEXT_COLOR,
-                     bg=PANEL_BG_COLOR, width=16, anchor="w").pack(side="left")
+            tk.Label(
+                row,
+                text=label,
+                font=("Poppins", 10),
+                fg=TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
+                width=16,
+                anchor="w",
+            ).pack(side="left")
             var = tk.StringVar()
-            entry = tk.Entry(row, textvariable=var, font=("Poppins", 10),
-                             bg=INPUT_BG_COLOR, fg=TEXT_COLOR, relief="flat",
-                             highlightthickness=1, highlightbackground="#9EC7CF")
+            entry = tk.Entry(
+                row,
+                textvariable=var,
+                font=("Poppins", 10),
+                bg=INPUT_BG_COLOR,
+                fg=TEXT_COLOR,
+                relief="flat",
+                highlightthickness=1,
+                highlightbackground="#9EC7CF",
+            )
             entry.pack(side="left", fill="x", expand=True)
             setattr(self, attr, var)
             return entry
@@ -1043,9 +1070,14 @@ class _SearchDialog(tk.Toplevel):
         self._e_nom.bind("<Return>", lambda e: self._search())
 
         ctk.CTkButton(
-            self, text="🔍 Rechercher", width=160, height=32,
-            fg_color=BUTTON_BLUE, hover_color="#1565C0",
-            corner_radius=8, font=ctk.CTkFont(size=12, weight="bold"),
+            self,
+            text="🔍 Rechercher",
+            width=160,
+            height=32,
+            fg_color=BUTTON_BLUE,
+            hover_color="#1565C0",
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
             command=self._search,
         ).pack(pady=(0, 10))
 
@@ -1055,8 +1087,13 @@ class _SearchDialog(tk.Toplevel):
 
         cols = ("dossier", "nom", "email", "statut", "arrivee")
         self._tree = ttk.Treeview(tree_frame, columns=cols, show="headings", height=7)
-        headers = {"dossier": "N° Dossier", "nom": "Nom", "email": "Email",
-                   "statut": "Statut", "arrivee": "Arrivée"}
+        headers = {
+            "dossier": "N° Dossier",
+            "nom": "Nom",
+            "email": "Email",
+            "statut": "Statut",
+            "arrivee": "Arrivée",
+        }
         widths = {"dossier": 120, "nom": 140, "email": 140, "statut": 90, "arrivee": 90}
         for c in cols:
             self._tree.heading(c, text=headers[c])
@@ -1069,14 +1106,20 @@ class _SearchDialog(tk.Toplevel):
         self._tree.bind("<Double-1>", self._open_selected)
 
         ctk.CTkButton(
-            self, text="Ouvrir le dossier", width=160, height=30,
-            fg_color=BUTTON_GREEN, hover_color="#2E7D32",
-            corner_radius=8, font=ctk.CTkFont(size=12, weight="bold"),
+            self,
+            text="Ouvrir le dossier",
+            width=160,
+            height=30,
+            fg_color=BUTTON_GREEN,
+            hover_color="#2E7D32",
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
             command=self._open_selected,
         ).pack(pady=(0, 12))
 
     def _search(self):
         from utils.excel_handler import load_all_clients
+
         dossier = self._var_dossier.get().strip().lower()
         nom = self._var_nom.get().strip().lower()
         email = self._var_email.get().strip().lower()
@@ -1095,9 +1138,13 @@ class _SearchDialog(tk.Toplevel):
             clients = []
 
         self._results = [
-            c for c in clients
-            if (not dossier or dossier in str(c.get("numero_dossier", "")).lower()
-                or dossier in str(c.get("ref_client", "")).lower())
+            c
+            for c in clients
+            if (
+                not dossier
+                or dossier in str(c.get("numero_dossier", "")).lower()
+                or dossier in str(c.get("ref_client", "")).lower()
+            )
             and (not nom or nom in str(c.get("nom", "")).lower())
             and (not email or email in str(c.get("email", "")).lower())
         ]
@@ -1106,13 +1153,17 @@ class _SearchDialog(tk.Toplevel):
             self._tree.delete(item)
 
         for c in self._results:
-            self._tree.insert("", "end", values=(
-                c.get("numero_dossier") or c.get("ref_client", ""),
-                c.get("nom", ""),
-                c.get("email", ""),
-                c.get("statut") or "En cours",
-                c.get("date_arrivee", ""),
-            ))
+            self._tree.insert(
+                "",
+                "end",
+                values=(
+                    c.get("numero_dossier") or c.get("ref_client", ""),
+                    c.get("nom", ""),
+                    c.get("email", ""),
+                    c.get("statut") or "En cours",
+                    c.get("date_arrivee", ""),
+                ),
+            )
 
         if not self._results:
             messagebox.showinfo("Aucun résultat", "Aucun dossier trouvé.", parent=self)

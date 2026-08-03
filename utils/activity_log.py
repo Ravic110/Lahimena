@@ -8,55 +8,56 @@ Chaque entrée : timestamp, username, role, action, label, details, category
 
 import json
 import os
-from datetime import datetime, timedelta
 from collections import Counter
+from datetime import datetime, timedelta
 
-_BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ACTIVITY_FILE = os.path.join(_BASE_DIR, "activity_log.json")
-ARCHIVE_DIR   = os.path.join(_BASE_DIR, "activity_log_archive")
+ARCHIVE_DIR = os.path.join(_BASE_DIR, "activity_log_archive")
 
 # ── Catégories et couleurs ────────────────────────────────────────────────────
 # category → (label_couleur_hex, icône)
 CATEGORY_STYLE = {
-    "auth":    ("#1565C0", "🔐"),   # bleu
-    "client":  ("#1B7A3E", "👥"),   # vert
-    "user":    ("#C62828", "👤"),   # rouge
-    "quota":   ("#6A1B9A", "📄"),   # violet
-    "invoice": ("#E65100", "💶"),   # orange
-    "nav":     ("#607D8B", "🧭"),   # gris-bleu
+    "auth": ("#1565C0", "🔐"),  # bleu
+    "client": ("#1B7A3E", "👥"),  # vert
+    "user": ("#C62828", "👤"),  # rouge
+    "quota": ("#6A1B9A", "📄"),  # violet
+    "invoice": ("#E65100", "💶"),  # orange
+    "nav": ("#607D8B", "🧭"),  # gris-bleu
 }
 
 ACTION_META = {
     # action: (label, category)
-    "login":              ("Connexion",                        "auth"),
-    "login_failed":       ("Tentative de connexion échouée",  "auth"),
-    "logout":             ("Déconnexion",                      "auth"),
-    "create_client":      ("Création d'un client",             "client"),
-    "edit_client":        ("Modification d'un client",         "client"),
-    "delete_client":      ("Suppression d'un client",          "client"),
-    "create_user":        ("Création d'un compte",             "user"),
-    "delete_user":        ("Suppression d'un compte",          "user"),
-    "suspend_user":       ("Suspension d'un compte",           "user"),
-    "reactivate_user":    ("Réactivation d'un compte",         "user"),
-    "change_password":    ("Changement de mot de passe",       "user"),
-    "change_user_role":   ("Modification du rôle",             "user"),
-    "duplicate_user":     ("Duplication d'un compte",          "user"),
-    "set_expiry":         ("Modification date d'expiration",   "user"),
-    "create_quotation":   ("Création d'une cotation",          "quota"),
-    "edit_quotation":     ("Modification d'une cotation",      "quota"),
-    "delete_quotation":   ("Suppression d'une cotation",       "quota"),
-    "create_invoice":     ("Création d'une facture",           "invoice"),
-    "edit_invoice":       ("Modification d'une facture",       "invoice"),
-    "delete_invoice":     ("Suppression d'une facture",        "invoice"),
-    "navigate":           ("Navigation",                       "nav"),
+    "login": ("Connexion", "auth"),
+    "login_failed": ("Tentative de connexion échouée", "auth"),
+    "logout": ("Déconnexion", "auth"),
+    "create_client": ("Création d'un client", "client"),
+    "edit_client": ("Modification d'un client", "client"),
+    "delete_client": ("Suppression d'un client", "client"),
+    "create_user": ("Création d'un compte", "user"),
+    "delete_user": ("Suppression d'un compte", "user"),
+    "suspend_user": ("Suspension d'un compte", "user"),
+    "reactivate_user": ("Réactivation d'un compte", "user"),
+    "change_password": ("Changement de mot de passe", "user"),
+    "change_user_role": ("Modification du rôle", "user"),
+    "duplicate_user": ("Duplication d'un compte", "user"),
+    "set_expiry": ("Modification date d'expiration", "user"),
+    "create_quotation": ("Création d'une cotation", "quota"),
+    "edit_quotation": ("Modification d'une cotation", "quota"),
+    "delete_quotation": ("Suppression d'une cotation", "quota"),
+    "create_invoice": ("Création d'une facture", "invoice"),
+    "edit_invoice": ("Modification d'une facture", "invoice"),
+    "delete_invoice": ("Suppression d'une facture", "invoice"),
+    "navigate": ("Navigation", "nav"),
 }
 
 # Seuil de détection brute force
-BRUTE_FORCE_THRESHOLD = 5   # échecs dans la fenêtre
+BRUTE_FORCE_THRESHOLD = 5  # échecs dans la fenêtre
 BRUTE_FORCE_WINDOW_MIN = 10  # minutes
 
 
 # ── I/O ───────────────────────────────────────────────────────────────────────
+
 
 def _load() -> list:
     try:
@@ -78,6 +79,7 @@ def _save(entries: list) -> None:
 
 
 # ── Rotation des logs ─────────────────────────────────────────────────────────
+
 
 def _rotate_old_entries(entries: list) -> list:
     """
@@ -121,6 +123,7 @@ def _rotate_old_entries(entries: list) -> list:
 
 # ── Détection brute force ─────────────────────────────────────────────────────
 
+
 def _check_brute_force(username: str, entries: list) -> bool:
     """
     Retourne True si trop de login_failed récents pour cet utilisateur.
@@ -143,8 +146,10 @@ def _check_brute_force(username: str, entries: list) -> bool:
 
 # ── API publique ──────────────────────────────────────────────────────────────
 
-def log_activity(action: str, details: str = "", username: str = "",
-                 role: str = "") -> None:
+
+def log_activity(
+    action: str, details: str = "", username: str = "", role: str = ""
+) -> None:
     """
     Enregistre une action dans l'historique.
     Récupère username/role depuis la session courante si non fournis.
@@ -154,10 +159,11 @@ def log_activity(action: str, details: str = "", username: str = "",
     if not username:
         try:
             from utils.auth_handler import get_current_user
+
             u = get_current_user()
             if u:
                 username = u.get("username", "")
-                role     = u.get("role", "")
+                role = u.get("role", "")
         except Exception:
             pass
 
@@ -165,12 +171,12 @@ def log_activity(action: str, details: str = "", username: str = "",
 
     entry = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "username":  username,
-        "role":      role,
-        "action":    action,
-        "label":     label,
-        "category":  category,
-        "details":   details,
+        "username": username,
+        "role": role,
+        "action": action,
+        "label": label,
+        "category": category,
+        "details": details,
     }
 
     entries = list(_iter_entries(_load()))
@@ -181,12 +187,12 @@ def log_activity(action: str, details: str = "", username: str = "",
         if _check_brute_force(username, entries):
             alert = {
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "username":  "SYSTÈME",
-                "role":      "system",
-                "action":    "brute_force_alert",
-                "label":     "⚠ Alerte sécurité — Trop de tentatives",
-                "category":  "auth",
-                "details":   f"{BRUTE_FORCE_THRESHOLD} échecs en {BRUTE_FORCE_WINDOW_MIN} min pour : {username}",
+                "username": "SYSTÈME",
+                "role": "system",
+                "action": "brute_force_alert",
+                "label": "⚠ Alerte sécurité — Trop de tentatives",
+                "category": "auth",
+                "details": f"{BRUTE_FORCE_THRESHOLD} échecs en {BRUTE_FORCE_WINDOW_MIN} min pour : {username}",
             }
             entries.append(alert)
     else:
@@ -197,10 +203,14 @@ def log_activity(action: str, details: str = "", username: str = "",
     _save(entries)
 
 
-def get_activity(username: str = "", limit: int = 500,
-                 action_filter: str = "",
-                 date_from: str = "", date_to: str = "",
-                 search: str = "") -> list:
+def get_activity(
+    username: str = "",
+    limit: int = 500,
+    action_filter: str = "",
+    date_from: str = "",
+    date_to: str = "",
+    search: str = "",
+) -> list:
     """
     Retourne les entrées d'activité (ordre antéchronologique).
 
@@ -215,13 +225,16 @@ def get_activity(username: str = "", limit: int = 500,
     entries = list(_iter_entries(_load()))
 
     if username:
-        entries = [e for e in entries
-                   if e.get("username", "").lower() == username.lower()]
+        entries = [
+            e for e in entries if e.get("username", "").lower() == username.lower()
+        ]
 
     if action_filter:
-        entries = [e for e in entries
-                   if e.get("category") == action_filter
-                   or e.get("action") == action_filter]
+        entries = [
+            e
+            for e in entries
+            if e.get("category") == action_filter or e.get("action") == action_filter
+        ]
 
     if date_from:
         entries = [e for e in entries if e.get("timestamp", "") >= date_from]
@@ -232,9 +245,7 @@ def get_activity(username: str = "", limit: int = 500,
 
     if search:
         q = search.lower()
-        entries = [e for e in entries if any(
-            q in str(v).lower() for v in e.values()
-        )]
+        entries = [e for e in entries if any(q in str(v).lower() for v in e.values())]
 
     return list(reversed(entries))[:limit]
 
@@ -257,20 +268,21 @@ def get_user_stats(username: str) -> dict:
       - brute_force_detected : bool
     """
     entries = list(_iter_entries(_load()))
-    user_entries = [e for e in entries
-                    if e.get("username", "").lower() == username.lower()]
+    user_entries = [
+        e for e in entries if e.get("username", "").lower() == username.lower()
+    ]
 
     thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
-    login_count    = 0
-    failed_logins  = 0
-    last_login     = ""
+    login_count = 0
+    failed_logins = 0
+    last_login = ""
     last_action_ts = ""
     action_counts: Counter = Counter()
     daily_counts: dict = {}
 
     for e in user_entries:
-        ts  = e.get("timestamp", "")
+        ts = e.get("timestamp", "")
         act = e.get("action", "")
         lbl = e.get("label", act)
         day = ts[:10]
@@ -292,13 +304,13 @@ def get_user_stats(username: str) -> dict:
     brute = _check_brute_force(username, entries)
 
     return {
-        "total_actions":      len(user_entries),
-        "login_count":        login_count,
-        "failed_logins":      failed_logins,
-        "last_login":         last_login,
-        "last_action_ts":     last_action_ts,
-        "top_actions":        action_counts.most_common(5),
-        "daily_counts":       daily_counts,
+        "total_actions": len(user_entries),
+        "login_count": login_count,
+        "failed_logins": failed_logins,
+        "last_login": last_login,
+        "last_action_ts": last_action_ts,
+        "top_actions": action_counts.most_common(5),
+        "daily_counts": daily_counts,
         "brute_force_detected": brute,
     }
 
@@ -317,9 +329,7 @@ def get_brute_force_usernames() -> list[str]:
         if e.get("action") == "login_failed" and e.get("username", "").strip()
     }
     return sorted(
-        username
-        for username in failed_users
-        if _check_brute_force(username, entries)
+        username for username in failed_users if _check_brute_force(username, entries)
     )
 
 
@@ -327,11 +337,9 @@ def get_archive_months() -> list[str]:
     """Retourne la liste des mois archivés (ex: ['2026-01', '2026-02'])."""
     if not os.path.isdir(ARCHIVE_DIR):
         return []
-    return sorted([
-        f.replace(".json", "")
-        for f in os.listdir(ARCHIVE_DIR)
-        if f.endswith(".json")
-    ])
+    return sorted(
+        [f.replace(".json", "") for f in os.listdir(ARCHIVE_DIR) if f.endswith(".json")]
+    )
 
 
 def load_archive(month: str) -> list:

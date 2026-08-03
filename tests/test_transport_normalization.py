@@ -11,17 +11,18 @@ Cases observed in real data:
 - Distance = abs(KM(arrivee) - KM(depart))
 """
 
-import sys
 import os
+import sys
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from utils.excel_handler import (
-    normalize_city_name,
+# Import apres l'ajustement de sys.path ci-dessus.
+from utils.excel_handler import (  # noqa: E402
     get_km_mada_km_for_repere,
     get_segment_distance,
+    normalize_city_name,
 )
 
 
@@ -82,10 +83,20 @@ class TestKmMadaLookupRobust(unittest.TestCase):
     def test_lookup_by_normalized_name(self):
         rows = self._make_rows([("ANTSIRABE", 169)])
         from utils.excel_handler import _rebuild_km_mada_lookup
+
         lookup = _rebuild_km_mada_lookup(rows)
         import utils.excel_handler as eh
-        with patch.dict(eh._KM_MADA_CACHE, {"lookup": lookup, "rows": rows,
-                                             "path": None, "mtime": None, "loaded_at": float("inf")}):
+
+        with patch.dict(
+            eh._KM_MADA_CACHE,
+            {
+                "lookup": lookup,
+                "rows": rows,
+                "path": None,
+                "mtime": None,
+                "loaded_at": float("inf"),
+            },
+        ):
             result = get_km_mada_km_for_repere("antsirabe")
         self.assertEqual(result, 169)
 
@@ -99,7 +110,7 @@ class TestKmMadaLookupRobust(unittest.TestCase):
     def test_lookup_alias_tuler(self):
         """'Tuler' must resolve to 'Toliary' km."""
         km_toliary = get_km_mada_km_for_repere("Toliary")
-        km_tuler   = get_km_mada_km_for_repere("Tuler")
+        km_tuler = get_km_mada_km_for_repere("Tuler")
         self.assertEqual(km_toliary, km_tuler)
 
     def test_lookup_alias_ranohira_isalo(self):
@@ -112,10 +123,18 @@ class TestKmMadaLookupRobust(unittest.TestCase):
         """When KM_MADA has duplicate repères, prefer km > 0."""
         rows = self._make_rows([("MORONDAVA", 0), ("MORONDAVA", 741)])
         with patch("utils.excel_handler._load_km_mada_rows", return_value=rows):
-            with patch.dict("utils.excel_handler._KM_MADA_CACHE",
-                            {"lookup": {}, "rows": rows, "path": None,
-                             "mtime": None, "loaded_at": 0.0}):
+            with patch.dict(
+                "utils.excel_handler._KM_MADA_CACHE",
+                {
+                    "lookup": {},
+                    "rows": rows,
+                    "path": None,
+                    "mtime": None,
+                    "loaded_at": 0.0,
+                },
+            ):
                 from utils.excel_handler import _rebuild_km_mada_lookup
+
                 lookup = _rebuild_km_mada_lookup(rows)
                 best = lookup.get("morondava")
                 self.assertIsNotNone(best)
@@ -124,6 +143,7 @@ class TestKmMadaLookupRobust(unittest.TestCase):
     def test_duplicate_repere_prefers_largest_km(self):
         rows = self._make_rows([("FIANARANTSOA", 200), ("FIANARANTSOA", 298)])
         from utils.excel_handler import _rebuild_km_mada_lookup
+
         lookup = _rebuild_km_mada_lookup(rows)
         best = lookup.get("fianarantsoa")
         self.assertIsNotNone(best)
@@ -137,14 +157,14 @@ class TestSegmentDistance(unittest.TestCase):
         """Antananarivo = 0 km (origin), Antsirabe = 169 km → distance = 169."""
         km_dep = get_km_mada_km_for_repere("Antananarivo")
         km_arr = get_km_mada_km_for_repere("Antsirabe")
-        dist   = get_segment_distance("Antananarivo", "Antsirabe")
+        dist = get_segment_distance("Antananarivo", "Antsirabe")
         expected = abs(km_arr - km_dep)
         self.assertEqual(dist, expected)
 
     def test_segment_antsirabe_to_fianarantsoa(self):
         km_dep = get_km_mada_km_for_repere("Antsirabe")
         km_arr = get_km_mada_km_for_repere("Fianarantsoa")
-        dist   = get_segment_distance("Antsirabe", "Fianarantsoa")
+        dist = get_segment_distance("Antsirabe", "Fianarantsoa")
         expected = abs(km_arr - km_dep)
         self.assertEqual(dist, expected)
 
@@ -162,7 +182,7 @@ class TestSegmentDistance(unittest.TestCase):
     def test_unknown_departure_falls_back_to_arrival_km(self):
         """If depart is unknown, fall back to km(arrivee)."""
         km_arr = get_km_mada_km_for_repere("Antsirabe")
-        dist   = get_segment_distance("VilleInconnueXYZ", "Antsirabe")
+        dist = get_segment_distance("VilleInconnueXYZ", "Antsirabe")
         self.assertEqual(dist, km_arr)
 
     def test_both_unknown_returns_zero(self):

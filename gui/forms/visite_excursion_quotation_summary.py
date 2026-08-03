@@ -45,7 +45,9 @@ class VisiteExcursionQuotationSummary:
         try:
             self.rows = load_all_visite_excursion_quotations()
         except Exception as e:
-            logger.error(f"Error loading visite & excursion quotations: {e}", exc_info=True)
+            logger.error(
+                f"Error loading visite & excursion quotations: {e}", exc_info=True
+            )
             self.rows = []
 
     def _normalize(self, value):
@@ -114,7 +116,9 @@ class VisiteExcursionQuotationSummary:
         top_controls = tk.Frame(self.main_frame, bg=MAIN_BG_COLOR)
         top_controls.pack(fill="x", padx=8, pady=(0, 10))
 
-        tk.Label(top_controls, text="Vue:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).pack(side="left")
+        tk.Label(
+            top_controls, text="Vue:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR
+        ).pack(side="left")
         view_combo = ttk.Combobox(
             top_controls,
             textvariable=self.view_var,
@@ -126,7 +130,13 @@ class VisiteExcursionQuotationSummary:
         view_combo.pack(side="left", padx=(8, 16))
         view_combo.bind("<<ComboboxSelected>>", self._refresh_display)
 
-        tk.Label(top_controls, text="Recherche:", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR).pack(side="left")
+        tk.Label(
+            top_controls,
+            text="Recherche:",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
+        ).pack(side="left")
         search_entry = tk.Entry(
             top_controls,
             textvariable=self.search_var,
@@ -212,11 +222,15 @@ class VisiteExcursionQuotationSummary:
 
     def _on_edit_clicked(self):
         if self.tree is None:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à modifier.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à modifier."
+            )
             return
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à modifier.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à modifier."
+            )
             return
 
         selected_item = selection[0]
@@ -234,11 +248,15 @@ class VisiteExcursionQuotationSummary:
 
     def _on_delete_clicked(self):
         if self.tree is None:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à supprimer.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à supprimer."
+            )
             return
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à supprimer.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à supprimer."
+            )
             return
 
         confirm = messagebox.askyesno(
@@ -264,7 +282,10 @@ class VisiteExcursionQuotationSummary:
                     messagebox.showinfo("Succès", "Cotation supprimée avec succès.")
                     self._on_refresh_clicked()
                 else:
-                    messagebox.showerror("Erreur", "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert.")
+                    messagebox.showerror(
+                        "Erreur",
+                        "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert.",
+                    )
 
     def _matches_query(self, row, query):
         if not query:
@@ -339,15 +360,23 @@ class VisiteExcursionQuotationSummary:
             return
 
         headers = [key for key in rows[0].keys() if key != "row_number"]
-        self.tree = ttk.Treeview(self.content_frame, columns=headers, show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(
+            self.content_frame, columns=headers, show="headings", selectmode="browse"
+        )
 
         for header in headers:
             self.tree.heading(header, text=header)
             self.tree.column(header, width=150, anchor="w")
 
-        scrollbar_y = ttk.Scrollbar(self.content_frame, orient="vertical", command=self.tree.yview)
-        scrollbar_x = ttk.Scrollbar(self.content_frame, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+        scrollbar_y = ttk.Scrollbar(
+            self.content_frame, orient="vertical", command=self.tree.yview
+        )
+        scrollbar_x = ttk.Scrollbar(
+            self.content_frame, orient="horizontal", command=self.tree.xview
+        )
+        self.tree.configure(
+            yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set
+        )
 
         for row in rows:
             values = [row.get(header, "") for header in headers]
@@ -380,18 +409,26 @@ class VisiteExcursionQuotationSummary:
             if key not in grouped:
                 grouped[key] = {"count": 0, "total": 0.0}
             grouped[key]["count"] += 1
-            grouped[key]["total"] += sum(self._to_number(row.get(header, 0)) for header in amount_headers)
+            grouped[key]["total"] += sum(
+                self._to_number(row.get(header, 0)) for header in amount_headers
+            )
 
         columns = ["Référence", "Nombre", "Total"]
-        self.tree = ttk.Treeview(self.content_frame, columns=columns, show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(
+            self.content_frame, columns=columns, show="headings", selectmode="browse"
+        )
         for col in columns:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=220 if col == "Référence" else 120, anchor="w")
 
         for ref_value, data in sorted(grouped.items()):
-            self.tree.insert("", "end", values=(ref_value, data["count"], f"{data['total']:,.2f}"))
+            self.tree.insert(
+                "", "end", values=(ref_value, data["count"], f"{data['total']:,.2f}")
+            )
 
-        scrollbar_y = ttk.Scrollbar(self.content_frame, orient="vertical", command=self.tree.yview)
+        scrollbar_y = ttk.Scrollbar(
+            self.content_frame, orient="vertical", command=self.tree.yview
+        )
         self.tree.configure(yscrollcommand=scrollbar_y.set)
 
         self.tree.pack(fill="both", expand=True, side="left")

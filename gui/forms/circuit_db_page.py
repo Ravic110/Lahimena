@@ -21,6 +21,7 @@ from config import (
 )
 from utils.excel_handler import (
     delete_circuit_db_row,
+    get_circuit_db_headers,
     get_collective_expense_prestataires,
     get_km_mada_duration_for_repere,
     get_km_mada_km_for_repere,
@@ -28,7 +29,6 @@ from utils.excel_handler import (
     get_transport_vehicle_data,
     get_transport_vehicle_types,
     load_all_hotels,
-    get_circuit_db_headers,
     load_circuit_db_rows,
     save_circuit_db_row,
     update_circuit_db_row,
@@ -385,7 +385,9 @@ class CircuitDBPage:
         if not value:
             return
         key = self._normalize_text(value)
-        existing_keys = {self._normalize_text(v) for v in self.included_services_selected}
+        existing_keys = {
+            self._normalize_text(v) for v in self.included_services_selected
+        }
         if key in existing_keys:
             self.included_services_choice_var.set("")
             return
@@ -418,7 +420,9 @@ class CircuitDBPage:
                 continue
             if " - " in city:
                 city = city.split(" - ", 1)[1].strip()
-            city = re.sub(r"\(\s*\d+\s*(?:j|jour|jours)\s*\)", "", city, flags=re.IGNORECASE)
+            city = re.sub(
+                r"\(\s*\d+\s*(?:j|jour|jours)\s*\)", "", city, flags=re.IGNORECASE
+            )
             city = re.sub(r"\b\d+\s*(?:j|jour|jours)\b", "", city, flags=re.IGNORECASE)
             city = re.sub(r"\s+", " ", city).strip(" -")
             city_key = self._normalize_city(city)
@@ -573,7 +577,9 @@ class CircuitDBPage:
 
         current_city = self.city_step_var.get().strip()
         if current_city not in self.itinerary_cities_order:
-            current_city = self.itinerary_cities_order[0] if self.itinerary_cities_order else ""
+            current_city = (
+                self.itinerary_cities_order[0] if self.itinerary_cities_order else ""
+            )
             self.city_step_var.set(current_city)
 
         hotel_values = self._hotels_for_city(current_city)
@@ -588,7 +594,8 @@ class CircuitDBPage:
                 (
                     label
                     for label in hotel_values
-                    if self._normalize_text(label) == self._normalize_text(selected_hotel)
+                    if self._normalize_text(label)
+                    == self._normalize_text(selected_hotel)
                     or self._normalize_text(self.hotel_display_map.get(label, ""))
                     == self._normalize_text(selected_hotel)
                 ),
@@ -646,7 +653,11 @@ class CircuitDBPage:
             self.mapping_iid_to_key[iid] = key
 
     def _refresh_transport_editor(self):
-        if not self.transport_depart_combo or not self.transport_arrivee_combo or not self.transport_choice_combo:
+        if (
+            not self.transport_depart_combo
+            or not self.transport_arrivee_combo
+            or not self.transport_choice_combo
+        ):
             return
 
         self._sync_itinerary_from_fields()
@@ -675,7 +686,9 @@ class CircuitDBPage:
 
         self.transport_choice_combo["values"] = self.transport_options
 
-        key = f"{self._normalize_city(current_dep)}->{self._normalize_city(current_arr)}"
+        key = (
+            f"{self._normalize_city(current_dep)}->{self._normalize_city(current_arr)}"
+        )
         existing = self.transport_segment_mapping.get(key, {}).get("transport", "")
         self.transport_choice_var.set(existing)
         self._refresh_transport_tree()
@@ -811,7 +824,9 @@ class CircuitDBPage:
         if not selected:
             return
         for item_id in selected:
-            self.city_hotel_mapping.pop(self.mapping_iid_to_key.get(item_id, item_id), None)
+            self.city_hotel_mapping.pop(
+                self.mapping_iid_to_key.get(item_id, item_id), None
+            )
         if self.default_hotels_header and self.default_hotels_header in self.vars:
             self.vars[self.default_hotels_header].set(self._format_hotels_mapping())
         self._refresh_city_hotel_editor()
@@ -842,7 +857,9 @@ class CircuitDBPage:
             "transport": transport,
         }
         if self.linked_transports_header and self.linked_transports_header in self.vars:
-            self.vars[self.linked_transports_header].set(self._format_transport_mapping())
+            self.vars[self.linked_transports_header].set(
+                self._format_transport_mapping()
+            )
         self._refresh_transport_editor()
 
     def _remove_selected_transport_segment(self):
@@ -856,7 +873,9 @@ class CircuitDBPage:
                 self.transport_iid_to_key.get(item_id, item_id), None
             )
         if self.linked_transports_header and self.linked_transports_header in self.vars:
-            self.vars[self.linked_transports_header].set(self._format_transport_mapping())
+            self.vars[self.linked_transports_header].set(
+                self._format_transport_mapping()
+            )
         self._refresh_transport_editor()
 
     def _clear_transport_mapping(self):
@@ -963,7 +982,9 @@ class CircuitDBPage:
             var = tk.StringVar()
             if header == self.included_services_header:
                 service_frame = tk.Frame(self.form_frame, bg=MAIN_BG_COLOR)
-                service_frame.grid(row=row, column=entry_col, sticky="we", padx=(0, 10), pady=4)
+                service_frame.grid(
+                    row=row, column=entry_col, sticky="we", padx=(0, 10), pady=4
+                )
                 service_frame.grid_columnconfigure(0, weight=1)
 
                 self.included_services_combo = ttk.Combobox(
@@ -1007,7 +1028,8 @@ class CircuitDBPage:
             else:
                 state = (
                     "readonly"
-                    if header in (self.default_hotels_header, self.linked_transports_header)
+                    if header
+                    in (self.default_hotels_header, self.linked_transports_header)
                     else "normal"
                 )
                 tk.Entry(
@@ -1022,9 +1044,13 @@ class CircuitDBPage:
             self.vars[header] = var
 
         if self.cities_header and self.cities_header in self.vars:
-            self.vars[self.cities_header].trace_add("write", self._on_itinerary_fields_changed)
+            self.vars[self.cities_header].trace_add(
+                "write", self._on_itinerary_fields_changed
+            )
         if self.itinerary_header and self.itinerary_header in self.vars:
-            self.vars[self.itinerary_header].trace_add("write", self._on_itinerary_fields_changed)
+            self.vars[self.itinerary_header].trace_add(
+                "write", self._on_itinerary_fields_changed
+            )
 
         max_row = (len(self.headers) + 1) // 2
 
@@ -1066,8 +1092,12 @@ class CircuitDBPage:
                 state="readonly",
                 width=30,
             )
-            self.city_step_combo.grid(row=1, column=1, sticky="we", padx=(0, 10), pady=4)
-            self.city_step_combo.bind("<<ComboboxSelected>>", self._on_city_step_selected)
+            self.city_step_combo.grid(
+                row=1, column=1, sticky="we", padx=(0, 10), pady=4
+            )
+            self.city_step_combo.bind(
+                "<<ComboboxSelected>>", self._on_city_step_selected
+            )
 
             tk.Label(
                 workflow_frame,
@@ -1082,10 +1112,14 @@ class CircuitDBPage:
                 state="readonly",
                 width=30,
             )
-            self.hotel_step_combo.grid(row=1, column=3, sticky="we", padx=(0, 0), pady=4)
+            self.hotel_step_combo.grid(
+                row=1, column=3, sticky="we", padx=(0, 0), pady=4
+            )
 
             workflow_buttons = tk.Frame(workflow_frame, bg=MAIN_BG_COLOR)
-            workflow_buttons.grid(row=2, column=0, columnspan=4, sticky="w", pady=(6, 8))
+            workflow_buttons.grid(
+                row=2, column=0, columnspan=4, sticky="w", pady=(6, 8)
+            )
 
             tk.Button(
                 workflow_buttons,
@@ -1358,7 +1392,9 @@ class CircuitDBPage:
     def _edit_selected(self):
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à modifier.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à modifier."
+            )
             return
 
         try:
@@ -1366,7 +1402,9 @@ class CircuitDBPage:
         except (TypeError, ValueError):
             return
 
-        row_data = next((r for r in self.rows if r.get("row_number") == row_number), None)
+        row_data = next(
+            (r for r in self.rows if r.get("row_number") == row_number), None
+        )
         if not row_data:
             return
 
@@ -1379,7 +1417,9 @@ class CircuitDBPage:
     def _delete_selected(self):
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à supprimer.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à supprimer."
+            )
             return
 
         confirm = messagebox.askyesno(
@@ -1409,12 +1449,16 @@ class CircuitDBPage:
         if self.default_hotels_header and self.default_hotels_header in self.vars:
             self.vars[self.default_hotels_header].set(self._format_hotels_mapping())
         if self.linked_transports_header and self.linked_transports_header in self.vars:
-            self.vars[self.linked_transports_header].set(self._format_transport_mapping())
+            self.vars[self.linked_transports_header].set(
+                self._format_transport_mapping()
+            )
         return {header: self.vars[header].get().strip() for header in self.headers}
 
     def _save_form(self):
         if not self.headers:
-            messagebox.showerror("Erreur", "Aucun en-tête détecté pour la feuille Circuits.")
+            messagebox.showerror(
+                "Erreur", "Aucun en-tête détecté pour la feuille Circuits."
+            )
             return
 
         self._sync_itinerary_from_fields()
@@ -1438,13 +1482,17 @@ class CircuitDBPage:
 
         data = self._collect_form_data()
         if not any(data.values()):
-            messagebox.showwarning("Validation", "Veuillez renseigner au moins un champ.")
+            messagebox.showwarning(
+                "Validation", "Veuillez renseigner au moins un champ."
+            )
             return
 
         if self.selected_row_number is not None:
             result = update_circuit_db_row(self.selected_row_number, data)
             if result == -2:
-                messagebox.showerror("Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez.")
+                messagebox.showerror(
+                    "Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez."
+                )
                 return
             if result == -1:
                 messagebox.showerror("Erreur", "Échec de la mise à jour.")
@@ -1455,7 +1503,9 @@ class CircuitDBPage:
 
         row = save_circuit_db_row(data)
         if row == -2:
-            messagebox.showerror("Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez.")
+            messagebox.showerror(
+                "Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez."
+            )
             return
         if row == -1:
             messagebox.showerror("Erreur", "Échec de l'enregistrement.")

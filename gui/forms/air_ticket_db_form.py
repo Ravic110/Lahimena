@@ -46,7 +46,12 @@ class AirTicketDBForm:
     def _load_headers(self):
         self.headers = get_avion_db_headers()
         if not self.headers:
-            self.headers = ["Ville de départ", "Ville d'arrivée", "Tarif Adultes", "Tarif Enfants"]
+            self.headers = [
+                "Ville de départ",
+                "Ville d'arrivée",
+                "Tarif Adultes",
+                "Tarif Enfants",
+            ]
 
     def _create_form(self):
         for widget in self.parent.winfo_children():
@@ -160,13 +165,17 @@ class AirTicketDBForm:
     def _save(self):
         data = self._collect_data()
         if not any(data.values()):
-            messagebox.showwarning("Validation", "Veuillez renseigner au moins un champ.")
+            messagebox.showwarning(
+                "Validation", "Veuillez renseigner au moins un champ."
+            )
             return
 
         if self.edit_data and self.row_number is not None:
             result = update_avion_db_row(self.row_number, data)
             if result == -2:
-                messagebox.showerror("Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez.")
+                messagebox.showerror(
+                    "Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez."
+                )
                 return
             if result == -1:
                 messagebox.showerror("Erreur", "Échec de la mise à jour dans avion.")
@@ -178,7 +187,9 @@ class AirTicketDBForm:
 
         row = save_avion_db_row(data)
         if row == -2:
-            messagebox.showerror("Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez.")
+            messagebox.showerror(
+                "Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez."
+            )
             return
         if row == -1:
             messagebox.showerror("Erreur", "Échec de l'enregistrement dans avion.")

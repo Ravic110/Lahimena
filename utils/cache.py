@@ -152,6 +152,7 @@ def cached_exchange_rates(ttl_seconds=3600):
 def _make_cache_key(prefix, args, kwargs):
     if not args and not kwargs:
         return prefix
+
     # Convertir les valeurs non-hashables en leur représentation str pour éviter TypeError
     def _safe(v):
         try:

@@ -128,7 +128,9 @@ class HotelQuotation:
         """Parse itinerary city values from saved client data."""
         if not cities_value:
             return []
-        cities = [c.strip() for c in re.split(r"[,;>/|\n]+", str(cities_value)) if c.strip()]
+        cities = [
+            c.strip() for c in re.split(r"[,;>/|\n]+", str(cities_value)) if c.strip()
+        ]
         parsed = []
         seen = set()
         for city in cities:
@@ -175,7 +177,7 @@ class HotelQuotation:
         depart_city = (client.get("ville_depart") or "").strip()
         allowed = []
         seen = set()
-        for city_name in ([depart_city] + itinerary_cities):
+        for city_name in [depart_city] + itinerary_cities:
             if city_name and city_name not in seen:
                 seen.add(city_name)
                 allowed.append(city_name)
@@ -290,7 +292,9 @@ class HotelQuotation:
 
         return "Standard", preferred_type or "Double"
 
-    def _compute_hotel_total(self, hotel, nights, adults, children, room_group_label, room_type_label):
+    def _compute_hotel_total(
+        self, hotel, nights, adults, children, room_group_label, room_type_label
+    ):
         """Compute pricing for a hotel entry using the same rules as manual calculation."""
         room_group_key = ROOM_GROUP_KEYS.get(room_group_label, "standard")
         room_type_key = ROOM_TYPE_KEYS.get(room_type_label, "")
@@ -298,7 +302,9 @@ class HotelQuotation:
         room_price = 0
         if room_type_key:
             room_price = (
-                hotel.get("room_rates", {}).get(room_group_key, {}).get(room_type_key, 0)
+                hotel.get("room_rates", {})
+                .get(room_group_key, {})
+                .get(room_type_key, 0)
             )
 
         if room_price == 0:
@@ -336,7 +342,9 @@ class HotelQuotation:
         if hasattr(self, "client_type_var") and self.client_type_var.get() == "PBC":
             total_price *= 1.2
 
-        currency_label = self.currency_var.get() if hasattr(self, "currency_var") else "Ariary"
+        currency_label = (
+            self.currency_var.get() if hasattr(self, "currency_var") else "Ariary"
+        )
         if currency_label != "Ariary":
             rates = get_exchange_rates()
             total_price = convert_currency(total_price, "Ariary", currency_label, rates)
@@ -1152,7 +1160,8 @@ class HotelQuotation:
             # Find the selected hotel
             for hotel in self.hotels:
                 if selected_city and (
-                    self._normalize_city(hotel.get("lieu", "")) != selected_city_normalized
+                    self._normalize_city(hotel.get("lieu", ""))
+                    != selected_city_normalized
                 ):
                     continue
                 hotel_display = self._hotel_display(hotel)
@@ -1233,7 +1242,9 @@ class HotelQuotation:
                     item.get("hotel_name", ""),
                     item.get("room_type", ""),
                     item.get("nights", 0),
-                    self._format_amount(item.get("total", 0), item.get("currency", "Ariary")),
+                    self._format_amount(
+                        item.get("total", 0), item.get("currency", "Ariary")
+                    ),
                 ),
             )
 
@@ -1255,9 +1266,13 @@ class HotelQuotation:
 
         city = (self.selected_hotel.get("lieu") or self.city_var.get() or "").strip()
         hotel_name = (self.selected_hotel.get("nom") or "").strip()
-        room_type = self._get_room_display() or (self.room_type_var.get().strip() if hasattr(self, "room_type_var") else "")
+        room_type = self._get_room_display() or (
+            self.room_type_var.get().strip() if hasattr(self, "room_type_var") else ""
+        )
         nights = int(self.nights_var.get() or 1) if hasattr(self, "nights_var") else 1
-        currency_label = self.currency_var.get() if hasattr(self, "currency_var") else "Ariary"
+        currency_label = (
+            self.currency_var.get() if hasattr(self, "currency_var") else "Ariary"
+        )
 
         entry = {
             "city": city,
@@ -1392,11 +1407,13 @@ class HotelQuotation:
                     self.client_phone_var.set(client["telephone"])
                     self.client_var.set(client.get("ref_client", ""))
                     if hasattr(self, "client_dossier_var"):
-                        self.client_dossier_var.set(str(client.get("numero_dossier") or "").strip())
+                        self.client_dossier_var.set(
+                            str(client.get("numero_dossier") or "").strip()
+                        )
 
                     # Restrict available hotels to client's itinerary
-                    self.allowed_itinerary_cities = self._extract_allowed_cities_from_client(
-                        client
+                    self.allowed_itinerary_cities = (
+                        self._extract_allowed_cities_from_client(client)
                     )
                     self.city_planned_days = self._extract_city_days_from_client(client)
                     self._clear_itinerary_hotels()
@@ -1757,8 +1774,13 @@ class HotelQuotation:
             # Get client info if available
             client_name = (
                 self.client_name_var.get().strip()
-                if hasattr(self, "client_name_var") and self.client_name_var.get().strip()
-                else (self.client_var.get().strip() if hasattr(self, "client_var") else "Client")
+                if hasattr(self, "client_name_var")
+                and self.client_name_var.get().strip()
+                else (
+                    self.client_var.get().strip()
+                    if hasattr(self, "client_var")
+                    else "Client"
+                )
             )
             client_email = ""
             client_first_name = ""
@@ -1768,9 +1790,15 @@ class HotelQuotation:
                 try:
                     clients = load_all_clients()
                     for client in clients:
-                        ref_client = (self.client_var.get().strip() if hasattr(self, "client_var") else "")
+                        ref_client = (
+                            self.client_var.get().strip()
+                            if hasattr(self, "client_var")
+                            else ""
+                        )
                         full_name = f"{(client.get('nom') or '').strip()} {(client.get('prenom') or '').strip()}".strip()
-                        if (ref_client and client.get("ref_client") == ref_client) or full_name == client_name:
+                        if (
+                            ref_client and client.get("ref_client") == ref_client
+                        ) or full_name == client_name:
                             client_email = client.get("email", "")
                             client_first_name = (client.get("prenom") or "").strip()
                             break
@@ -1832,7 +1860,11 @@ class HotelQuotation:
                 filename = generate_multi_hotel_quotation_pdf(
                     client_name=client_name,
                     client_email=client_email,
-                    client_phone=self.client_phone_var.get().strip() if hasattr(self, "client_phone_var") else "",
+                    client_phone=(
+                        self.client_phone_var.get().strip()
+                        if hasattr(self, "client_phone_var")
+                        else ""
+                    ),
                     quote_number=f"DEVIS_HOTEL_MULTI_{timestamp}",
                     quote_date=datetime.datetime.now().strftime("%d/%m/%Y"),
                     items=items,
@@ -1872,7 +1904,11 @@ class HotelQuotation:
                     ),
                     "client_name": client_name,
                     "client_first_name": client_first_name,
-                    "numero_dossier": (self.client_dossier_var.get().strip() if hasattr(self, "client_dossier_var") else ""),
+                    "numero_dossier": (
+                        self.client_dossier_var.get().strip()
+                        if hasattr(self, "client_dossier_var")
+                        else ""
+                    ),
                     "currency": currency,
                     "adults": adults,
                     "children": (

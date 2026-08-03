@@ -16,24 +16,24 @@ except Exception:
 
 from config import (
     AGES_ENFANTS,
+    BUTTON_BLUE,
+    BUTTON_GREEN,
+    BUTTON_ORANGE,
+    BUTTON_RED,
+    CARD_BG_COLOR,
     CIRCUITS,
     CODE_TO_COUNTRY,
     COUNTRY_PHONE_MAP,
     DEFAULT_COUNTRY,
     DEFAULT_PHONE_CODE,
+    ENTRY_FONT,
     FORFAITS,
     HOTEL_ARRIVAL_TYPES,
+    INPUT_BG_COLOR,
+    LABEL_FONT,
     MAIN_BG_COLOR,
     MUTED_TEXT_COLOR,
-    BUTTON_BLUE,
-    BUTTON_ORANGE,
-    BUTTON_RED,
-    BUTTON_GREEN,
     PANEL_BG_COLOR,
-    CARD_BG_COLOR,
-    LABEL_FONT,
-    ENTRY_FONT,
-    INPUT_BG_COLOR,
     PERIODES,
     PHONE_CODES,
     RESTAURATIONS,
@@ -41,6 +41,13 @@ from config import (
     TITLE_FONT,
     TYPE_CHAMBRES,
     TYPE_HEBERGEMENTS,
+)
+from gui.date_picker_utils import (
+    CALENDAR_MONTHS_FR,
+    apply_modal_grab,
+    get_calendar_day_headers,
+    get_calendar_weeks,
+    get_calendar_year_options,
 )
 from gui.ui_style import (
     action_button,
@@ -50,13 +57,6 @@ from gui.ui_style import (
     row_two_columns,
     styled_entry,
     styled_label,
-)
-from gui.date_picker_utils import (
-    CALENDAR_MONTHS_FR,
-    apply_modal_grab,
-    get_calendar_day_headers,
-    get_calendar_weeks,
-    get_calendar_year_options,
 )
 from models.client_data import ClientData
 from utils.excel_handler import (
@@ -88,9 +88,7 @@ class CalendarDialog(tk.Toplevel):
         self.selected_date = None
         self.current_month = datetime.now().month
         self.current_year = datetime.now().year
-        self.month_var = tk.StringVar(
-            value=CALENDAR_MONTHS_FR[self.current_month - 1]
-        )
+        self.month_var = tk.StringVar(value=CALENDAR_MONTHS_FR[self.current_month - 1])
         self.year_var = tk.StringVar(value=str(self.current_year))
         self.year_options = get_calendar_year_options(self.current_year)
         self.month_combo = None
@@ -274,7 +272,9 @@ class CalendarDialog(tk.Toplevel):
                         ipady=4,
                     )
 
-    def _create_day_button(self, parent, label, bg_color, fg_color, border_color, command):
+    def _create_day_button(
+        self, parent, label, bg_color, fg_color, border_color, command
+    ):
         """Build a day cell button matching the app style."""
         if ctk:
             return ctk.CTkButton(
@@ -420,7 +420,11 @@ class ClientForm:
     def _load_circuit_options(self):
         """Load circuit options from the Circuits sheet when available"""
         if self.circuit_catalog:
-            return [circuit.get("nom", "") for circuit in self.circuit_catalog if circuit.get("nom")]
+            return [
+                circuit.get("nom", "")
+                for circuit in self.circuit_catalog
+                if circuit.get("nom")
+            ]
         try:
             circuits = load_all_circuits()
             return circuits if circuits else CIRCUITS
@@ -508,7 +512,8 @@ class ClientForm:
             cursor="hand2",
         )
         badge.create_text(
-            14, 14,
+            14,
+            14,
             text="📅",
             font=("Poppins", 13),
         )
@@ -601,8 +606,13 @@ class ClientForm:
 
         try:
             from utils.auth_handler import get_current_user
+
             _u = get_current_user()
-            creator = f"{_u['username']} ({_u['role']})" if _u else (os.getenv("LHM_USER") or getpass.getuser() or "-")
+            creator = (
+                f"{_u['username']} ({_u['role']})"
+                if _u
+                else (os.getenv("LHM_USER") or getpass.getuser() or "-")
+            )
         except Exception:
             creator = os.getenv("LHM_USER") or getpass.getuser() or "-"
         current_datetime = datetime.now().strftime("%d/%m/%Y à %H:%M:%S")
@@ -682,9 +692,7 @@ class ClientForm:
                 else:
                     padx = (8, 0)
                 column_frame = tk.Frame(row, bg=PANEL_BG_COLOR)
-                column_frame.pack(
-                    side="left", fill="x", expand=True, padx=padx
-                )
+                column_frame.pack(side="left", fill="x", expand=True, padx=padx)
                 if label:
                     tk.Label(
                         column_frame,
@@ -696,9 +704,7 @@ class ClientForm:
                 if widget_builder:
                     widget_builder(column_frame)
                 elif label:
-                    tk.Frame(column_frame, bg=PANEL_BG_COLOR, height=24).pack(
-                        fill="x"
-                    )
+                    tk.Frame(column_frame, bg=PANEL_BG_COLOR, height=24).pack(fill="x")
 
         # ===== CARD: INFOS CLIENTS =====
         info_card = create_card(
@@ -713,13 +719,25 @@ class ClientForm:
         _tab_header.pack(fill="x")
 
         _lbl_tab_clients = tk.Label(
-            _tab_header, text="Clients", bg=BUTTON_RED, fg="white",
-            font=("Poppins", 10, "bold"), padx=10, pady=3, cursor="hand2",
+            _tab_header,
+            text="Clients",
+            bg=BUTTON_RED,
+            fg="white",
+            font=("Poppins", 10, "bold"),
+            padx=10,
+            pady=3,
+            cursor="hand2",
         )
         _lbl_tab_clients.pack(side="left", padx=(0, 6))
         _lbl_tab_compl = tk.Label(
-            _tab_header, text="Compléments", bg=BUTTON_BLUE, fg="white",
-            font=("Poppins", 10, "bold"), padx=10, pady=3, cursor="hand2",
+            _tab_header,
+            text="Compléments",
+            bg=BUTTON_BLUE,
+            fg="white",
+            font=("Poppins", 10, "bold"),
+            padx=10,
+            pady=3,
+            cursor="hand2",
         )
         _lbl_tab_compl.pack(side="left")
         tk.Frame(info_card, bg=BUTTON_RED, height=2).pack(fill="x", pady=(6, 8))
@@ -832,8 +850,11 @@ class ClientForm:
             pays_col = tk.Frame(phone_frame, bg=PANEL_BG_COLOR)
             pays_col.pack(side="left", padx=(0, 4))
             tk.Label(
-                pays_col, text="Pays",
-                font=("Poppins", 9), fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR,
+                pays_col,
+                text="Pays",
+                font=("Poppins", 9),
+                fg=MUTED_TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
             ).pack(anchor="w")
             style = ttk.Style()
             style.configure(
@@ -868,8 +889,11 @@ class ClientForm:
             code_col = tk.Frame(phone_frame, bg=PANEL_BG_COLOR)
             code_col.pack(side="left", padx=(0, 4))
             tk.Label(
-                code_col, text="Code",
-                font=("Poppins", 9), fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR,
+                code_col,
+                text="Code",
+                font=("Poppins", 9),
+                fg=MUTED_TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
             ).pack(anchor="w")
             if ctk is not None:
                 self._code_pays_entry = ctk.CTkEntry(
@@ -904,21 +928,27 @@ class ClientForm:
             class _CodeProxy:
                 def __init__(self_, var):
                     self_._var = var
+
                 def get(self_):
                     return self_._var.get()
+
                 def set(self_, val):
                     self_._var.set(val)
                     country = CODE_TO_COUNTRY.get(val, "")
                     if country:
                         self.combo_pays.set(country)
+
             self.entry_code_pays = _CodeProxy(self._code_pays_var)
 
             # ── Numéro ───────────────────────────────────────────────────
             num_col = tk.Frame(phone_frame, bg=PANEL_BG_COLOR)
             num_col.pack(side="left", fill="x", expand=True)
             tk.Label(
-                num_col, text="Numéro",
-                font=("Poppins", 9), fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR,
+                num_col,
+                text="Numéro",
+                font=("Poppins", 9),
+                fg=MUTED_TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
             ).pack(anchor="w")
             self.entry_telephone = styled_entry(num_col)
             self.entry_telephone.pack(fill="x")
@@ -927,8 +957,11 @@ class ClientForm:
             self.whatsapp_code_var = tk.StringVar(value=DEFAULT_PHONE_CODE)
             self.whatsapp_number_var = tk.StringVar()
             self.combo_whatsapp_code = ttk.Combobox(
-                phone_frame, values=PHONE_CODES, width=8,
-                state="readonly", textvariable=self.whatsapp_code_var,
+                phone_frame,
+                values=PHONE_CODES,
+                width=8,
+                state="readonly",
+                textvariable=self.whatsapp_code_var,
             )
             self.entry_whatsapp = styled_entry(phone_frame)
             self.entry_whatsapp.configure(textvariable=self.whatsapp_number_var)
@@ -984,7 +1017,9 @@ class ClientForm:
         email_mobile_content = tk.Frame(email_mobile_row, bg=PANEL_BG_COLOR)
         email_mobile_content.pack(side="left", fill="x", expand=True)
         inline_row(email_mobile_content, "Adresse e-mail *", _field_email, pady=(0, 3))
-        inline_row(email_mobile_content, "Mobile/Whatsapp *", _field_mobile, pady=(0, 6))
+        inline_row(
+            email_mobile_content, "Mobile/Whatsapp *", _field_mobile, pady=(0, 6)
+        )
 
         self.entry_prenom.bind(
             "<KeyRelease>", lambda e: self._update_rooming_identity()
@@ -1011,17 +1046,20 @@ class ClientForm:
         # ── Statut dossier ───────────────────────────────────────────────
         STATUTS = ["En cours", "Accepté", "En circuit", "Annulé"]
         STATUT_COLORS = {
-            "En cours":   "#00BCD4",
-            "Accepté":    "#4CAF50",
+            "En cours": "#00BCD4",
+            "Accepté": "#4CAF50",
             "En circuit": "#FF9800",
-            "Annulé":     "#F44336",
+            "Annulé": "#F44336",
         }
 
         statut_row = tk.Frame(clients_panel, bg=PANEL_BG_COLOR)
         statut_row.pack(fill="x", pady=(4, 0))
         tk.Label(
-            statut_row, text="Statut", font=LABEL_FONT,
-            fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+            statut_row,
+            text="Statut",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
         ).pack(side="left", padx=(0, 8))
 
         self._statut_var = tk.StringVar(value="En cours")
@@ -1029,11 +1067,17 @@ class ClientForm:
 
         for s in STATUTS:
             btn = tk.Label(
-                statut_row, text=s, font=("Poppins", 9, "bold"),
-                bg=PANEL_BG_COLOR, fg=TEXT_COLOR,
-                padx=10, pady=3, cursor="hand2",
+                statut_row,
+                text=s,
+                font=("Poppins", 9, "bold"),
+                bg=PANEL_BG_COLOR,
+                fg=TEXT_COLOR,
+                padx=10,
+                pady=3,
+                cursor="hand2",
                 relief="flat",
-                highlightbackground=STATUT_COLORS[s], highlightthickness=1,
+                highlightbackground=STATUT_COLORS[s],
+                highlightthickness=1,
             )
             btn.pack(side="left", padx=(0, 6))
             btn.bind("<Button-1>", lambda e, v=s: self._apply_statut(v))
@@ -1043,9 +1087,16 @@ class ClientForm:
 
         # ── Contenu onglet Compléments ──────────────────────────────────
         COMPAGNIES = [
-            "Air Madagascar", "Air France", "Corsair", "Ethiopian Airlines",
-            "Kenya Airways", "Réunion Air Transport", "Air Austral",
-            "Turkish Airlines", "Emirates", "Autre",
+            "Air Madagascar",
+            "Air France",
+            "Corsair",
+            "Ethiopian Airlines",
+            "Kenya Airways",
+            "Réunion Air Transport",
+            "Air Austral",
+            "Turkish Airlines",
+            "Emirates",
+            "Autre",
         ]
 
         def _field_heure_arrivee(parent):
@@ -1061,17 +1112,28 @@ class ClientForm:
         def _field_compagnie(parent):
             if ctk:
                 self.combo_compagnie = ctk.CTkComboBox(
-                    parent, values=COMPAGNIES, state="readonly",
-                    font=ENTRY_FONT, corner_radius=8,
-                    fg_color=INPUT_BG_COLOR, text_color=TEXT_COLOR,
-                    button_color="#C9DDE3", button_hover_color=BUTTON_BLUE,
-                    border_color="#C9DDE3", border_width=1,
-                    dropdown_fg_color=INPUT_BG_COLOR, dropdown_text_color=TEXT_COLOR,
-                    dropdown_hover_color="#E8F4F8", height=34,
+                    parent,
+                    values=COMPAGNIES,
+                    state="readonly",
+                    font=ENTRY_FONT,
+                    corner_radius=8,
+                    fg_color=INPUT_BG_COLOR,
+                    text_color=TEXT_COLOR,
+                    button_color="#C9DDE3",
+                    button_hover_color=BUTTON_BLUE,
+                    border_color="#C9DDE3",
+                    border_width=1,
+                    dropdown_fg_color=INPUT_BG_COLOR,
+                    dropdown_text_color=TEXT_COLOR,
+                    dropdown_hover_color="#E8F4F8",
+                    height=34,
                 )
             else:
                 self.combo_compagnie = ttk.Combobox(
-                    parent, values=COMPAGNIES, state="readonly", font=ENTRY_FONT,
+                    parent,
+                    values=COMPAGNIES,
+                    state="readonly",
+                    font=ENTRY_FONT,
                 )
             self.combo_compagnie.pack(fill="x")
 
@@ -1085,37 +1147,55 @@ class ClientForm:
             self.entry_ext_ref.pack(fill="x")
 
         tk.Label(
-            complements_panel, text="Infos vol",
-            font=("Poppins", 10, "bold"), fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+            complements_panel,
+            text="Infos vol",
+            font=("Poppins", 10, "bold"),
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
         ).pack(anchor="w", pady=(0, 8))
 
-        two_column_row(complements_panel,
-            "Heure d'arrivée", _field_heure_arrivee,
-            "Heure de départ", _field_heure_depart,
+        two_column_row(
+            complements_panel,
+            "Heure d'arrivée",
+            _field_heure_arrivee,
+            "Heure de départ",
+            _field_heure_depart,
         )
-        inline_row(complements_panel, "Compagnie aérienne", _field_compagnie, pady=(0, 6))
-        inline_row(complements_panel, "Aéroport international", _field_aeroport, pady=(0, 6))
-        inline_row(complements_panel, "Réf. externe (Ext. Ref)", _field_ext_ref, pady=(0, 6))
+        inline_row(
+            complements_panel, "Compagnie aérienne", _field_compagnie, pady=(0, 6)
+        )
+        inline_row(
+            complements_panel, "Aéroport international", _field_aeroport, pady=(0, 6)
+        )
+        inline_row(
+            complements_panel, "Réf. externe (Ext. Ref)", _field_ext_ref, pady=(0, 6)
+        )
 
         # ===== CARD: SEJOUR =====
         stay_card = create_card(right_col, title="Séjour")
 
         def _sl(parent, text):
-            return tk.Label(parent, text=text, font=LABEL_FONT,
-                            fg=TEXT_COLOR, bg=PANEL_BG_COLOR)
+            return tk.Label(
+                parent, text=text, font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR
+            )
 
-        _INPUT_W = 130   # largeur commune Arrivée / Départ / Saison
-        _COMBO_W = 220   # largeur Hébergements / Restaurations
+        _INPUT_W = 130  # largeur commune Arrivée / Départ / Saison
+        _COMBO_W = 220  # largeur Hébergements / Restaurations
 
         def _stay_combo(parent, values, fixed_width=None):
             """Combobox arrondie, même style que les autres inputs."""
             if ctk:
                 kw = dict(
-                    values=values, state="readonly",
-                    font=ENTRY_FONT, corner_radius=8,
-                    fg_color=INPUT_BG_COLOR, text_color=TEXT_COLOR,
-                    button_color="#C9DDE3", button_hover_color=BUTTON_BLUE,
-                    border_color="#C9DDE3", border_width=1,
+                    values=values,
+                    state="readonly",
+                    font=ENTRY_FONT,
+                    corner_radius=8,
+                    fg_color=INPUT_BG_COLOR,
+                    text_color=TEXT_COLOR,
+                    button_color="#C9DDE3",
+                    button_hover_color=BUTTON_BLUE,
+                    border_color="#C9DDE3",
+                    border_width=1,
                     dropdown_fg_color=INPUT_BG_COLOR,
                     dropdown_text_color=TEXT_COLOR,
                     dropdown_hover_color="#E8F4F8",
@@ -1123,10 +1203,11 @@ class ClientForm:
                 )
                 if fixed_width:
                     kw["width"] = fixed_width
-                cb = ctk.CTkComboBox(parent, **kw
-                )
+                cb = ctk.CTkComboBox(parent, **kw)
             else:
-                cb = ttk.Combobox(parent, values=values, state="readonly", font=ENTRY_FONT)
+                cb = ttk.Combobox(
+                    parent, values=values, state="readonly", font=ENTRY_FONT
+                )
             return cb
 
         _CHIP_H = 34
@@ -1135,14 +1216,25 @@ class ClientForm:
             """Champ date cliquable : zone arrondie affichant la date + icône calendrier."""
             date_var = tk.StringVar()
             hidden = tk.Entry(
-                parent, textvariable=date_var, width=0,
-                relief="flat", bd=0, highlightthickness=0,
-                state="readonly", readonlybackground=PANEL_BG_COLOR,
+                parent,
+                textvariable=date_var,
+                width=0,
+                relief="flat",
+                bd=0,
+                highlightthickness=0,
+                state="readonly",
+                readonlybackground=PANEL_BG_COLOR,
             )
             setattr(self, entry_attr, hidden)
 
-            chip = tk.Canvas(parent, width=_INPUT_W, height=_CHIP_H, bg=PANEL_BG_COLOR,
-                             highlightthickness=0, cursor="hand2")
+            chip = tk.Canvas(
+                parent,
+                width=_INPUT_W,
+                height=_CHIP_H,
+                bg=PANEL_BG_COLOR,
+                highlightthickness=0,
+                cursor="hand2",
+            )
             chip.pack(side="right")
 
             def _draw(*_):
@@ -1152,23 +1244,50 @@ class ClientForm:
                     return
                 r = 8
                 x1, y1, x2, y2 = 0, 1, w - 1, _CHIP_H - 2
-                pts = [x1+r,y1, x2-r,y1, x2,y1, x2,y1+r,
-                       x2,y2-r, x2,y2, x2-r,y2, x1+r,y2,
-                       x1,y2, x1,y2-r, x1,y1+r, x1,y1]
-                chip.create_polygon(pts, smooth=True,
-                                    fill=INPUT_BG_COLOR, outline="#C9DDE3", width=1)
+                pts = [
+                    x1 + r,
+                    y1,
+                    x2 - r,
+                    y1,
+                    x2,
+                    y1,
+                    x2,
+                    y1 + r,
+                    x2,
+                    y2 - r,
+                    x2,
+                    y2,
+                    x2 - r,
+                    y2,
+                    x1 + r,
+                    y2,
+                    x1,
+                    y2,
+                    x1,
+                    y2 - r,
+                    x1,
+                    y1 + r,
+                    x1,
+                    y1,
+                ]
+                chip.create_polygon(
+                    pts, smooth=True, fill=INPUT_BG_COLOR, outline="#C9DDE3", width=1
+                )
                 val = date_var.get()
                 chip.create_text(
-                    w // 2, _CHIP_H // 2,
-                    text=val or "Choisir une date", anchor="center",
+                    w // 2,
+                    _CHIP_H // 2,
+                    text=val or "Choisir une date",
+                    anchor="center",
                     font=ENTRY_FONT,
                     fill=TEXT_COLOR if val else MUTED_TEXT_COLOR,
                 )
 
             date_var.trace_add("write", _draw)
             chip.bind("<Configure>", _draw)
-            chip.bind("<Button-1>",
-                      lambda e: self._open_calendar(getattr(self, entry_attr)))
+            chip.bind(
+                "<Button-1>", lambda e: self._open_calendar(getattr(self, entry_attr))
+            )
             chip.after(100, _draw)
             return chip
 
@@ -1190,36 +1309,73 @@ class ClientForm:
 
         r0c1 = tk.Frame(g, bg=PANEL_BG_COLOR)
         r0c1.grid(row=0, column=1, sticky="ew", padx=(0, 18), pady=(0, 5))
-        tk.Label(r0c1, text="Arrivée", font=LABEL_FONT, fg=TEXT_COLOR,
-                 bg=PANEL_BG_COLOR, width=8, anchor="w").pack(side="left", padx=(0, 6))
+        tk.Label(
+            r0c1,
+            text="Arrivée",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+            width=8,
+            anchor="w",
+        ).pack(side="left", padx=(0, 6))
         _date_chip(r0c1, "entry_date_arrivee")
 
         r0c2 = tk.Frame(g, bg=PANEL_BG_COLOR)
         r0c2.grid(row=0, column=2, sticky="ew", pady=(0, 5))
-        tk.Label(r0c2, text="Hébergements", font=LABEL_FONT, fg=TEXT_COLOR,
-                 bg=PANEL_BG_COLOR, width=14, anchor="w").pack(side="left", padx=(0, 6))
-        self.combo_TypeHebergement = _stay_combo(r0c2, TYPE_HEBERGEMENTS, fixed_width=_COMBO_W)
+        tk.Label(
+            r0c2,
+            text="Hébergements",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+            width=14,
+            anchor="w",
+        ).pack(side="left", padx=(0, 6))
+        self.combo_TypeHebergement = _stay_combo(
+            r0c2, TYPE_HEBERGEMENTS, fixed_width=_COMBO_W
+        )
         self.combo_TypeHebergement.pack(side="left")
 
         # Ligne 1 : vide | Départ | Restaurations
         r1c1 = tk.Frame(g, bg=PANEL_BG_COLOR)
         r1c1.grid(row=1, column=1, sticky="ew", padx=(0, 18), pady=(0, 5))
-        tk.Label(r1c1, text="Départ", font=LABEL_FONT, fg=TEXT_COLOR,
-                 bg=PANEL_BG_COLOR, width=8, anchor="w").pack(side="left", padx=(0, 6))
+        tk.Label(
+            r1c1,
+            text="Départ",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+            width=8,
+            anchor="w",
+        ).pack(side="left", padx=(0, 6))
         _date_chip(r1c1, "entry_date_depart")
 
         r1c2 = tk.Frame(g, bg=PANEL_BG_COLOR)
         r1c2.grid(row=1, column=2, sticky="ew", pady=(0, 5))
-        tk.Label(r1c2, text="Restaurations", font=LABEL_FONT, fg=TEXT_COLOR,
-                 bg=PANEL_BG_COLOR, width=14, anchor="w").pack(side="left", padx=(0, 6))
+        tk.Label(
+            r1c2,
+            text="Restaurations",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+            width=14,
+            anchor="w",
+        ).pack(side="left", padx=(0, 6))
         self.combo_restauration = _stay_combo(r1c2, RESTAURATIONS, fixed_width=_COMBO_W)
         self.combo_restauration.pack(side="left")
 
         # Ligne 2 : vide | Saison | vide
         r2c1 = tk.Frame(g, bg=PANEL_BG_COLOR)
         r2c1.grid(row=2, column=1, sticky="ew", padx=(0, 18), pady=(0, 5))
-        tk.Label(r2c1, text="Saison", font=LABEL_FONT, fg=TEXT_COLOR,
-                 bg=PANEL_BG_COLOR, width=8, anchor="w").pack(side="left", padx=(12, 6))
+        tk.Label(
+            r2c1,
+            text="Saison",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+            width=8,
+            anchor="w",
+        ).pack(side="left", padx=(12, 6))
         self.combo_periode = _stay_combo(r2c1, PERIODES, fixed_width=_INPUT_W)
         self.combo_periode.pack(side="right")
 
@@ -1251,17 +1407,25 @@ class ClientForm:
                 self._cb_guide.configure(state="normal")
 
         self._cb_guide = tk.Checkbutton(
-            accompagnement_frame, text="Avec guide accompagnateur",
+            accompagnement_frame,
+            text="Avec guide accompagnateur",
             variable=self.var_accompagnement_guide,
             command=_on_guide_checked,
-            fg=TEXT_COLOR, bg=PANEL_BG_COLOR, selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+            selectcolor=BUTTON_GREEN,
+            font=LABEL_FONT,
         )
         self._cb_guide.pack(anchor="w")
         self._cb_chauffeur = tk.Checkbutton(
-            accompagnement_frame, text="Avec Chauffeur-guide",
+            accompagnement_frame,
+            text="Avec Chauffeur-guide",
             variable=self.var_accompagnement_chauffeur,
             command=_on_chauffeur_checked,
-            fg=TEXT_COLOR, bg=PANEL_BG_COLOR, selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+            selectcolor=BUTTON_GREEN,
+            font=LABEL_FONT,
         )
         self._cb_chauffeur.pack(anchor="w")
 
@@ -1270,14 +1434,24 @@ class ClientForm:
         _sl(location_frame, "Location de voiture").pack(anchor="w")
         self.var_location_voiture = tk.StringVar(value="")
         tk.Radiobutton(
-            location_frame, text="Avec carburant",
-            variable=self.var_location_voiture, value="Avec carburant",
-            fg=TEXT_COLOR, bg=PANEL_BG_COLOR, selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+            location_frame,
+            text="Avec carburant",
+            variable=self.var_location_voiture,
+            value="Avec carburant",
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+            selectcolor=BUTTON_GREEN,
+            font=LABEL_FONT,
         ).pack(anchor="w")
         tk.Radiobutton(
-            location_frame, text="Sans carburant",
-            variable=self.var_location_voiture, value="Sans carburant",
-            fg=TEXT_COLOR, bg=PANEL_BG_COLOR, selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+            location_frame,
+            text="Sans carburant",
+            variable=self.var_location_voiture,
+            value="Sans carburant",
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+            selectcolor=BUTTON_GREEN,
+            font=LABEL_FONT,
         ).pack(anchor="w")
 
         # ── Égaliser la hauteur des cartes Clients et Séjour ─────────────
@@ -1293,6 +1467,7 @@ class ClientForm:
                     frm.pack_propagate(False)
             except Exception:
                 pass
+
         stay_card.after(300, _sync_card_heights)
 
         # ===== CARD: ROOMING LIST =====
@@ -1337,10 +1512,16 @@ class ClientForm:
             ).pack(anchor="w")
             sb = tk.Spinbox(
                 col,
-                from_=0, to=999, width=5,
-                font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
-                relief="flat", bd=0,
-                highlightthickness=1, highlightbackground="#C9DDE3",
+                from_=0,
+                to=999,
+                width=5,
+                font=ENTRY_FONT,
+                bg=INPUT_BG_COLOR,
+                fg=TEXT_COLOR,
+                relief="flat",
+                bd=0,
+                highlightthickness=1,
+                highlightbackground="#C9DDE3",
                 highlightcolor=BUTTON_BLUE,
                 buttonbackground=INPUT_BG_COLOR,
                 insertbackground=TEXT_COLOR,
@@ -1361,11 +1542,11 @@ class ClientForm:
 
         # -- Column headers --
         _ROOM_HDR = [
-            ("Date",        95),
-            ("Nom & Prénom", 0),   # fill
-            ("Nb pax",      50),
-            ("Chambre",    110),
-            ("Nombre",      55),
+            ("Date", 95),
+            ("Nom & Prénom", 0),  # fill
+            ("Nb pax", 50),
+            ("Chambre", 110),
+            ("Nombre", 55),
         ]
         hdr_bg = "#D0E8ED"
         room_hdr = tk.Frame(rooming_card, bg=hdr_bg)
@@ -1379,9 +1560,13 @@ class ClientForm:
             else:
                 hdr_cell.pack(side="left", fill="x", expand=True)
             tk.Label(
-                hdr_cell, text=col_name,
-                font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=hdr_bg,
-                padx=4, pady=3,
+                hdr_cell,
+                text=col_name,
+                font=("Poppins", 9, "bold"),
+                fg=TEXT_COLOR,
+                bg=hdr_bg,
+                padx=4,
+                pady=3,
             ).pack(anchor="w")
 
         # -- Scrollable canvas area --
@@ -1391,7 +1576,9 @@ class ClientForm:
         self._room_canvas = tk.Canvas(
             room_scroll_outer, bg=PANEL_BG_COLOR, highlightthickness=0, height=120
         )
-        room_vsb = ttk.Scrollbar(room_scroll_outer, orient="vertical", command=self._room_canvas.yview)
+        room_vsb = ttk.Scrollbar(
+            room_scroll_outer, orient="vertical", command=self._room_canvas.yview
+        )
         self._room_canvas.configure(yscrollcommand=room_vsb.set)
         room_vsb.pack(side="right", fill="y")
         self._room_canvas.pack(side="left", fill="both", expand=True)
@@ -1436,8 +1623,12 @@ class ClientForm:
 
         # ===== CARD: ITINERAIRES =====
         # Widgets cachés pour compatibilité données (non affichés)
-        self.combo_ville_depart = ttk.Combobox(right_col, values=self.city_options, state="normal", width=20)
-        self.combo_ville_arrivee = ttk.Combobox(right_col, values=self.city_options, state="normal", width=20)
+        self.combo_ville_depart = ttk.Combobox(
+            right_col, values=self.city_options, state="normal", width=20
+        )
+        self.combo_ville_arrivee = ttk.Combobox(
+            right_col, values=self.city_options, state="normal", width=20
+        )
         self.entry_itineraire_date = styled_entry(right_col, readonly=True, width=12)
         self.entry_itineraire_distance = styled_entry(right_col, width=10)
         self.entry_itineraire_hebergement = styled_entry(right_col, width=18)
@@ -1449,8 +1640,8 @@ class ClientForm:
             if _active_panel[0]:
                 _active_panel[0].pack_forget()
             panel = {
-                "Itinéraires":   _itin_panels[0],
-                "Voiture":       _itin_panels[1],
+                "Itinéraires": _itin_panels[0],
+                "Voiture": _itin_panels[1],
                 "Guide national": _itin_panels[2],
             }.get(tab_name)
             if panel is not None:
@@ -1468,11 +1659,11 @@ class ClientForm:
             on_tab_click=_switch_itin_tab,
         )
 
-        itin_panel        = tk.Frame(itineraire_card, bg=PANEL_BG_COLOR)
-        voiture_panel     = tk.Frame(itineraire_card, bg=PANEL_BG_COLOR)
-        guide_panel       = tk.Frame(itineraire_card, bg=PANEL_BG_COLOR)
-        _itin_panels      = [itin_panel, voiture_panel, guide_panel]
-        _active_panel[0]  = itin_panel
+        itin_panel = tk.Frame(itineraire_card, bg=PANEL_BG_COLOR)
+        voiture_panel = tk.Frame(itineraire_card, bg=PANEL_BG_COLOR)
+        guide_panel = tk.Frame(itineraire_card, bg=PANEL_BG_COLOR)
+        _itin_panels = [itin_panel, voiture_panel, guide_panel]
+        _active_panel[0] = itin_panel
         itin_panel.pack(fill="both", expand=True)
 
         # ── Sélection du circuit ──────────────────────────────────────────
@@ -1480,22 +1671,36 @@ class ClientForm:
         circuit_row.pack(fill="x", pady=(0, 6))
 
         tk.Label(
-            circuit_row, text="Circuit :",
-            font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+            circuit_row,
+            text="Circuit :",
+            font=("Poppins", 9, "bold"),
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
         ).pack(side="left", padx=(0, 6))
 
         self.combo_circuit = ttk.Combobox(
-            circuit_row, values=self.circuit_options, state="readonly", width=28,
+            circuit_row,
+            values=self.circuit_options,
+            state="readonly",
+            width=28,
         )
         self.combo_circuit.pack(side="left", padx=(0, 8))
         self.combo_circuit.bind(
-            "<<ComboboxSelected>>", lambda e: self._on_circuit_selected(apply_route=True)
+            "<<ComboboxSelected>>",
+            lambda e: self._on_circuit_selected(apply_route=True),
         )
 
         apply_btn = tk.Button(
-            circuit_row, text="Appliquer",
-            font=("Poppins", 8, "bold"), fg="white", bg=BUTTON_BLUE,
-            relief="flat", bd=0, padx=8, pady=2, cursor="hand2",
+            circuit_row,
+            text="Appliquer",
+            font=("Poppins", 8, "bold"),
+            fg="white",
+            bg=BUTTON_BLUE,
+            relief="flat",
+            bd=0,
+            padx=8,
+            pady=2,
+            cursor="hand2",
             command=lambda: self._on_circuit_selected(apply_route=True),
         )
         apply_btn.pack(side="left", padx=(0, 12))
@@ -1506,11 +1711,11 @@ class ClientForm:
 
         # ── En-têtes de colonnes ─────────────────────────────────────────
         _ITIN = [
-            ("Date",                  114),   # 110 + 4 padding
-            ("Ville de départ",       152),   # 148 + 4
-            ("Ville d'arrivée",       152),   # 148 + 4
-            ("Distance (km)",          94),   # 90 + 4
-            ("Hébergement",             0),   # fill
+            ("Date", 114),  # 110 + 4 padding
+            ("Ville de départ", 152),  # 148 + 4
+            ("Ville d'arrivée", 152),  # 148 + 4
+            ("Distance (km)", 94),  # 90 + 4
+            ("Hébergement", 0),  # fill
         ]
         hdr_bg = "#C5E0E8"
         hdr = tk.Frame(itin_panel, bg=hdr_bg)
@@ -1524,9 +1729,13 @@ class ClientForm:
             else:
                 cell.pack(side="left", fill="x", expand=True)
             tk.Label(
-                cell, text=col_name,
-                font=("Poppins", 9, "bold"), fg=TEXT_COLOR, bg=hdr_bg,
-                padx=6, pady=4,
+                cell,
+                text=col_name,
+                font=("Poppins", 9, "bold"),
+                fg=TEXT_COLOR,
+                bg=hdr_bg,
+                padx=6,
+                pady=4,
             ).pack(anchor="w")
 
         # ── Zone scrollable ──────────────────────────────────────────────
@@ -1536,7 +1745,9 @@ class ClientForm:
         self._itin_canvas = tk.Canvas(
             scroll_outer, bg=PANEL_BG_COLOR, highlightthickness=0, height=220
         )
-        itin_vsb = ttk.Scrollbar(scroll_outer, orient="vertical", command=self._itin_canvas.yview)
+        itin_vsb = ttk.Scrollbar(
+            scroll_outer, orient="vertical", command=self._itin_canvas.yview
+        )
         self._itin_canvas.configure(yscrollcommand=itin_vsb.set)
         itin_vsb.pack(side="right", fill="y")
         self._itin_canvas.pack(side="left", fill="both", expand=True)
@@ -1572,33 +1783,53 @@ class ClientForm:
 
         # ── Panneau VOITURE ───────────────────────────────────────────────
         _vp = voiture_panel
-        tk.Label(_vp, text="Type de véhicule", font=LABEL_FONT,
-                 fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(10, 4))
+        tk.Label(
+            _vp,
+            text="Type de véhicule",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+        ).pack(anchor="w", pady=(10, 4))
         self.combo_type_vehicule = _stay_combo(
-            _vp, ["", "4x4", "Berline", "Minivan", "Minibus", "Autre"],
+            _vp,
+            ["", "4x4", "Berline", "Minivan", "Minibus", "Autre"],
             fixed_width=220,
         )
         self.combo_type_vehicule.pack(anchor="w")
 
-        tk.Label(_vp, text="Carburant", font=LABEL_FONT,
-                 fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(12, 4))
+        tk.Label(
+            _vp, text="Carburant", font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR
+        ).pack(anchor="w", pady=(12, 4))
         self.var_location_voiture_tab = tk.StringVar(value="")
         for val in ("Avec carburant", "Sans carburant"):
             tk.Radiobutton(
-                _vp, text=val,
-                variable=self.var_location_voiture_tab, value=val,
-                fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
-                selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+                _vp,
+                text=val,
+                variable=self.var_location_voiture_tab,
+                value=val,
+                fg=TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
+                selectcolor=BUTTON_GREEN,
+                font=LABEL_FONT,
             ).pack(anchor="w")
 
-        tk.Label(_vp, text="Notes", font=LABEL_FONT,
-                 fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(12, 4))
+        tk.Label(
+            _vp, text="Notes", font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR
+        ).pack(anchor="w", pady=(12, 4))
         self.voiture_notes_text = tk.Text(
-            _vp, height=5, font=ENTRY_FONT,
-            bg="#FFF6E0", fg=TEXT_COLOR, wrap="word",
-            relief="flat", highlightthickness=1,
-            highlightbackground="#E6C87A", highlightcolor="#E6C87A",
-            bd=0, padx=8, pady=6,
+            _vp,
+            height=5,
+            font=ENTRY_FONT,
+            bg="#FFF6E0",
+            fg=TEXT_COLOR,
+            wrap="word",
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground="#E6C87A",
+            highlightcolor="#E6C87A",
+            bd=0,
+            padx=8,
+            pady=6,
         )
         self.voiture_notes_text.pack(fill="x", pady=(0, 10))
 
@@ -1606,30 +1837,56 @@ class ClientForm:
         _gp = guide_panel
         self.var_guide_national = tk.BooleanVar()
         tk.Checkbutton(
-            _gp, text="Avec guide national",
+            _gp,
+            text="Avec guide national",
             variable=self.var_guide_national,
-            fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
-            selectcolor=BUTTON_GREEN, font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+            selectcolor=BUTTON_GREEN,
+            font=LABEL_FONT,
         ).pack(anchor="w", pady=(10, 8))
 
-        tk.Label(_gp, text="Langue(s) du guide", font=LABEL_FONT,
-                 fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(0, 4))
+        tk.Label(
+            _gp,
+            text="Langue(s) du guide",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
+        ).pack(anchor="w", pady=(0, 4))
         self.combo_langue_guide = _stay_combo(
             _gp,
-            ["", "Français", "Anglais", "Allemand", "Italien",
-             "Espagnol", "Chinois", "Japonais", "Autre"],
+            [
+                "",
+                "Français",
+                "Anglais",
+                "Allemand",
+                "Italien",
+                "Espagnol",
+                "Chinois",
+                "Japonais",
+                "Autre",
+            ],
             fixed_width=220,
         )
         self.combo_langue_guide.pack(anchor="w")
 
-        tk.Label(_gp, text="Notes", font=LABEL_FONT,
-                 fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(anchor="w", pady=(12, 4))
+        tk.Label(
+            _gp, text="Notes", font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR
+        ).pack(anchor="w", pady=(12, 4))
         self.guide_notes_text = tk.Text(
-            _gp, height=5, font=ENTRY_FONT,
-            bg="#FFF6E0", fg=TEXT_COLOR, wrap="word",
-            relief="flat", highlightthickness=1,
-            highlightbackground="#E6C87A", highlightcolor="#E6C87A",
-            bd=0, padx=8, pady=6,
+            _gp,
+            height=5,
+            font=ENTRY_FONT,
+            bg="#FFF6E0",
+            fg=TEXT_COLOR,
+            wrap="word",
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground="#E6C87A",
+            highlightcolor="#E6C87A",
+            bd=0,
+            padx=8,
+            pady=6,
         )
         self.guide_notes_text.pack(fill="x", pady=(0, 10))
 
@@ -1686,9 +1943,7 @@ class ClientForm:
             text.pack(fill="x")
             return text
 
-        self.comment_client_text = _build_comment_block(
-            left_col, "Commentaires client"
-        )
+        self.comment_client_text = _build_comment_block(left_col, "Commentaires client")
         self.comment_internal_text = _build_comment_block(
             right_col, "Commentaires internes"
         )
@@ -1835,10 +2090,12 @@ class ClientForm:
         self.entry_ext_ref.insert(0, self.client_to_edit.get("ext_ref", ""))
 
         # Accompagnement / Location voiture
-        guide_value = str(self.client_to_edit.get("accompagnement_guide", "")).strip().lower()
-        chauffeur_value = str(
-            self.client_to_edit.get("accompagnement_chauffeur", "")
-        ).strip().lower()
+        guide_value = (
+            str(self.client_to_edit.get("accompagnement_guide", "")).strip().lower()
+        )
+        chauffeur_value = (
+            str(self.client_to_edit.get("accompagnement_chauffeur", "")).strip().lower()
+        )
         guide_on = guide_value in {"oui", "true", "1", "yes"}
         chauffeur_on = chauffeur_value in {"oui", "true", "1", "yes"}
         self.var_accompagnement_guide.set(guide_on)
@@ -1850,10 +2107,14 @@ class ClientForm:
         self.combo_langue_guide.set(self.client_to_edit.get("langue_guide", ""))
         self.guide_notes_text.delete("1.0", "end")
         self.guide_notes_text.insert("1.0", self.client_to_edit.get("guide_notes", ""))
-        self.var_location_voiture_tab.set(self.client_to_edit.get("location_voiture", ""))
+        self.var_location_voiture_tab.set(
+            self.client_to_edit.get("location_voiture", "")
+        )
         self.combo_type_vehicule.set(self.client_to_edit.get("type_vehicule", ""))
         self.voiture_notes_text.delete("1.0", "end")
-        self.voiture_notes_text.insert("1.0", self.client_to_edit.get("voiture_notes", ""))
+        self.voiture_notes_text.insert(
+            "1.0", self.client_to_edit.get("voiture_notes", "")
+        )
 
         # Clear and rebuild rooming rows from saved data
         for rw in getattr(self, "_rooming_widget_rows", []):
@@ -1861,23 +2122,30 @@ class ClientForm:
         if hasattr(self, "_rooming_widget_rows"):
             self._rooming_widget_rows.clear()
         room_labels = {
-            "sgl": "SGL (Single)", "dbl": "DBL (Double)",
-            "twn": "TWN (Twin)", "tpl": "TPL (Triple)", "fml": "FML (Familiale)",
+            "sgl": "SGL (Single)",
+            "dbl": "DBL (Double)",
+            "twn": "TWN (Twin)",
+            "tpl": "TPL (Triple)",
+            "fml": "FML (Familiale)",
         }
         for key, label in room_labels.items():
             count_str = str(self.client_to_edit.get(f"{key}_count", "") or "").strip()
             if count_str and count_str != "0":
-                self._add_rooming_widget_row({
-                    "date": self.client_to_edit.get("date_arrivee", ""),
-                    "nom": f"{self.client_to_edit.get('nom', '')} {self.client_to_edit.get('prenom', '')}".strip(),
-                    "nb_pax": self.client_to_edit.get("adultes", ""),
-                    "chambre": label,
-                    "nombre": count_str,
-                })
+                self._add_rooming_widget_row(
+                    {
+                        "date": self.client_to_edit.get("date_arrivee", ""),
+                        "nom": f"{self.client_to_edit.get('nom', '')} {self.client_to_edit.get('prenom', '')}".strip(),
+                        "nb_pax": self.client_to_edit.get("adultes", ""),
+                        "chambre": label,
+                        "nombre": count_str,
+                    }
+                )
         self._update_rooming_summary()
         # Combo boxes
         type_client = self.client_to_edit.get("type_client", "").strip()
-        self.combo_type_client.set(type_client if type_client in ("Mr", "Mme", "Non précisé", "CIE") else "Mr")
+        self.combo_type_client.set(
+            type_client if type_client in ("Mr", "Mme", "Non précisé", "CIE") else "Mr"
+        )
         self.combo_periode.set(self.client_to_edit.get("periode", ""))
         self.combo_restauration.set(self.client_to_edit.get("restauration", ""))
         self.combo_TypeHebergement.set(self.client_to_edit.get("hebergement", ""))
@@ -1906,7 +2174,6 @@ class ClientForm:
             self._toggle_enfant()
 
         self._update_participants_total()
-
 
     def _open_calendar(self, entry_widget):
         """Open calendar dialog for date selection"""
@@ -2024,23 +2291,37 @@ class ClientForm:
     def _add_rooming_widget_row(self, data=None):
         """Create one editable row — même design que la section séjour/itinéraire."""
         data = data or {}
-        _H        = 34
-        _DATE_W   = 95
-        _PAX_W    = 50
+        _H = 34
+        _DATE_W = 95
+        _PAX_W = 50
         _CHAMBRE_W = 110
-        _NOMBRE_W  = 55
-        ROW_BG    = PANEL_BG_COLOR
-        ROOM_OPTS = ["SGL (Single)", "DBL (Double)", "TWN (Twin)", "TPL (Triple)", "FML (Familiale)"]
+        _NOMBRE_W = 55
+        ROW_BG = PANEL_BG_COLOR
+        ROOM_OPTS = [
+            "SGL (Single)",
+            "DBL (Double)",
+            "TWN (Twin)",
+            "TPL (Triple)",
+            "FML (Familiale)",
+        ]
 
         row = tk.Frame(self._room_inner, bg=ROW_BG)
         row.pack(fill="x", pady=(0, 4))
 
-        _scroll = lambda e: self._room_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        _scroll = lambda e: self._room_canvas.yview_scroll(
+            int(-1 * (e.delta / 120)), "units"
+        )
 
         # ── Canvas chip (lecture seule) ───────────────────────────────────
         def _make_chip(parent, w, h=_H):
-            c = tk.Canvas(parent, width=w, height=h, bg=ROW_BG,
-                          highlightthickness=0, cursor="arrow")
+            c = tk.Canvas(
+                parent,
+                width=w,
+                height=h,
+                bg=ROW_BG,
+                highlightthickness=0,
+                cursor="arrow",
+            )
             c.bind("<MouseWheel>", _scroll)
             return c
 
@@ -2052,16 +2333,42 @@ class ClientForm:
                     w = canvas.winfo_reqwidth()
                 r = 8
                 x1, y1, x2, y2 = 0, 1, w - 1, h - 2
-                pts = [x1+r,y1, x2-r,y1, x2,y1, x2,y1+r,
-                       x2,y2-r, x2,y2, x2-r,y2, x1+r,y2,
-                       x1,y2, x1,y2-r, x1,y1+r, x1,y1]
-                canvas.create_polygon(pts, smooth=True,
-                                      fill=INPUT_BG_COLOR, outline="#C9DDE3", width=1)
+                pts = [
+                    x1 + r,
+                    y1,
+                    x2 - r,
+                    y1,
+                    x2,
+                    y1,
+                    x2,
+                    y1 + r,
+                    x2,
+                    y2 - r,
+                    x2,
+                    y2,
+                    x2 - r,
+                    y2,
+                    x1 + r,
+                    y2,
+                    x1,
+                    y2,
+                    x1,
+                    y2 - r,
+                    x1,
+                    y1 + r,
+                    x1,
+                    y1,
+                ]
+                canvas.create_polygon(
+                    pts, smooth=True, fill=INPUT_BG_COLOR, outline="#C9DDE3", width=1
+                )
                 val = text_var.get() if text_var else ""
                 display = val if val else placeholder
                 fill = TEXT_COLOR if val else MUTED_TEXT_COLOR
-                canvas.create_text(8, h // 2, text=display,
-                                   anchor="w", font=ENTRY_FONT, fill=fill)
+                canvas.create_text(
+                    8, h // 2, text=display, anchor="w", font=ENTRY_FONT, fill=fill
+                )
+
             if text_var:
                 text_var.trace_add("write", _draw)
             canvas.bind("<Configure>", _draw)
@@ -2070,36 +2377,60 @@ class ClientForm:
         def _make_entry(parent, var, w, expand=False):
             if ctk:
                 e = ctk.CTkEntry(
-                    parent, textvariable=var,
-                    font=ENTRY_FONT, corner_radius=8,
-                    fg_color=INPUT_BG_COLOR, text_color=TEXT_COLOR,
-                    border_color="#C9DDE3", border_width=1,
-                    height=_H, width=w if not expand else 10,
+                    parent,
+                    textvariable=var,
+                    font=ENTRY_FONT,
+                    corner_radius=8,
+                    fg_color=INPUT_BG_COLOR,
+                    text_color=TEXT_COLOR,
+                    border_color="#C9DDE3",
+                    border_width=1,
+                    height=_H,
+                    width=w if not expand else 10,
                 )
             else:
-                e = tk.Entry(parent, font=ENTRY_FONT, bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
-                             textvariable=var, relief="flat", bd=1,
-                             insertbackground=TEXT_COLOR)
+                e = tk.Entry(
+                    parent,
+                    font=ENTRY_FONT,
+                    bg=INPUT_BG_COLOR,
+                    fg=TEXT_COLOR,
+                    textvariable=var,
+                    relief="flat",
+                    bd=1,
+                    insertbackground=TEXT_COLOR,
+                )
             e.bind("<MouseWheel>", _scroll)
             return e
 
         def _make_combo(parent, values, var, w):
             if ctk:
                 cb = ctk.CTkComboBox(
-                    parent, values=values, variable=var,
+                    parent,
+                    values=values,
+                    variable=var,
                     state="readonly",
-                    font=ENTRY_FONT, corner_radius=8,
-                    fg_color=INPUT_BG_COLOR, text_color=TEXT_COLOR,
-                    button_color="#C9DDE3", button_hover_color=BUTTON_BLUE,
-                    border_color="#C9DDE3", border_width=1,
+                    font=ENTRY_FONT,
+                    corner_radius=8,
+                    fg_color=INPUT_BG_COLOR,
+                    text_color=TEXT_COLOR,
+                    button_color="#C9DDE3",
+                    button_hover_color=BUTTON_BLUE,
+                    border_color="#C9DDE3",
+                    border_width=1,
                     dropdown_fg_color=INPUT_BG_COLOR,
                     dropdown_text_color=TEXT_COLOR,
                     dropdown_hover_color="#E8F4F8",
-                    height=_H, width=w,
+                    height=_H,
+                    width=w,
                 )
             else:
-                cb = ttk.Combobox(parent, values=values, textvariable=var,
-                                  state="readonly", font=ENTRY_FONT)
+                cb = ttk.Combobox(
+                    parent,
+                    values=values,
+                    textvariable=var,
+                    state="readonly",
+                    font=ENTRY_FONT,
+                )
             cb.bind("<MouseWheel>", _scroll)
             return cb
 
@@ -2121,6 +2452,7 @@ class ClientForm:
             new_w = max(e.width, 40)
             if ctk and isinstance(nom_entry, ctk.CTkEntry):
                 nom_entry.configure(width=new_w)
+
         nom_frame.bind("<Configure>", _resize_nom)
 
         # ── Nb pax ────────────────────────────────────────────────────────
@@ -2140,19 +2472,37 @@ class ClientForm:
 
         row.bind("<MouseWheel>", _scroll)
 
-        self._rooming_widget_rows.append({
-            "frame": row, "date_var": date_var, "nom_var": nom_var,
-            "pax_var": pax_var, "chambre_var": chambre_var, "nombre_var": nombre_var,
-        })
+        self._rooming_widget_rows.append(
+            {
+                "frame": row,
+                "date_var": date_var,
+                "nom_var": nom_var,
+                "pax_var": pax_var,
+                "chambre_var": chambre_var,
+                "nombre_var": nombre_var,
+            }
+        )
         self._room_inner.update_idletasks()
         self._room_canvas.configure(scrollregion=self._room_canvas.bbox("all"))
         self._update_rooming_summary()
 
     def _add_rooming_row(self):
-        date_arr = self.entry_date_arrivee.get() if hasattr(self, "entry_date_arrivee") else ""
-        prenom = self._get_entry_value(self.entry_prenom).strip() if hasattr(self, "entry_prenom") else ""
-        nom = self._get_entry_value(self.entry_nom).strip() if hasattr(self, "entry_nom") else ""
-        self._add_rooming_widget_row({"date": date_arr, "nom": f"{nom} {prenom}".strip()})
+        date_arr = (
+            self.entry_date_arrivee.get() if hasattr(self, "entry_date_arrivee") else ""
+        )
+        prenom = (
+            self._get_entry_value(self.entry_prenom).strip()
+            if hasattr(self, "entry_prenom")
+            else ""
+        )
+        nom = (
+            self._get_entry_value(self.entry_nom).strip()
+            if hasattr(self, "entry_nom")
+            else ""
+        )
+        self._add_rooming_widget_row(
+            {"date": date_arr, "nom": f"{nom} {prenom}".strip()}
+        )
 
     def _remove_rooming_row(self):
         if self._rooming_widget_rows:
@@ -2162,7 +2512,11 @@ class ClientForm:
 
     def _update_rooming_summary(self):
         """Display a compact summary for selected rooming."""
-        n = len(self._rooming_widget_rows) if hasattr(self, "_rooming_widget_rows") else 0
+        n = (
+            len(self._rooming_widget_rows)
+            if hasattr(self, "_rooming_widget_rows")
+            else 0
+        )
         self.rooming_summary_label.config(
             text="Aucune ligne" if n == 0 else f"{n} ligne(s)"
         )
@@ -2170,8 +2524,11 @@ class ClientForm:
     def _update_type_chambre_from_rooming(self, clear_if_empty=True):
         """Auto-fill room type based on rooming list quantities."""
         room_key_map = {
-            "SGL": "Single", "DBL": "Double/twin", "TWN": "Double/twin",
-            "TPL": "Triple", "FML": "Familliale",
+            "SGL": "Single",
+            "DBL": "Double/twin",
+            "TWN": "Double/twin",
+            "TPL": "Triple",
+            "FML": "Familliale",
         }
         counts = {}
         for rw in getattr(self, "_rooming_widget_rows", []):
@@ -2186,7 +2543,10 @@ class ClientForm:
                     break
         if counts:
             priority = ["Single", "Double/twin", "Triple", "Familliale"]
-            best = sorted(counts.items(), key=lambda x: (-x[1], priority.index(x[0]) if x[0] in priority else 99))[0][0]
+            best = sorted(
+                counts.items(),
+                key=lambda x: (-x[1], priority.index(x[0]) if x[0] in priority else 99),
+            )[0][0]
             self.combo_TypeChambre.set(best)
         elif clear_if_empty:
             self.combo_TypeChambre.set("")
@@ -2195,21 +2555,28 @@ class ClientForm:
         """Create one editable row — même design que la section séjour."""
         data = data or {}
         _H = 34
-        _DATE_W  = 110
-        _CITY_W  = 148
-        _DIST_W  = 90
-        ROW_BG   = PANEL_BG_COLOR
+        _DATE_W = 110
+        _CITY_W = 148
+        _DIST_W = 90
+        ROW_BG = PANEL_BG_COLOR
 
         row = tk.Frame(self._itin_inner, bg=ROW_BG)
         row.pack(fill="x", pady=(0, 4))
 
-        _scroll = lambda e: self._itin_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        _scroll = lambda e: self._itin_canvas.yview_scroll(
+            int(-1 * (e.delta / 120)), "units"
+        )
 
         # ── Helper : Canvas arrondi (même look que _date_chip) ───────────
         def _make_chip(parent, w, h=_H, clickable=False):
-            c = tk.Canvas(parent, width=w, height=h, bg=ROW_BG,
-                          highlightthickness=0,
-                          cursor="hand2" if clickable else "arrow")
+            c = tk.Canvas(
+                parent,
+                width=w,
+                height=h,
+                bg=ROW_BG,
+                highlightthickness=0,
+                cursor="hand2" if clickable else "arrow",
+            )
             c.bind("<MouseWheel>", _scroll)
             return c
 
@@ -2221,22 +2588,55 @@ class ClientForm:
                     w = canvas.winfo_reqwidth()
                 r = 8
                 x1, y1, x2, y2 = 0, 1, w - 1, h - 2
-                pts = [x1+r,y1, x2-r,y1, x2,y1, x2,y1+r,
-                       x2,y2-r, x2,y2, x2-r,y2, x1+r,y2,
-                       x1,y2, x1,y2-r, x1,y1+r, x1,y1]
-                canvas.create_polygon(pts, smooth=True,
-                                      fill=INPUT_BG_COLOR, outline="#C9DDE3", width=1)
+                pts = [
+                    x1 + r,
+                    y1,
+                    x2 - r,
+                    y1,
+                    x2,
+                    y1,
+                    x2,
+                    y1 + r,
+                    x2,
+                    y2 - r,
+                    x2,
+                    y2,
+                    x2 - r,
+                    y2,
+                    x1 + r,
+                    y2,
+                    x1,
+                    y2,
+                    x1,
+                    y2 - r,
+                    x1,
+                    y1 + r,
+                    x1,
+                    y1,
+                ]
+                canvas.create_polygon(
+                    pts, smooth=True, fill=INPUT_BG_COLOR, outline="#C9DDE3", width=1
+                )
                 val = text_var.get() if text_var else ""
                 display = val if val else placeholder
                 fill = TEXT_COLOR if val else MUTED_TEXT_COLOR
                 if icon:
-                    canvas.create_text(w - 16, h // 2, text=icon,
-                                       anchor="center", font=("Poppins", 11))
-                    canvas.create_text(10, h // 2, text=display,
-                                       anchor="w", font=ENTRY_FONT, fill=fill)
+                    canvas.create_text(
+                        w - 16, h // 2, text=icon, anchor="center", font=("Poppins", 11)
+                    )
+                    canvas.create_text(
+                        10, h // 2, text=display, anchor="w", font=ENTRY_FONT, fill=fill
+                    )
                 else:
-                    canvas.create_text(w // 2, h // 2, text=display,
-                                       anchor="center", font=ENTRY_FONT, fill=fill)
+                    canvas.create_text(
+                        w // 2,
+                        h // 2,
+                        text=display,
+                        anchor="center",
+                        font=ENTRY_FONT,
+                        fill=fill,
+                    )
+
             if text_var:
                 text_var.trace_add("write", _draw)
             canvas.bind("<Configure>", _draw)
@@ -2245,20 +2645,32 @@ class ClientForm:
         def _make_itin_combo(parent, values, var, w):
             if ctk:
                 cb = ctk.CTkComboBox(
-                    parent, values=values, variable=var,
+                    parent,
+                    values=values,
+                    variable=var,
                     state="normal",
-                    font=ENTRY_FONT, corner_radius=8,
-                    fg_color=INPUT_BG_COLOR, text_color=TEXT_COLOR,
-                    button_color="#C9DDE3", button_hover_color=BUTTON_BLUE,
-                    border_color="#C9DDE3", border_width=1,
+                    font=ENTRY_FONT,
+                    corner_radius=8,
+                    fg_color=INPUT_BG_COLOR,
+                    text_color=TEXT_COLOR,
+                    button_color="#C9DDE3",
+                    button_hover_color=BUTTON_BLUE,
+                    border_color="#C9DDE3",
+                    border_width=1,
                     dropdown_fg_color=INPUT_BG_COLOR,
                     dropdown_text_color=TEXT_COLOR,
                     dropdown_hover_color="#E8F4F8",
-                    height=_H, width=w,
+                    height=_H,
+                    width=w,
                 )
             else:
-                cb = ttk.Combobox(parent, values=values, textvariable=var,
-                                  state="normal", font=ENTRY_FONT)
+                cb = ttk.Combobox(
+                    parent,
+                    values=values,
+                    textvariable=var,
+                    state="normal",
+                    font=ENTRY_FONT,
+                )
             cb.bind("<MouseWheel>", _scroll)
             return cb
 
@@ -2323,6 +2735,7 @@ class ClientForm:
             new_w = max(e.width, 80)
             if ctk and isinstance(heb_cb, ctk.CTkComboBox):
                 heb_cb.configure(width=new_w)
+
         heb_frame.bind("<Configure>", _resize_heb)
 
         def _update_heb_options(*_):
@@ -2338,14 +2751,16 @@ class ClientForm:
 
         row.bind("<MouseWheel>", _scroll)
 
-        self._itin_widget_rows.append({
-            "frame": row,
-            "date_var": date_var,
-            "depart_var": depart_var,
-            "arrivee_var": arrivee_var,
-            "distance_var": dist_var,
-            "heb_var": heb_var,
-        })
+        self._itin_widget_rows.append(
+            {
+                "frame": row,
+                "date_var": date_var,
+                "depart_var": depart_var,
+                "arrivee_var": arrivee_var,
+                "distance_var": dist_var,
+                "heb_var": heb_var,
+            }
+        )
 
         self._itin_inner.update_idletasks()
         self._itin_canvas.configure(scrollregion=self._itin_canvas.bbox("all"))
@@ -2369,13 +2784,15 @@ class ClientForm:
         """Return itinerary rows read from the editable widgets."""
         rows = []
         for r in self._itin_widget_rows:
-            rows.append({
-                "date": r["date_var"].get().strip(),
-                "depart": r["depart_var"].get().strip(),
-                "arrivee": r["arrivee_var"].get().strip(),
-                "distance": r["distance_var"].get().strip(),
-                "hebergement": r["heb_var"].get().strip(),
-            })
+            rows.append(
+                {
+                    "date": r["date_var"].get().strip(),
+                    "depart": r["depart_var"].get().strip(),
+                    "arrivee": r["arrivee_var"].get().strip(),
+                    "distance": r["distance_var"].get().strip(),
+                    "hebergement": r["heb_var"].get().strip(),
+                }
+            )
         return rows
 
     def _serialize_itinerary_rows(self, rows):
@@ -2434,9 +2851,7 @@ class ClientForm:
                             }
                         )
             else:
-                cities = [
-                    c.strip() for c in re.split(r"[;,>\n]+", raw) if c.strip()
-                ]
+                cities = [c.strip() for c in re.split(r"[;,>\n]+", raw) if c.strip()]
                 previous = depart_value.strip()
                 for city in cities:
                     rows.append(
@@ -2487,7 +2902,13 @@ class ClientForm:
             return
 
         self.itinerary_rows = [
-            {"date": "", "depart": cities[i - 1], "arrivee": cities[i], "distance": "", "hebergement": ""}
+            {
+                "date": "",
+                "depart": cities[i - 1],
+                "arrivee": cities[i],
+                "distance": "",
+                "hebergement": "",
+            }
             for i in range(1, len(cities))
         ]
         self._refresh_itinerary_table()
@@ -2543,7 +2964,11 @@ class ClientForm:
             else self.combo_ville_depart.get().strip()
         )
         ville_arrivee = ", ".join(
-            [row.get("arrivee", "").strip() for row in itinerary_rows if row.get("arrivee")]
+            [
+                row.get("arrivee", "").strip()
+                for row in itinerary_rows
+                if row.get("arrivee")
+            ]
         )
         itineraire_detail = self._serialize_itinerary_rows(itinerary_rows)
         type_client = self.combo_type_client.get().strip()
@@ -2563,7 +2988,13 @@ class ClientForm:
         )
 
         # Collect rooming rows data
-        _room_key_map = {"SGL": "sgl", "DBL": "dbl", "TWN": "twn", "TPL": "tpl", "FML": "fml"}
+        _room_key_map = {
+            "SGL": "sgl",
+            "DBL": "dbl",
+            "TWN": "twn",
+            "TPL": "tpl",
+            "FML": "fml",
+        }
         _room_counts = {"sgl": 0, "dbl": 0, "twn": 0, "tpl": 0, "fml": 0}
         for rw in getattr(self, "_rooming_widget_rows", []):
             chambre = rw["chambre_var"].get()
@@ -2607,12 +3038,12 @@ class ClientForm:
             "restauration": self.combo_restauration.get(),
             "hebergement": self.combo_TypeHebergement.get(),
             "chambre": self.combo_TypeChambre.get(),
-            "accompagnement_guide": "Oui"
-            if self.var_accompagnement_guide.get()
-            else "Non",
-            "accompagnement_chauffeur": "Oui"
-            if self.var_accompagnement_chauffeur.get()
-            else "Non",
+            "accompagnement_guide": (
+                "Oui" if self.var_accompagnement_guide.get() else "Non"
+            ),
+            "accompagnement_chauffeur": (
+                "Oui" if self.var_accompagnement_chauffeur.get() else "Non"
+            ),
             "guide_national": "Oui" if self.var_guide_national.get() else "Non",
             "langue_guide": self.combo_langue_guide.get(),
             "guide_notes": self.guide_notes_text.get("1.0", "end").strip(),
@@ -2694,8 +3125,11 @@ class ClientForm:
                     )
                     logger.info(f"Client updated: {client.ref_client} - {client.nom}")
                     from utils.activity_log import log_activity
-                    log_activity("edit_client",
-                                 f"Client modifié : {client.nom} ({client.ref_client})")
+
+                    log_activity(
+                        "edit_client",
+                        f"Client modifié : {client.nom} ({client.ref_client})",
+                    )
                     if self.on_save_callback:
                         self.on_save_callback()
                 else:
@@ -2715,8 +3149,11 @@ class ClientForm:
                         f"New client saved: {client.ref_client} - {client.nom} at row {row}"
                     )
                     from utils.activity_log import log_activity
-                    log_activity("create_client",
-                                 f"Client créé : {client.nom} ({client.ref_client})")
+
+                    log_activity(
+                        "create_client",
+                        f"Client créé : {client.nom} ({client.ref_client})",
+                    )
                     self._reset_form()
                     if self.on_save_callback:
                         self.on_save_callback()
@@ -2732,10 +3169,10 @@ class ClientForm:
             logger.error(f"Exception during client save/update: {e}", exc_info=True)
 
     _STATUT_COLORS = {
-        "En cours":   "#00BCD4",
-        "Accepté":    "#4CAF50",
+        "En cours": "#00BCD4",
+        "Accepté": "#4CAF50",
         "En circuit": "#FF9800",
-        "Annulé":     "#F44336",
+        "Annulé": "#F44336",
     }
 
     def _generate_client_refs(self):

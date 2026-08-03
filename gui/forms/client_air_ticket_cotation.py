@@ -46,15 +46,16 @@ from utils.excel_handler import (
     save_client_air_ticket_cotation_to_excel,
 )
 
-_HOVER_GREEN  = "#0A6870"
-_HOVER_BLUE   = "#0B6080"
-_HOVER_RED    = "#A82020"
+_HOVER_GREEN = "#0A6870"
+_HOVER_BLUE = "#0B6080"
+_HOVER_RED = "#A82020"
 _HOVER_ORANGE = "#C8860A"
 
 _CLASSES = ["Économique", "Affaires", "Première"]
 
 
 # ── Helpers purs ──────────────────────────────────────────────────────────────
+
 
 def _to_float(value, default=0.0):
     try:
@@ -91,30 +92,34 @@ def _make_row(
     else:
         total_value = float(total or 0.0)
     return {
-        "date_vol":        str(date_vol),
-        "numero_vol":      str(numero_vol),
-        "type_trajet":     type_trajet,
-        "compagnie":       compagnie,
-        "ville_depart":    ville_depart,
-        "ville_arrivee":   ville_arrivee,
-        "classe":          classe or "Économique",
-        "nb_adultes":      str(nb_adultes),
-        "nb_enfants":      str(nb_enfants),
-        "tarif_adulte":    str(tarif_adulte),
-        "tarif_enfant":    str(tarif_enfant),
+        "date_vol": str(date_vol),
+        "numero_vol": str(numero_vol),
+        "type_trajet": type_trajet,
+        "compagnie": compagnie,
+        "ville_depart": ville_depart,
+        "ville_arrivee": ville_arrivee,
+        "classe": classe or "Économique",
+        "nb_adultes": str(nb_adultes),
+        "nb_enfants": str(nb_enfants),
+        "tarif_adulte": str(tarif_adulte),
+        "tarif_enfant": str(tarif_enfant),
         "montant_adultes": float(montant_adultes),
         "montant_enfants": float(montant_enfants),
-        "sous_total":      float(sous_total),
-        "marge_pct":       str(marge_pct),
-        "total":           total_value,
-        "total_manuel":    bool(total_manuel),
+        "sous_total": float(sous_total),
+        "marge_pct": str(marge_pct),
+        "total": total_value,
+        "total_manuel": bool(total_manuel),
     }
 
 
 def _recompute_row(row):
     updated = dict(row)
-    montant_adultes = _to_float(updated.get("nb_adultes")) * _to_float(updated.get("tarif_adulte"))
-    montant_enfants = _to_float(updated.get("nb_enfants")) * _to_float(updated.get("tarif_enfant"))
+    montant_adultes = _to_float(updated.get("nb_adultes")) * _to_float(
+        updated.get("tarif_adulte")
+    )
+    montant_enfants = _to_float(updated.get("nb_enfants")) * _to_float(
+        updated.get("tarif_enfant")
+    )
     sous_total = montant_adultes + montant_enfants
     marge_pct = _to_float(updated.get("marge_pct"))
     total_calcule = sous_total * (1 + marge_pct / 100.0)
@@ -137,10 +142,12 @@ def _recompute_row(row):
 
 
 def _build_initial_rows(client, trip_mode):
-    compagnie  = str(client.get("compagnie") or "").strip()
-    depart     = str(client.get("ville_depart") or "").strip()
-    arrivee    = str(client.get("ville_arrivee") or "").strip()
-    nb_adultes = str(client.get("nombre_adultes") or client.get("nombre_participants") or "")
+    compagnie = str(client.get("compagnie") or "").strip()
+    depart = str(client.get("ville_depart") or "").strip()
+    arrivee = str(client.get("ville_arrivee") or "").strip()
+    nb_adultes = str(
+        client.get("nombre_adultes") or client.get("nombre_participants") or ""
+    )
     nb_enfants = str(client.get("nombre_enfants") or "0")
 
     # Tarifs depuis BD si compagnie connue
@@ -181,11 +188,22 @@ def _build_initial_rows(client, trip_mode):
 
 def _validate_rows(rows):
     errors = []
-    numeric_fields = ("nb_adultes", "nb_enfants", "tarif_adulte", "tarif_enfant", "marge_pct")
+    numeric_fields = (
+        "nb_adultes",
+        "nb_enfants",
+        "tarif_adulte",
+        "tarif_enfant",
+        "marge_pct",
+    )
 
     for index, row in enumerate(rows, start=1):
-        if not str(row.get("ville_depart") or "").strip() or not str(row.get("ville_arrivee") or "").strip():
-            errors.append(f"Ligne {index} : ville_depart et ville_arrivee sont obligatoires.")
+        if (
+            not str(row.get("ville_depart") or "").strip()
+            or not str(row.get("ville_arrivee") or "").strip()
+        ):
+            errors.append(
+                f"Ligne {index} : ville_depart et ville_arrivee sont obligatoires."
+            )
 
         for field in numeric_fields:
             value = str(row.get(field, "")).strip()
@@ -200,28 +218,29 @@ def _validate_rows(rows):
 
 # ── Écran principal ────────────────────────────────────────────────────────────
 
+
 class ClientAirTicketCotation:
 
     _COLS = [
-        ("date_vol",      "Date vol",     85),
-        ("numero_vol",    "N° vol",       80),
-        ("type_trajet",   "Trajet",       70),
-        ("compagnie",     "Compagnie",   110),
-        ("ville_depart",  "Départ",      115),
-        ("ville_arrivee", "Arrivée",     115),
-        ("classe",        "Classe",       80),
-        ("nb_adultes",    "Adt",          45),
-        ("nb_enfants",    "Enf",          45),
-        ("sous_total",    "Sous-total",  100),
-        ("marge_pct",     "Marge %",      65),
-        ("total",         "Total",       105),
+        ("date_vol", "Date vol", 85),
+        ("numero_vol", "N° vol", 80),
+        ("type_trajet", "Trajet", 70),
+        ("compagnie", "Compagnie", 110),
+        ("ville_depart", "Départ", 115),
+        ("ville_arrivee", "Arrivée", 115),
+        ("classe", "Classe", 80),
+        ("nb_adultes", "Adt", 45),
+        ("nb_enfants", "Enf", 45),
+        ("sous_total", "Sous-total", 100),
+        ("marge_pct", "Marge %", 65),
+        ("total", "Total", 105),
     ]
 
     def __init__(self, parent: tk.Widget, client: dict, on_back=None):
-        self.parent   = parent
-        self.client   = client
-        self.on_back  = on_back
-        self._rows    = []
+        self.parent = parent
+        self.client = client
+        self.on_back = on_back
+        self._rows = []
         self.trip_mode_var = tk.StringVar(value="aller-retour")
 
         self._build_ui()
@@ -241,7 +260,7 @@ class ClientAirTicketCotation:
         root.pack(fill="both", expand=True, padx=16, pady=12)
         self._shell = root
 
-        nom     = (self.client.get("prenom", "") + " " + self.client.get("nom", "")).strip()
+        nom = (self.client.get("prenom", "") + " " + self.client.get("nom", "")).strip()
         dossier = self.client.get("numero_dossier", "")
 
         # ── En-tête ────────────────────────────────────────────────────────
@@ -250,59 +269,95 @@ class ClientAirTicketCotation:
         hdr_top.pack(fill="x")
 
         ctk.CTkButton(
-            hdr_top, text="← Retour", width=90, height=30,
-            fg_color=BUTTON_BLUE, hover_color=_HOVER_BLUE,
-            text_color="white", font=("Poppins", 10, "bold"),
-            corner_radius=6, cursor="hand2",
+            hdr_top,
+            text="← Retour",
+            width=90,
+            height=30,
+            fg_color=BUTTON_BLUE,
+            hover_color=_HOVER_BLUE,
+            text_color="white",
+            font=("Poppins", 10, "bold"),
+            corner_radius=6,
+            cursor="hand2",
             command=self._go_back,
         ).pack(side="left", padx=(0, 12))
 
         tk.Label(
-            hdr_top, text="Cotation Avion",
-            font=TITLE_FONT, bg=PANEL_BG_COLOR, fg=TEXT_COLOR,
+            hdr_top,
+            text="Cotation Avion",
+            font=TITLE_FONT,
+            bg=PANEL_BG_COLOR,
+            fg=TEXT_COLOR,
         ).pack(side="left")
 
         info_right = tk.Frame(hdr_top, bg=PANEL_BG_COLOR)
         info_right.pack(side="right")
         for lbl, val in [("Client", nom or "—"), ("Dossier", dossier or "—")]:
-            tk.Label(info_right, text=f"{lbl} : ", font=LABEL_FONT,
-                     fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left")
-            tk.Label(info_right, text=val, font=LABEL_FONT,
-                     fg=TEXT_COLOR, bg=PANEL_BG_COLOR).pack(side="left", padx=(0, 16))
+            tk.Label(
+                info_right,
+                text=f"{lbl} : ",
+                font=LABEL_FONT,
+                fg=MUTED_TEXT_COLOR,
+                bg=PANEL_BG_COLOR,
+            ).pack(side="left")
+            tk.Label(
+                info_right, text=val, font=LABEL_FONT, fg=TEXT_COLOR, bg=PANEL_BG_COLOR
+            ).pack(side="left", padx=(0, 16))
 
         # ── Barre d'actions ────────────────────────────────────────────────
         _, action = card_frame(root, pady=(0, 8))
         action_row = tk.Frame(action, bg=PANEL_BG_COLOR)
         action_row.pack(fill="x")
 
-        tk.Label(action_row, text="Mode :", font=LABEL_FONT,
-                 bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left", padx=(0, 4))
+        tk.Label(
+            action_row,
+            text="Mode :",
+            font=LABEL_FONT,
+            bg=PANEL_BG_COLOR,
+            fg=MUTED_TEXT_COLOR,
+        ).pack(side="left", padx=(0, 4))
 
         ttk.Combobox(
-            action_row, textvariable=self.trip_mode_var,
+            action_row,
+            textvariable=self.trip_mode_var,
             values=["aller simple", "aller-retour"],
-            state="readonly", width=16,
+            state="readonly",
+            width=16,
         ).pack(side="left", padx=(0, 6))
 
         for text, cmd, color, hover, width in [
-            ("Régénérer",    self._regenerate_rows,   BUTTON_BLUE,   _HOVER_BLUE,   110),
-            ("+ Ajouter",    self._open_add_dialog,   BUTTON_GREEN,  _HOVER_GREEN,  100),
-            ("✎ Modifier",   self._open_edit_dialog,  BUTTON_BLUE,   _HOVER_BLUE,   100),
-            ("Supprimer",    self._delete_selected,   BUTTON_RED,    _HOVER_RED,    100),
-            ("📄 Devis PDF", self._export_pdf,        BUTTON_ORANGE, _HOVER_ORANGE, 120),
+            ("Régénérer", self._regenerate_rows, BUTTON_BLUE, _HOVER_BLUE, 110),
+            ("+ Ajouter", self._open_add_dialog, BUTTON_GREEN, _HOVER_GREEN, 100),
+            ("✎ Modifier", self._open_edit_dialog, BUTTON_BLUE, _HOVER_BLUE, 100),
+            ("Supprimer", self._delete_selected, BUTTON_RED, _HOVER_RED, 100),
+            ("📄 Devis PDF", self._export_pdf, BUTTON_ORANGE, _HOVER_ORANGE, 120),
         ]:
             ctk.CTkButton(
-                action_row, text=text, command=cmd,
-                fg_color=color, hover_color=hover,
-                text_color="white", font=BUTTON_FONT,
-                corner_radius=8, cursor="hand2", width=width, height=32,
+                action_row,
+                text=text,
+                command=cmd,
+                fg_color=color,
+                hover_color=hover,
+                text_color="white",
+                font=BUTTON_FONT,
+                corner_radius=8,
+                cursor="hand2",
+                width=width,
+                height=32,
             ).pack(side="left", padx=(0, 6))
 
         ctk.CTkButton(
-            action_row, text="💾 Sauvegarder", command=self._save_to_excel,
-            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN,
-            text_color="white", font=BUTTON_FONT,
-            corner_radius=8, cursor="hand2", width=140, height=32,
+            action_row,
+            text="💾 Sauvegarder",
+            command=self._save_to_excel,
+            fg_color=BUTTON_GREEN,
+            hover_color=_HOVER_GREEN,
+            text_color="white",
+            font=BUTTON_FONT,
+            corner_radius=8,
+            cursor="hand2",
+            width=140,
+            height=32,
         ).pack(side="right")
 
         # ── Treeview ───────────────────────────────────────────────────────
@@ -310,22 +365,32 @@ class ClientAirTicketCotation:
         _, tree_inner = card_frame(root, expand=True, pady=(0, 8))
 
         cols = [c[0] for c in self._COLS]
-        self._tree = ttk.Treeview(tree_inner, columns=cols, show="headings",
-                                  selectmode="browse", height=14, style="Avion.Treeview")
+        self._tree = ttk.Treeview(
+            tree_inner,
+            columns=cols,
+            show="headings",
+            selectmode="browse",
+            height=14,
+            style="Avion.Treeview",
+        )
 
         for col_id, col_label, col_width in self._COLS:
             self._tree.heading(col_id, text=col_label)
             self._tree.column(col_id, width=col_width, minwidth=40, anchor="center")
 
-        vsb = ctk.CTkScrollbar(tree_inner, orientation="vertical",   command=self._tree.yview)
-        hsb = ctk.CTkScrollbar(tree_inner, orientation="horizontal",  command=self._tree.xview)
+        vsb = ctk.CTkScrollbar(
+            tree_inner, orientation="vertical", command=self._tree.yview
+        )
+        hsb = ctk.CTkScrollbar(
+            tree_inner, orientation="horizontal", command=self._tree.xview
+        )
         self._tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
         self._tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
         hsb.pack(side="bottom", fill="x")
 
         self._tree.tag_configure("even", background="#F5FBFD")
-        self._tree.tag_configure("odd",  background="#DCEFF3")
+        self._tree.tag_configure("odd", background="#DCEFF3")
         self._tree.bind("<Double-1>", lambda _e: self._open_edit_dialog())
 
         # ── Pied de page ───────────────────────────────────────────────────
@@ -334,30 +399,62 @@ class ClientAirTicketCotation:
         footer_row.pack(fill="x")
 
         def _total_label(parent, title, var):
-            tk.Label(parent, text=title, font=LABEL_FONT,
-                     bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left", padx=(0, 2))
-            lbl = ctk.CTkLabel(parent, textvariable=var, font=("Poppins", 11, "bold"),
-                               text_color=TEXT_COLOR)
+            tk.Label(
+                parent,
+                text=title,
+                font=LABEL_FONT,
+                bg=PANEL_BG_COLOR,
+                fg=MUTED_TEXT_COLOR,
+            ).pack(side="left", padx=(0, 2))
+            lbl = ctk.CTkLabel(
+                parent,
+                textvariable=var,
+                font=("Poppins", 11, "bold"),
+                text_color=TEXT_COLOR,
+            )
             lbl.pack(side="left", padx=(0, 4))
-            tk.Label(parent, text="Ar", font=("Poppins", 10),
-                     bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left", padx=(0, 12))
+            tk.Label(
+                parent,
+                text="Ar",
+                font=("Poppins", 10),
+                bg=PANEL_BG_COLOR,
+                fg=MUTED_TEXT_COLOR,
+            ).pack(side="left", padx=(0, 12))
 
         self._var_total_adultes = tk.StringVar(value="0,00")
         self._var_total_enfants = tk.StringVar(value="0,00")
-        self._var_grand_total   = tk.StringVar(value="0,00")
+        self._var_grand_total = tk.StringVar(value="0,00")
 
         _total_label(footer_row, "Adultes :", self._var_total_adultes)
-        tk.Label(footer_row, text="|", bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left", padx=4)
+        tk.Label(footer_row, text="|", bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(
+            side="left", padx=4
+        )
         _total_label(footer_row, "Enfants :", self._var_total_enfants)
-        tk.Label(footer_row, text="|", bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left", padx=4)
+        tk.Label(footer_row, text="|", bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(
+            side="left", padx=4
+        )
 
-        tk.Label(footer_row, text="TOTAL GÉNÉRAL :", font=("Poppins", 12, "bold"),
-                 bg=PANEL_BG_COLOR, fg=TEXT_COLOR).pack(side="left", padx=(8, 2))
-        lbl_grand = ctk.CTkLabel(footer_row, textvariable=self._var_grand_total,
-                                 font=("Poppins", 14, "bold"), text_color=ACCENT_TEXT_COLOR)
+        tk.Label(
+            footer_row,
+            text="TOTAL GÉNÉRAL :",
+            font=("Poppins", 12, "bold"),
+            bg=PANEL_BG_COLOR,
+            fg=TEXT_COLOR,
+        ).pack(side="left", padx=(8, 2))
+        lbl_grand = ctk.CTkLabel(
+            footer_row,
+            textvariable=self._var_grand_total,
+            font=("Poppins", 14, "bold"),
+            text_color=ACCENT_TEXT_COLOR,
+        )
         lbl_grand.pack(side="left", padx=(0, 4))
-        tk.Label(footer_row, text="Ar", font=("Poppins", 11),
-                 bg=PANEL_BG_COLOR, fg=MUTED_TEXT_COLOR).pack(side="left")
+        tk.Label(
+            footer_row,
+            text="Ar",
+            font=("Poppins", 11),
+            bg=PANEL_BG_COLOR,
+            fg=MUTED_TEXT_COLOR,
+        ).pack(side="left")
 
     # ── Données ────────────────────────────────────────────────────────────────
 
@@ -374,7 +471,9 @@ class ClientAirTicketCotation:
         for idx, row in enumerate(self._rows):
             tag = "odd" if idx % 2 else "even"
             self._tree.insert(
-                "", "end", iid=str(idx),
+                "",
+                "end",
+                iid=str(idx),
                 values=(
                     row.get("date_vol", ""),
                     row.get("numero_vol", ""),
@@ -395,7 +494,7 @@ class ClientAirTicketCotation:
     def _refresh_totals(self):
         total_a = sum(_to_float(r.get("montant_adultes", 0)) for r in self._rows)
         total_e = sum(_to_float(r.get("montant_enfants", 0)) for r in self._rows)
-        grand   = sum(_to_float(r.get("total", 0)) for r in self._rows)
+        grand = sum(_to_float(r.get("total", 0)) for r in self._rows)
         self._var_total_adultes.set(_fmt(total_a))
         self._var_total_enfants.set(_fmt(total_e))
         self._var_grand_total.set(_fmt(grand))
@@ -431,7 +530,7 @@ class ClientAirTicketCotation:
         self._open_row_dialog(idx)
 
     def _apply_dialog_values(self, row_index, values):
-        total_value  = str(values["total"]).strip()
+        total_value = str(values["total"]).strip()
         total_manuel = bool(total_value)
         row = _make_row(
             date_vol=values["date_vol"],
@@ -464,22 +563,31 @@ class ClientAirTicketCotation:
             return
         result = save_client_air_ticket_cotation_to_excel(self.client, self._rows)
         if result > 0:
-            messagebox.showinfo("Sauvegarde réussie", f"{result} ligne(s) enregistrée(s).")
+            messagebox.showinfo(
+                "Sauvegarde réussie", f"{result} ligne(s) enregistrée(s)."
+            )
         elif result == -2:
             messagebox.showerror(
                 "Fichier verrouillé",
                 "Le fichier Excel est ouvert ailleurs.\nFermez data.xlsx puis réessayez.",
             )
         else:
-            messagebox.showerror("Erreur", "La sauvegarde a échoué. Consultez les logs.")
+            messagebox.showerror(
+                "Erreur", "La sauvegarde a échoué. Consultez les logs."
+            )
 
     def _export_pdf(self):
         if not self._rows:
-            messagebox.showwarning("Aucune donnée", "Ajoutez des lignes avant de générer le PDF.")
+            messagebox.showwarning(
+                "Aucune donnée", "Ajoutez des lignes avant de générer le PDF."
+            )
             return
         try:
             from utils.pdf_generator import generate_air_ticket_cotation_pdf
-            path = generate_air_ticket_cotation_pdf(self.client, self._rows, DEVIS_FOLDER)
+
+            path = generate_air_ticket_cotation_pdf(
+                self.client, self._rows, DEVIS_FOLDER
+            )
             messagebox.showinfo("PDF généré", f"Fichier créé :\n{path}")
             # Ouvre le PDF avec le lecteur par défaut
             try:
@@ -516,28 +624,34 @@ class ClientAirTicketCotation:
 
         # ── Variables ─────────────────────────────────────────────────────────
         def _v(key, default=""):
-            return tk.StringVar(value=str(existing.get(key, default) if existing else default))
+            return tk.StringVar(
+                value=str(existing.get(key, default) if existing else default)
+            )
 
-        v_date    = _v("date_vol")
-        v_num     = _v("numero_vol")
-        v_type    = _v("type_trajet", "aller")
-        v_comp    = _v("compagnie")
-        v_dep     = _v("ville_depart")
-        v_arr     = _v("ville_arrivee")
-        v_classe  = _v("classe", "Économique")
-        v_nadult  = _v("nb_adultes")
+        v_date = _v("date_vol")
+        v_num = _v("numero_vol")
+        v_type = _v("type_trajet", "aller")
+        v_comp = _v("compagnie")
+        v_dep = _v("ville_depart")
+        v_arr = _v("ville_arrivee")
+        v_classe = _v("classe", "Économique")
+        v_nadult = _v("nb_adultes")
         v_nenfant = _v("nb_enfants", "0")
-        v_tadult  = _v("tarif_adulte")
+        v_tadult = _v("tarif_adulte")
         v_tenfant = _v("tarif_enfant")
-        v_marge   = _v("marge_pct", "0")
-        v_total   = tk.StringVar(
-            value=str(existing["total"]) if (existing and existing.get("total_manuel")) else ""
+        v_marge = _v("marge_pct", "0")
+        v_total = tk.StringVar(
+            value=(
+                str(existing["total"])
+                if (existing and existing.get("total_manuel"))
+                else ""
+            )
         )
         # Aperçu
-        v_mnt_a  = tk.StringVar(value="")
-        v_mnt_e  = tk.StringVar(value="")
-        v_st     = tk.StringVar(value="")
-        v_tc     = tk.StringVar(value="")
+        v_mnt_a = tk.StringVar(value="")
+        v_mnt_e = tk.StringVar(value="")
+        v_st = tk.StringVar(value="")
+        v_tc = tk.StringVar(value="")
 
         # ── Helpers mise en page ──────────────────────────────────────────────
         outer = tk.Frame(win, bg=MAIN_BG_COLOR)
@@ -546,23 +660,38 @@ class ClientAirTicketCotation:
         SEC = PANEL_BG_COLOR
 
         def _lbl(parent, text, r, c=0):
-            tk.Label(parent, text=text, font=LABEL_FONT,
-                     fg=TEXT_COLOR, bg=SEC, anchor="w",
-                     ).grid(row=r, column=c, sticky="w", padx=(0, 10), pady=5)
+            tk.Label(
+                parent,
+                text=text,
+                font=LABEL_FONT,
+                fg=TEXT_COLOR,
+                bg=SEC,
+                anchor="w",
+            ).grid(row=r, column=c, sticky="w", padx=(0, 10), pady=5)
 
         def _entry(parent, var, r, c=1, w=28, state="normal", justify="left"):
             bg = INPUT_BG_COLOR if state == "normal" else PANEL_BG_COLOR
-            e = tk.Entry(parent, textvariable=var, font=ENTRY_FONT,
-                         bg=bg, fg=TEXT_COLOR, width=w, justify=justify,
-                         insertbackground=TEXT_COLOR, relief="flat", state=state)
+            e = tk.Entry(
+                parent,
+                textvariable=var,
+                font=ENTRY_FONT,
+                bg=bg,
+                fg=TEXT_COLOR,
+                width=w,
+                justify=justify,
+                insertbackground=TEXT_COLOR,
+                relief="flat",
+                state=state,
+            )
             e.grid(row=r, column=c, sticky="ew", pady=5)
             return e
 
         def _make_section(title):
             card = tk.Frame(outer, bg=SEC)
             card.pack(fill="x", pady=(0, 10))
-            tk.Label(card, text=title, font=LABEL_FONT, fg=TEXT_COLOR,
-                     bg=SEC).pack(anchor="w", padx=10, pady=(8, 2))
+            tk.Label(card, text=title, font=LABEL_FONT, fg=TEXT_COLOR, bg=SEC).pack(
+                anchor="w", padx=10, pady=(8, 2)
+            )
             inner = tk.Frame(card, bg=SEC)
             inner.pack(fill="x", padx=10, pady=(0, 8))
             inner.columnconfigure(1, weight=1)
@@ -573,26 +702,35 @@ class ClientAirTicketCotation:
 
         _lbl(s1, "Date du vol :", 0)
         _entry(s1, v_date, 0, w=14)
-        tk.Label(s1, text="JJ/MM/AAAA", font=("Poppins", 9),
-                 fg=MUTED_TEXT_COLOR, bg=SEC,
-                 ).grid(row=0, column=2, sticky="w", padx=(6, 0))
+        tk.Label(
+            s1,
+            text="JJ/MM/AAAA",
+            font=("Poppins", 9),
+            fg=MUTED_TEXT_COLOR,
+            bg=SEC,
+        ).grid(row=0, column=2, sticky="w", padx=(6, 0))
 
         _lbl(s1, "N° de vol :", 1)
         _entry(s1, v_num, 1, w=14)
 
         _lbl(s1, "Type de trajet :", 2)
-        ttk.Combobox(s1, textvariable=v_type,
-                     values=["aller", "retour", "transit"],
-                     state="readonly", font=ENTRY_FONT, width=14,
-                     ).grid(row=2, column=1, sticky="w", pady=5)
+        ttk.Combobox(
+            s1,
+            textvariable=v_type,
+            values=["aller", "retour", "transit"],
+            state="readonly",
+            font=ENTRY_FONT,
+            width=14,
+        ).grid(row=2, column=1, sticky="w", pady=5)
 
         # ── Section 2 : Trajet & compagnie ────────────────────────────────────
         s2 = _make_section("Trajet & compagnie")
 
         _lbl(s2, "Compagnie :", 0)
         compagnies = get_avion_compagnies()
-        combo_comp = ttk.Combobox(s2, textvariable=v_comp,
-                                  values=compagnies, font=ENTRY_FONT, width=26)
+        combo_comp = ttk.Combobox(
+            s2, textvariable=v_comp, values=compagnies, font=ENTRY_FONT, width=26
+        )
         combo_comp.grid(row=0, column=1, sticky="ew", pady=5)
 
         _lbl(s2, "Départ :", 1)
@@ -602,10 +740,14 @@ class ClientAirTicketCotation:
         _entry(s2, v_arr, 2)
 
         _lbl(s2, "Classe :", 3)
-        ttk.Combobox(s2, textvariable=v_classe,
-                     values=_CLASSES, state="readonly",
-                     font=ENTRY_FONT, width=16,
-                     ).grid(row=3, column=1, sticky="w", pady=5)
+        ttk.Combobox(
+            s2,
+            textvariable=v_classe,
+            values=_CLASSES,
+            state="readonly",
+            font=ENTRY_FONT,
+            width=16,
+        ).grid(row=3, column=1, sticky="w", pady=5)
 
         # ── Section 3 : Passagers & tarifs ────────────────────────────────────
         s3 = _make_section("Passagers & tarifs")
@@ -618,9 +760,13 @@ class ClientAirTicketCotation:
 
         _lbl(s3, "Tarif adulte (Ar) :", 2)
         _entry(s3, v_tadult, 2, w=18, justify="right")
-        tk.Label(s3, text="auto depuis BD", font=("Poppins", 9),
-                 fg=MUTED_TEXT_COLOR, bg=SEC,
-                 ).grid(row=2, column=2, sticky="w", padx=(6, 0))
+        tk.Label(
+            s3,
+            text="auto depuis BD",
+            font=("Poppins", 9),
+            fg=MUTED_TEXT_COLOR,
+            bg=SEC,
+        ).grid(row=2, column=2, sticky="w", padx=(6, 0))
 
         _lbl(s3, "Tarif enfant (Ar) :", 3)
         _entry(s3, v_tenfant, 3, w=18, justify="right")
@@ -633,43 +779,59 @@ class ClientAirTicketCotation:
 
         _lbl(s4, "Total manuel (Ar) :", 1)
         _entry(s4, v_total, 1, w=18, justify="right")
-        tk.Label(s4, text="laisser vide = automatique", font=("Poppins", 9),
-                 fg=MUTED_TEXT_COLOR, bg=SEC,
-                 ).grid(row=1, column=2, sticky="w", padx=(6, 0), pady=5)
+        tk.Label(
+            s4,
+            text="laisser vide = automatique",
+            font=("Poppins", 9),
+            fg=MUTED_TEXT_COLOR,
+            bg=SEC,
+        ).grid(row=1, column=2, sticky="w", padx=(6, 0), pady=5)
 
         # ── Aperçu ────────────────────────────────────────────────────────────
         prev_card = tk.Frame(outer, bg=SEC)
         prev_card.pack(fill="x", pady=(0, 10))
-        tk.Label(prev_card, text="Aperçu", font=LABEL_FONT,
-                 fg=TEXT_COLOR, bg=SEC).pack(anchor="w", padx=10, pady=(8, 2))
+        tk.Label(prev_card, text="Aperçu", font=LABEL_FONT, fg=TEXT_COLOR, bg=SEC).pack(
+            anchor="w", padx=10, pady=(8, 2)
+        )
         prev_inner = tk.Frame(prev_card, bg=SEC)
         prev_inner.pack(fill="x", padx=10, pady=(0, 8))
 
-        for r_i, (lbl_t, var) in enumerate([
-            ("Adultes (Ar) :",    v_mnt_a),
-            ("Enfants (Ar) :",    v_mnt_e),
-            ("Sous-total (Ar) :", v_st),
-            ("Total (Ar) :",      v_tc),
-        ]):
-            tk.Label(prev_inner, text=lbl_t, font=LABEL_FONT,
-                     fg=TEXT_COLOR, bg=SEC, anchor="w",
-                     ).grid(row=r_i, column=0, sticky="w", padx=(0, 10), pady=3)
-            tk.Label(prev_inner, textvariable=var, font=ENTRY_FONT,
-                     fg=ACCENT_TEXT_COLOR, bg=SEC,
-                     ).grid(row=r_i, column=1, sticky="w", pady=3)
+        for r_i, (lbl_t, var) in enumerate(
+            [
+                ("Adultes (Ar) :", v_mnt_a),
+                ("Enfants (Ar) :", v_mnt_e),
+                ("Sous-total (Ar) :", v_st),
+                ("Total (Ar) :", v_tc),
+            ]
+        ):
+            tk.Label(
+                prev_inner,
+                text=lbl_t,
+                font=LABEL_FONT,
+                fg=TEXT_COLOR,
+                bg=SEC,
+                anchor="w",
+            ).grid(row=r_i, column=0, sticky="w", padx=(0, 10), pady=3)
+            tk.Label(
+                prev_inner,
+                textvariable=var,
+                font=ENTRY_FONT,
+                fg=ACCENT_TEXT_COLOR,
+                bg=SEC,
+            ).grid(row=r_i, column=1, sticky="w", pady=3)
 
         # ── Callbacks ─────────────────────────────────────────────────────────
         def _update_preview(*_):
-            na  = _to_float(v_nadult.get())
-            ne  = _to_float(v_nenfant.get())
-            ta  = _to_float(v_tadult.get())
-            te  = _to_float(v_tenfant.get())
-            mg  = _to_float(v_marge.get())
-            ma  = na * ta
-            me  = ne * te
-            st  = ma + me
-            tc  = st * (1 + mg / 100.0)
-            ts  = v_total.get().strip()
+            na = _to_float(v_nadult.get())
+            ne = _to_float(v_nenfant.get())
+            ta = _to_float(v_tadult.get())
+            te = _to_float(v_tenfant.get())
+            mg = _to_float(v_marge.get())
+            ma = na * ta
+            me = ne * te
+            st = ma + me
+            tc = st * (1 + mg / 100.0)
+            ts = v_total.get().strip()
             tot = _to_float(ts) if ts else tc
             v_mnt_a.set(_fmt(ma))
             v_mnt_e.set(_fmt(me))
@@ -701,37 +863,48 @@ class ClientAirTicketCotation:
         btn_bar.pack(fill="x", padx=24, pady=(8, 20))
 
         def _on_ok():
-            self._apply_dialog_values(row_index, {
-                "date_vol":      v_date.get().strip(),
-                "numero_vol":    v_num.get().strip(),
-                "type_trajet":   v_type.get(),
-                "compagnie":     v_comp.get().strip(),
-                "ville_depart":  v_dep.get().strip(),
-                "ville_arrivee": v_arr.get().strip(),
-                "classe":        v_classe.get(),
-                "nb_adultes":    v_nadult.get().strip(),
-                "nb_enfants":    v_nenfant.get().strip(),
-                "tarif_adulte":  v_tadult.get().strip(),
-                "tarif_enfant":  v_tenfant.get().strip(),
-                "marge_pct":     v_marge.get().strip(),
-                "total":         v_total.get().strip(),
-            })
+            self._apply_dialog_values(
+                row_index,
+                {
+                    "date_vol": v_date.get().strip(),
+                    "numero_vol": v_num.get().strip(),
+                    "type_trajet": v_type.get(),
+                    "compagnie": v_comp.get().strip(),
+                    "ville_depart": v_dep.get().strip(),
+                    "ville_arrivee": v_arr.get().strip(),
+                    "classe": v_classe.get(),
+                    "nb_adultes": v_nadult.get().strip(),
+                    "nb_enfants": v_nenfant.get().strip(),
+                    "tarif_adulte": v_tadult.get().strip(),
+                    "tarif_enfant": v_tenfant.get().strip(),
+                    "marge_pct": v_marge.get().strip(),
+                    "total": v_total.get().strip(),
+                },
+            )
             win.destroy()
 
         ctk.CTkButton(
-            btn_bar, text="✔  Valider",
+            btn_bar,
+            text="✔  Valider",
             command=_on_ok,
-            fg_color=BUTTON_GREEN, hover_color=_HOVER_GREEN,
-            text_color="white", font=BUTTON_FONT,
-            corner_radius=8, cursor="hand2",
+            fg_color=BUTTON_GREEN,
+            hover_color=_HOVER_GREEN,
+            text_color="white",
+            font=BUTTON_FONT,
+            corner_radius=8,
+            cursor="hand2",
         ).pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
-            btn_bar, text="✖  Annuler",
+            btn_bar,
+            text="✖  Annuler",
             command=win.destroy,
-            fg_color=BUTTON_RED, hover_color=_HOVER_RED,
-            text_color="white", font=BUTTON_FONT,
-            corner_radius=8, cursor="hand2",
+            fg_color=BUTTON_RED,
+            hover_color=_HOVER_RED,
+            text_color="white",
+            font=BUTTON_FONT,
+            corner_radius=8,
+            cursor="hand2",
         ).pack(side="left")
 
         # Centrage
@@ -739,6 +912,6 @@ class ClientAirTicketCotation:
         pw = self.parent.winfo_toplevel()
         ww = win.winfo_reqwidth() + 48
         wh = win.winfo_reqheight() + 20
-        px = pw.winfo_rootx() + (pw.winfo_width()  - ww) // 2
+        px = pw.winfo_rootx() + (pw.winfo_width() - ww) // 2
         py = pw.winfo_rooty() + (pw.winfo_height() - wh) // 2
         win.geometry(f"{ww}x{wh}+{px}+{py}")

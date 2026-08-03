@@ -324,7 +324,9 @@ class _SheetCrudPanel:
     def _edit_selected(self):
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à modifier.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à modifier."
+            )
             return
 
         try:
@@ -332,7 +334,9 @@ class _SheetCrudPanel:
         except Exception:
             return
 
-        row_data = next((r for r in self.rows if r.get("row_number") == row_number), None)
+        row_data = next(
+            (r for r in self.rows if r.get("row_number") == row_number), None
+        )
         if not row_data:
             return
 
@@ -343,7 +347,9 @@ class _SheetCrudPanel:
     def _delete_selected(self):
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à supprimer.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à supprimer."
+            )
             return
 
         confirm = messagebox.askyesno(
@@ -378,13 +384,17 @@ class _SheetCrudPanel:
 
         data = self._collect_form_data()
         if not any(data.values()):
-            messagebox.showwarning("Validation", "Veuillez renseigner au moins un champ.")
+            messagebox.showwarning(
+                "Validation", "Veuillez renseigner au moins un champ."
+            )
             return
 
         if self.selected_row_number is not None:
             result = self.update_row_fn(self.selected_row_number, data)
             if result == -2:
-                messagebox.showerror("Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez.")
+                messagebox.showerror(
+                    "Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez."
+                )
                 return
             if result == -1:
                 messagebox.showerror("Erreur", "Échec de la mise à jour.")
@@ -395,7 +405,9 @@ class _SheetCrudPanel:
 
         row = self.save_row_fn(data)
         if row == -2:
-            messagebox.showerror("Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez.")
+            messagebox.showerror(
+                "Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez."
+            )
             return
         if row == -1:
             messagebox.showerror("Erreur", "Échec de l'enregistrement.")

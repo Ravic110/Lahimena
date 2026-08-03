@@ -46,7 +46,11 @@ class VisiteExcursionDBForm:
 
         tk.Label(
             self.parent,
-            text="MODIFIER VISITE & EXCURSION (DB)" if self.edit_data else "VISITE & EXCURSION (DB)",
+            text=(
+                "MODIFIER VISITE & EXCURSION (DB)"
+                if self.edit_data
+                else "VISITE & EXCURSION (DB)"
+            ),
             font=TITLE_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
@@ -140,16 +144,22 @@ class VisiteExcursionDBForm:
     def _save(self):
         data = self._collect_data()
         if not any(data.values()):
-            messagebox.showwarning("Validation", "Veuillez renseigner au moins un champ.")
+            messagebox.showwarning(
+                "Validation", "Veuillez renseigner au moins un champ."
+            )
             return
 
         if self.edit_data and self.row_number is not None:
             result = update_visite_excursion_db_row(self.row_number, data)
             if result == -2:
-                messagebox.showerror("Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez.")
+                messagebox.showerror(
+                    "Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez."
+                )
                 return
             if result == -1:
-                messagebox.showerror("Erreur", "Échec de la mise à jour dans Visite_excursion.")
+                messagebox.showerror(
+                    "Erreur", "Échec de la mise à jour dans Visite_excursion."
+                )
                 return
             messagebox.showinfo("Succès", "Ligne mise à jour avec succès.")
             if self.callback_on_done:
@@ -158,10 +168,14 @@ class VisiteExcursionDBForm:
 
         row = save_visite_excursion_db_row(data)
         if row == -2:
-            messagebox.showerror("Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez.")
+            messagebox.showerror(
+                "Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez."
+            )
             return
         if row == -1:
-            messagebox.showerror("Erreur", "Échec de l'enregistrement dans Visite_excursion.")
+            messagebox.showerror(
+                "Erreur", "Échec de l'enregistrement dans Visite_excursion."
+            )
             return
 
         messagebox.showinfo("Succès", f"Ligne enregistrée à la ligne {row}.")

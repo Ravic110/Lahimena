@@ -99,7 +99,9 @@ class DataManager:
         else:
             for col in journal_cols:
                 if col not in journal_df.columns:
-                    journal_df[col] = 0.0 if col in ("MontantDébit", "MontantCrédit") else ""
+                    journal_df[col] = (
+                        0.0 if col in ("MontantDébit", "MontantCrédit") else ""
+                    )
 
         def _normalize_amount(value):
             if pd.isna(value):
@@ -122,7 +124,9 @@ class DataManager:
             except Exception:
                 return ""
 
-        existing_labels = set(journal_df.get("Libellé", pd.Series(dtype=str)).astype(str))
+        existing_labels = set(
+            journal_df.get("Libellé", pd.Series(dtype=str)).astype(str)
+        )
 
         new_rows = []
 
@@ -144,9 +148,10 @@ class DataManager:
                 city = str(row.get("Ville", "") or "").strip()
                 currency = str(row.get("Devise", "Ariary") or "").strip()
 
-                label_core = " / ".join(
-                    part for part in [client, hotel, city] if part
-                ) or "Cotation hôtel"
+                label_core = (
+                    " / ".join(part for part in [client, hotel, city] if part)
+                    or "Cotation hôtel"
+                )
                 libelle = f"{signature} {label_core} ({currency})"
 
                 new_rows.append(
@@ -173,9 +178,7 @@ class DataManager:
                 return None
 
             amount_col = (
-                _pick_header("total")
-                or _pick_header("montant")
-                or _pick_header("prix")
+                _pick_header("total") or _pick_header("montant") or _pick_header("prix")
             )
             date_col = _pick_header("date")
             desg_col = _pick_header("designation") or _pick_header("libelle")
@@ -195,11 +198,14 @@ class DataManager:
                 date_value = row.get(date_col, "") if date_col else ""
                 designation = str(row.get(desg_col, "") if desg_col else "").strip()
                 prestataire = str(row.get(prest_col, "") if prest_col else "").strip()
-                devise = str(row.get(devis_col, "Ariary") if devis_col else "Ariary").strip()
+                devise = str(
+                    row.get(devis_col, "Ariary") if devis_col else "Ariary"
+                ).strip()
 
-                label_core = " / ".join(
-                    part for part in [designation, prestataire] if part
-                ) or "Frais collectif"
+                label_core = (
+                    " / ".join(part for part in [designation, prestataire] if part)
+                    or "Frais collectif"
+                )
                 libelle = f"{signature} {label_core} ({devise})"
 
                 new_rows.append(

@@ -2,8 +2,8 @@
 Collective expense quotation GUI component
 """
 
-from datetime import datetime
 import tkinter as tk
+from datetime import datetime
 from tkinter import messagebox, ttk
 
 from config import (
@@ -19,11 +19,11 @@ from config import (
     TITLE_FONT,
 )
 from utils.excel_handler import (
-    get_collective_expense_headers,
-    get_collective_expense_prestataires,
     get_collective_expense_designations,
-    get_collective_expense_montant,
     get_collective_expense_forfait,
+    get_collective_expense_headers,
+    get_collective_expense_montant,
+    get_collective_expense_prestataires,
     load_all_clients,
     save_collective_expense_quotation_to_excel,
     update_collective_expense_quotation_in_excel,
@@ -148,8 +148,13 @@ class CollectiveExpenseQuotation:
             .replace("/", " ")
         )
         for char, replacement in [
-            ("é", "e"), ("è", "e"), ("ê", "e"), ("à", "a"),
-            ("â", "a"), ("ï", "i"), ("î", "i"),
+            ("é", "e"),
+            ("è", "e"),
+            ("ê", "e"),
+            ("à", "a"),
+            ("â", "a"),
+            ("ï", "i"),
+            ("î", "i"),
         ]:
             normalized = normalized.replace(char, replacement)
         normalized = " ".join(normalized.split())
@@ -165,7 +170,7 @@ class CollectiveExpenseQuotation:
     def _get_field_type(self, header):
         """Determine field type based on header name"""
         norm = self._normalize_header(header)
-        
+
         if norm in {"nom", "nom client", "client nom", "nom du client"}:
             return "client_name"
         elif norm in {"id", "id client", "id_client", "ref client", "reference", "ref"}:
@@ -191,7 +196,13 @@ class CollectiveExpenseQuotation:
             return "quantity"
         elif norm in {"prestataire", "fournisseur", "provider"}:
             return "prestataire"
-        elif norm in {"designation", "désignation", "libelle", "description", "service"}:
+        elif norm in {
+            "designation",
+            "désignation",
+            "libelle",
+            "description",
+            "service",
+        }:
             return "designation"
         elif norm in {"forfait", "forfai"}:
             return "forfait"
@@ -207,21 +218,21 @@ class CollectiveExpenseQuotation:
         """Load and populate form with existing data for editing"""
         if not self.edit_data:
             return
-        
+
         try:
             for header, var in self.field_vars.items():
                 value = self.edit_data.get(header, "")
                 var.set(str(value).strip())
-            
+
             # Manually trigger cascading updates
             prestataire_header = self._find_header_by_type("prestataire")
             if prestataire_header:
                 self._on_prestataire_changed()
-            
+
             designat_header = self._find_header_by_type("designation")
             if designat_header:
                 self._on_designation_changed()
-            
+
             logger.info("Loaded edit data into form")
         except Exception as e:
             logger.error(f"Error loading edit data: {e}", exc_info=True)
@@ -230,7 +241,11 @@ class CollectiveExpenseQuotation:
         for widget in self.parent.winfo_children():
             widget.destroy()
 
-        title_text = "MODIFIER COTATION FRAIS COLLECTIFS" if self.edit_data else "COTATION FRAIS COLLECTIFS"
+        title_text = (
+            "MODIFIER COTATION FRAIS COLLECTIFS"
+            if self.edit_data
+            else "COTATION FRAIS COLLECTIFS"
+        )
         title = tk.Label(
             self.parent,
             text=title_text,
@@ -294,8 +309,7 @@ class CollectiveExpenseQuotation:
                 )
             elif field_type == "client_id":
                 client_ids = [""] + sorted(
-                    self.client_map.keys(), 
-                    key=lambda x: (x is None, x)
+                    self.client_map.keys(), key=lambda x: (x is None, x)
                 )
                 widget = ttk.Combobox(
                     form_frame,
@@ -308,8 +322,12 @@ class CollectiveExpenseQuotation:
                 widget.bind("<<ComboboxSelected>>", self._on_client_id_changed)
             elif field_type == "client_name":
                 client_names = [""] + sorted(
-                    set(c.get("nom", "") for c in self.clients if c.get("nom", "").strip()),
-                    key=lambda x: (x == "", x)
+                    set(
+                        c.get("nom", "")
+                        for c in self.clients
+                        if c.get("nom", "").strip()
+                    ),
+                    key=lambda x: (x == "", x),
                 )
                 widget = ttk.Combobox(
                     form_frame,
@@ -434,7 +452,7 @@ class CollectiveExpenseQuotation:
                 padx=16,
                 pady=6,
             ).pack(side="left", padx=(0, 8))
-            
+
             tk.Button(
                 button_frame,
                 text="❌ Annuler",
@@ -456,7 +474,7 @@ class CollectiveExpenseQuotation:
                 padx=16,
                 pady=6,
             ).pack(side="left", padx=(0, 8))
-    
+
             tk.Button(
                 button_frame,
                 text="🔄 Recharger",
@@ -465,8 +483,8 @@ class CollectiveExpenseQuotation:
                 fg="white",
                 font=BUTTON_FONT,
                 padx=16,
-            pady=6,
-        ).pack(side="left")
+                pady=6,
+            ).pack(side="left")
 
     def _on_client_id_changed(self, event=None):
         """Auto-fill when client ID selected"""
@@ -475,14 +493,16 @@ class CollectiveExpenseQuotation:
             if not client_id_header:
                 logger.warning("client_id header not found")
                 return
-            
-            client_id = self.field_vars.get(client_id_header, tk.StringVar()).get().strip()
+
+            client_id = (
+                self.field_vars.get(client_id_header, tk.StringVar()).get().strip()
+            )
             logger.info(f"Client ID selected: {client_id}")
-            
+
             if client_id and client_id in self.client_map:
                 client = self.client_map[client_id]
                 nom = str(client.get("nom") or "").strip()
-                
+
                 # Set Nom
                 nom_header = self._find_header_by_type("client_name")
                 if nom_header:
@@ -495,7 +515,7 @@ class CollectiveExpenseQuotation:
                     numero_dossier = str(client.get("numero_dossier") or "").strip()
                     self.field_vars[dossier_header].set(numero_dossier)
                     logger.info(f"Set {dossier_header} to {numero_dossier}")
-                
+
                 # Set Quantité
                 quantite_str = str(client.get("nombre_participants") or "").strip()
                 if quantite_str:
@@ -517,10 +537,10 @@ class CollectiveExpenseQuotation:
             if not nom_header:
                 logger.warning("client_name header not found")
                 return
-            
+
             nom = self.field_vars.get(nom_header, tk.StringVar()).get().strip()
             logger.info(f"Client name selected: {nom}")
-            
+
             for ref, client in self.client_map.items():
                 if str(client.get("nom") or "").strip() == nom:
                     # Set ID_CLIENT
@@ -535,7 +555,7 @@ class CollectiveExpenseQuotation:
                         numero_dossier = str(client.get("numero_dossier") or "").strip()
                         self.field_vars[dossier_header].set(numero_dossier)
                         logger.info(f"Set {dossier_header} to {numero_dossier}")
-                    
+
                     # Set Quantité
                     quantite_str = str(client.get("nombre_participants") or "").strip()
                     if quantite_str:
@@ -559,7 +579,9 @@ class CollectiveExpenseQuotation:
                 logger.warning("dossier_number header not found")
                 return
 
-            numero_dossier = self.field_vars.get(dossier_header, tk.StringVar()).get().strip()
+            numero_dossier = (
+                self.field_vars.get(dossier_header, tk.StringVar()).get().strip()
+            )
             logger.info(f"Dossier selected: {numero_dossier}")
 
             if not numero_dossier:
@@ -584,20 +606,21 @@ class CollectiveExpenseQuotation:
             prestataire_header = self._find_header_by_type("prestataire")
             if not prestataire_header:
                 return
-            
-            prestataire = self.field_vars.get(prestataire_header, tk.StringVar()).get().strip()
-            designations = (
-                get_collective_expense_designations(prestataire)
-                if prestataire else []
+
+            prestataire = (
+                self.field_vars.get(prestataire_header, tk.StringVar()).get().strip()
             )
-            
+            designations = (
+                get_collective_expense_designations(prestataire) if prestataire else []
+            )
+
             designation_header = self._find_header_by_type("designation")
             if designation_header and designation_header in self.field_widgets:
                 _, widget = self.field_widgets[designation_header]
                 widget["values"] = [""] + designations
                 self.field_vars[designation_header].set("")
                 logger.info(f"Updated designations for {prestataire}: {designations}")
-                
+
             self._update_montant_and_total()
         except Exception as e:
             logger.error(f"Error in _on_prestataire_changed: {e}", exc_info=True)
@@ -618,25 +641,28 @@ class CollectiveExpenseQuotation:
             quantity_header = self._find_header_by_type("quantity")
             montant_header = self._find_header_by_type("montant")
             total_header = self._find_header_by_type("total")
-            
+
             # Find forfait header by looking for it in field_widgets
             forfait_header = None
             for header in self.field_vars.keys():
                 if self._normalize_header(header) == "forfait":
                     forfait_header = header
                     break
-            
+
             prestataire = (
                 self.field_vars.get(prestataire_header, tk.StringVar()).get().strip()
-                if prestataire_header else ""
+                if prestataire_header
+                else ""
             )
             designation = (
                 self.field_vars.get(designation_header, tk.StringVar()).get().strip()
-                if designation_header else ""
+                if designation_header
+                else ""
             )
             quantite_str = (
                 self.field_vars.get(quantity_header, tk.StringVar()).get().strip()
-                if quantity_header else ""
+                if quantity_header
+                else ""
             )
 
             # Update forfait
@@ -692,8 +718,12 @@ class CollectiveExpenseQuotation:
 
         client_id_header = self._find_header_by_type("client_id")
         client_name_header = self._find_header_by_type("client_name")
-        client_id = form_data.get(client_id_header, "").strip() if client_id_header else ""
-        client_name = form_data.get(client_name_header, "").strip() if client_name_header else ""
+        client_id = (
+            form_data.get(client_id_header, "").strip() if client_id_header else ""
+        )
+        client_name = (
+            form_data.get(client_name_header, "").strip() if client_name_header else ""
+        )
         if not client_id and not client_name:
             messagebox.showwarning(
                 "Validation",
@@ -703,7 +733,9 @@ class CollectiveExpenseQuotation:
 
         if self.edit_data and self.row_number is not None:
             # Update existing row
-            result = update_collective_expense_quotation_in_excel(self.row_number, form_data)
+            result = update_collective_expense_quotation_in_excel(
+                self.row_number, form_data
+            )
             if result == -2:
                 messagebox.showerror(
                     "Fichier verrouillé",
@@ -755,34 +787,31 @@ class CollectiveExpenseQuotation:
         if not self.edit_data or self.row_number is None:
             messagebox.showwarning("Info", "Aucune cotation à supprimer.")
             return
-        
+
         confirm = messagebox.askyesno(
             "Confirmation",
-            "Êtes-vous sûr de vouloir supprimer cette cotation ?\n\nCette action ne peut pas être annulée."
+            "Êtes-vous sûr de vouloir supprimer cette cotation ?\n\nCette action ne peut pas être annulée.",
         )
         if not confirm:
             return
-        
+
         from utils.excel_handler import delete_collective_expense_from_excel
-        
+
         success = delete_collective_expense_from_excel(self.row_number)
         if not success:
             messagebox.showerror(
                 "Erreur",
-                "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert."
+                "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert.",
             )
             return
-        
-        messagebox.showinfo(
-            "Succès",
-            "Cotation supprimée avec succès."
-        )
+
+        messagebox.showinfo("Succès", "Cotation supprimée avec succès.")
         self._cancel()
-    
+
     def _cancel(self):
         """Cancel edit and navigate back"""
         logger.info("Edit form cancelled")
-    
+
     def _clear(self):
         for header, var in self.field_vars.items():
             if header.strip().lower() == "date":

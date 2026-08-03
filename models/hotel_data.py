@@ -141,6 +141,7 @@ class HotelData:
         Returns:
             HotelData: HotelData instance
         """
+
         def pick(*keys, default=""):
             for key in keys:
                 if key in data and data.get(key) not in (None, ""):
@@ -151,35 +152,53 @@ class HotelData:
         hotel.id = pick("ID", "id", default="")
         hotel.nom = pick("Nom", "nom", default="")
         hotel.lieu = pick("Lieu", "lieu", default="")
-        hotel.type_hebergement = pick("Type_Hébergement", "type_hebergement", default="")
+        hotel.type_hebergement = pick(
+            "Type_Hébergement", "type_hebergement", default=""
+        )
         hotel.categorie = pick("Catégorie", "categorie", default="")
         hotel.unite = pick("Unité", "unite", default="MGA")
         hotel.type_client = pick("Type_Client", "type_client", default="TO")
         hotel.chambre_single = pick("Chambre_Single", "chambre_single", default=0) or 0
         hotel.chambre_double = pick("Chambre_Double", "chambre_double", default=0) or 0
         hotel.chambre_twin = pick("Chambre_Twin", "chambre_twin", default=0) or 0
-        hotel.chambre_familiale = pick("Chambre_Familiale", "chambre_familiale", default=0) or 0
+        hotel.chambre_familiale = (
+            pick("Chambre_Familiale", "chambre_familiale", default=0) or 0
+        )
         hotel.chambre_triple = pick("Chambre_Triple", "chambre_triple", default=0) or 0
-        hotel.chambre_chauffeur = pick("Chambre_Chauffeur", "chambre_chauffeur", default=0) or 0
+        hotel.chambre_chauffeur = (
+            pick("Chambre_Chauffeur", "chambre_chauffeur", default=0) or 0
+        )
         hotel.dortoir = pick("Dortoir", "dortoir", default=0) or 0
         hotel.lit_supp = pick("Lit_Supp", "lit_supp", default=0) or 0
         hotel.day_use = pick("Day_Use", "day_use", default=0) or 0
-        hotel.bungalow_single = pick("Bungalow_Single", "bungalow_single", default=0) or 0
-        hotel.bungalow_double = pick("Bungalow_Double", "bungalow_double", default=0) or 0
+        hotel.bungalow_single = (
+            pick("Bungalow_Single", "bungalow_single", default=0) or 0
+        )
+        hotel.bungalow_double = (
+            pick("Bungalow_Double", "bungalow_double", default=0) or 0
+        )
         hotel.bungalow_twin = pick("Bungalow_Twin", "bungalow_twin", default=0) or 0
-        hotel.bungalow_familiale = pick("Bungalow_Familiale", "bungalow_familiale", default=0) or 0
-        hotel.bungalow_triple = pick("Bungalow_Triple", "bungalow_triple", default=0) or 0
+        hotel.bungalow_familiale = (
+            pick("Bungalow_Familiale", "bungalow_familiale", default=0) or 0
+        )
+        hotel.bungalow_triple = (
+            pick("Bungalow_Triple", "bungalow_triple", default=0) or 0
+        )
         hotel.bungalow_supp = pick("Bungalow_Supp", "bungalow_supp", default=0) or 0
         hotel.deluxe_single = pick("Deluxe_Single", "deluxe_single", default=0) or 0
         hotel.deluxe_double = pick("Deluxe_Double", "deluxe_double", default=0) or 0
         hotel.deluxe_twin = pick("Deluxe_Twin", "deluxe_twin", default=0) or 0
-        hotel.deluxe_familiale = pick("Deluxe_Familiale", "deluxe_familiale", default=0) or 0
+        hotel.deluxe_familiale = (
+            pick("Deluxe_Familiale", "deluxe_familiale", default=0) or 0
+        )
         hotel.deluxe_triple = pick("Deluxe_Triple", "deluxe_triple", default=0) or 0
         hotel.deluxe_supp = pick("Deluxe_Supp", "deluxe_supp", default=0) or 0
         hotel.suite_single = pick("Suite_Single", "suite_single", default=0) or 0
         hotel.suite_double = pick("Suite_Double", "suite_double", default=0) or 0
         hotel.suite_twin = pick("Suite_Twin", "suite_twin", default=0) or 0
-        hotel.suite_familiale = pick("Suite_Familiale", "suite_familiale", default=0) or 0
+        hotel.suite_familiale = (
+            pick("Suite_Familiale", "suite_familiale", default=0) or 0
+        )
         hotel.suite_triple = pick("Suite_Triple", "suite_triple", default=0) or 0
         hotel.suite_studios = pick("Suite_Studios", "suite_studios", default=0) or 0
         hotel.suite_vip = pick("Suite_VIP", "suite_vip", default=0) or 0
@@ -187,7 +206,9 @@ class HotelData:
         hotel.villa_single = pick("Villa_Single", "villa_single", default=0) or 0
         hotel.villa_double = pick("Villa_Double", "villa_double", default=0) or 0
         hotel.villa_twin = pick("Villa_Twin", "villa_twin", default=0) or 0
-        hotel.villa_familiale = pick("Villa_Familiale", "villa_familiale", default=0) or 0
+        hotel.villa_familiale = (
+            pick("Villa_Familiale", "villa_familiale", default=0) or 0
+        )
         hotel.villa_triple = pick("Villa_Triple", "villa_triple", default=0) or 0
         hotel.villa_studios = pick("Villa_Studios", "villa_studios", default=0) or 0
         hotel.villa_vip = pick("Villa_VIP", "villa_vip", default=0) or 0

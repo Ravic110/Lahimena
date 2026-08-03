@@ -2,10 +2,10 @@
 Hotel form GUI component
 """
 
-import tkinter as tk
-from datetime import datetime
 import re
+import tkinter as tk
 import unicodedata
+from datetime import datetime
 from tkinter import messagebox, ttk
 
 from config import (
@@ -32,6 +32,7 @@ class HotelForm:
     """
     Hotel form component
     """
+
     CATEGORIE_OPTIONS = ("TCO", "PCB", "DU")
 
     def __init__(
@@ -97,10 +98,19 @@ class HotelForm:
         row1.pack(fill="x", padx=10, pady=5)
 
         tk.Label(
-            row1, text="ID Hôtel (auto)", font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR
+            row1,
+            text="ID Hôtel (auto)",
+            font=LABEL_FONT,
+            fg=TEXT_COLOR,
+            bg=MAIN_BG_COLOR,
         ).grid(row=0, column=0, sticky="w", pady=2)
         self.entry_id = tk.Entry(
-            row1, font=ENTRY_FONT, width=20, bg=INPUT_BG_COLOR, fg=TEXT_COLOR, state="readonly"
+            row1,
+            font=ENTRY_FONT,
+            width=20,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR,
+            state="readonly",
         )
         self.entry_id.grid(row=1, column=0, padx=(0, 10), pady=2)
 
@@ -150,7 +160,9 @@ class HotelForm:
         )
         self.combo_categorie.grid(row=1, column=2, pady=2)
         self.combo_categorie.set("TCO")
-        self.combo_categorie.bind("<<ComboboxSelected>>", lambda _e: self._set_generated_id())
+        self.combo_categorie.bind(
+            "<<ComboboxSelected>>", lambda _e: self._set_generated_id()
+        )
 
         # Contact Information Section
         contact_frame = tk.LabelFrame(
@@ -314,10 +326,18 @@ class HotelForm:
             row = (i // 3) * 2
             col = (i % 3) * 2
             tk.Label(
-                bungalow_frame, text=label, font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR
+                bungalow_frame,
+                text=label,
+                font=LABEL_FONT,
+                fg=TEXT_COLOR,
+                bg=MAIN_BG_COLOR,
             ).grid(row=row, column=col, sticky="w", padx=10, pady=2)
             entry = tk.Entry(
-                bungalow_frame, font=ENTRY_FONT, width=12, bg=INPUT_BG_COLOR, fg=TEXT_COLOR
+                bungalow_frame,
+                font=ENTRY_FONT,
+                width=12,
+                bg=INPUT_BG_COLOR,
+                fg=TEXT_COLOR,
             )
             entry.grid(row=row + 1, column=col, padx=10, pady=2)
             setattr(self, attr, entry)
@@ -342,10 +362,18 @@ class HotelForm:
             row = (i // 3) * 2
             col = (i % 3) * 2
             tk.Label(
-                deluxe_frame, text=label, font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR
+                deluxe_frame,
+                text=label,
+                font=LABEL_FONT,
+                fg=TEXT_COLOR,
+                bg=MAIN_BG_COLOR,
             ).grid(row=row, column=col, sticky="w", padx=10, pady=2)
             entry = tk.Entry(
-                deluxe_frame, font=ENTRY_FONT, width=12, bg=INPUT_BG_COLOR, fg=TEXT_COLOR
+                deluxe_frame,
+                font=ENTRY_FONT,
+                width=12,
+                bg=INPUT_BG_COLOR,
+                fg=TEXT_COLOR,
             )
             entry.grid(row=row + 1, column=col, padx=10, pady=2)
             setattr(self, attr, entry)
@@ -372,7 +400,11 @@ class HotelForm:
             row = (i // 4) * 2
             col = (i % 4) * 2
             tk.Label(
-                suite_frame, text=label, font=LABEL_FONT, fg=TEXT_COLOR, bg=MAIN_BG_COLOR
+                suite_frame,
+                text=label,
+                font=LABEL_FONT,
+                fg=TEXT_COLOR,
+                bg=MAIN_BG_COLOR,
             ).grid(row=row, column=col, sticky="w", padx=10, pady=2)
             entry = tk.Entry(
                 suite_frame, font=ENTRY_FONT, width=12, bg=INPUT_BG_COLOR, fg=TEXT_COLOR
@@ -494,9 +526,9 @@ class HotelForm:
         self.entry_nom.insert(0, self.hotel_to_edit.get("nom", ""))
         self.entry_lieu.insert(0, self.hotel_to_edit.get("lieu", ""))
         self.combo_type.set(self.hotel_to_edit.get("type_hebergement", ""))
-        categorie_value = self.hotel_to_edit.get("categorie", "") or self.hotel_to_edit.get(
-            "type_client", ""
-        )
+        categorie_value = self.hotel_to_edit.get(
+            "categorie", ""
+        ) or self.hotel_to_edit.get("type_client", "")
         if categorie_value in self.CATEGORIE_OPTIONS:
             self.combo_categorie.set(categorie_value)
         else:
@@ -510,36 +542,78 @@ class HotelForm:
             0, str(self.hotel_to_edit.get("chambre_familiale", 0))
         )
         self.entry_triple.insert(0, str(self.hotel_to_edit.get("chambre_triple", 0)))
-        self.entry_chauffeur.insert(0, str(self.hotel_to_edit.get("chambre_chauffeur", 0)))
+        self.entry_chauffeur.insert(
+            0, str(self.hotel_to_edit.get("chambre_chauffeur", 0))
+        )
         self.entry_dortoir.insert(0, str(self.hotel_to_edit.get("dortoir", 0)))
         self.entry_lit_supp.insert(0, str(self.hotel_to_edit.get("lit_supp", 0)))
         self.entry_day_use.insert(0, str(self.hotel_to_edit.get("day_use", 0)))
-        self.entry_villa_single.insert(0, str(self.hotel_to_edit.get("villa_single", 0)))
-        self.entry_villa_double.insert(0, str(self.hotel_to_edit.get("villa_double", 0)))
+        self.entry_villa_single.insert(
+            0, str(self.hotel_to_edit.get("villa_single", 0))
+        )
+        self.entry_villa_double.insert(
+            0, str(self.hotel_to_edit.get("villa_double", 0))
+        )
         self.entry_villa_twin.insert(0, str(self.hotel_to_edit.get("villa_twin", 0)))
-        self.entry_villa_familiale.insert(0, str(self.hotel_to_edit.get("villa_familiale", 0)))
-        self.entry_villa_triple.insert(0, str(self.hotel_to_edit.get("villa_triple", 0)))
-        self.entry_villa_studios.insert(0, str(self.hotel_to_edit.get("villa_studios", 0)))
+        self.entry_villa_familiale.insert(
+            0, str(self.hotel_to_edit.get("villa_familiale", 0))
+        )
+        self.entry_villa_triple.insert(
+            0, str(self.hotel_to_edit.get("villa_triple", 0))
+        )
+        self.entry_villa_studios.insert(
+            0, str(self.hotel_to_edit.get("villa_studios", 0))
+        )
         self.entry_villa_vip.insert(0, str(self.hotel_to_edit.get("villa_vip", 0)))
         self.entry_villa_supp.insert(0, str(self.hotel_to_edit.get("villa_supp", 0)))
-        self.entry_bungalow_single.insert(0, str(self.hotel_to_edit.get("bungalow_single", 0)))
-        self.entry_bungalow_double.insert(0, str(self.hotel_to_edit.get("bungalow_double", 0)))
-        self.entry_bungalow_twin.insert(0, str(self.hotel_to_edit.get("bungalow_twin", 0)))
-        self.entry_bungalow_familiale.insert(0, str(self.hotel_to_edit.get("bungalow_familiale", 0)))
-        self.entry_bungalow_triple.insert(0, str(self.hotel_to_edit.get("bungalow_triple", 0)))
-        self.entry_bungalow_supp.insert(0, str(self.hotel_to_edit.get("bungalow_supp", 0)))
-        self.entry_deluxe_single.insert(0, str(self.hotel_to_edit.get("deluxe_single", 0)))
-        self.entry_deluxe_double.insert(0, str(self.hotel_to_edit.get("deluxe_double", 0)))
+        self.entry_bungalow_single.insert(
+            0, str(self.hotel_to_edit.get("bungalow_single", 0))
+        )
+        self.entry_bungalow_double.insert(
+            0, str(self.hotel_to_edit.get("bungalow_double", 0))
+        )
+        self.entry_bungalow_twin.insert(
+            0, str(self.hotel_to_edit.get("bungalow_twin", 0))
+        )
+        self.entry_bungalow_familiale.insert(
+            0, str(self.hotel_to_edit.get("bungalow_familiale", 0))
+        )
+        self.entry_bungalow_triple.insert(
+            0, str(self.hotel_to_edit.get("bungalow_triple", 0))
+        )
+        self.entry_bungalow_supp.insert(
+            0, str(self.hotel_to_edit.get("bungalow_supp", 0))
+        )
+        self.entry_deluxe_single.insert(
+            0, str(self.hotel_to_edit.get("deluxe_single", 0))
+        )
+        self.entry_deluxe_double.insert(
+            0, str(self.hotel_to_edit.get("deluxe_double", 0))
+        )
         self.entry_deluxe_twin.insert(0, str(self.hotel_to_edit.get("deluxe_twin", 0)))
-        self.entry_deluxe_familiale.insert(0, str(self.hotel_to_edit.get("deluxe_familiale", 0)))
-        self.entry_deluxe_triple.insert(0, str(self.hotel_to_edit.get("deluxe_triple", 0)))
+        self.entry_deluxe_familiale.insert(
+            0, str(self.hotel_to_edit.get("deluxe_familiale", 0))
+        )
+        self.entry_deluxe_triple.insert(
+            0, str(self.hotel_to_edit.get("deluxe_triple", 0))
+        )
         self.entry_deluxe_supp.insert(0, str(self.hotel_to_edit.get("deluxe_supp", 0)))
-        self.entry_suite_single.insert(0, str(self.hotel_to_edit.get("suite_single", 0)))
-        self.entry_suite_double.insert(0, str(self.hotel_to_edit.get("suite_double", 0)))
+        self.entry_suite_single.insert(
+            0, str(self.hotel_to_edit.get("suite_single", 0))
+        )
+        self.entry_suite_double.insert(
+            0, str(self.hotel_to_edit.get("suite_double", 0))
+        )
         self.entry_suite_twin.insert(0, str(self.hotel_to_edit.get("suite_twin", 0)))
-        self.entry_suite_familiale.insert(0, str(self.hotel_to_edit.get("suite_familiale", 0)))
-        self.entry_suite_triple.insert(0, str(self.hotel_to_edit.get("suite_triple", 0)))
-        self.entry_suite_studios.insert(0, str(self.hotel_to_edit.get("suite_studios", 0)))
+        self.entry_suite_familiale.insert(
+            0, str(self.hotel_to_edit.get("suite_familiale", 0))
+        )
+        self.entry_suite_triple.insert(
+            0, str(self.hotel_to_edit.get("suite_triple", 0))
+        )
+        self.entry_suite_studios.insert(
+            0, str(self.hotel_to_edit.get("suite_studios", 0))
+        )
         self.entry_suite_vip.insert(0, str(self.hotel_to_edit.get("suite_vip", 0)))
         self.entry_suite_supp.insert(0, str(self.hotel_to_edit.get("suite_supp", 0)))
         self.entry_vignette.insert(0, str(self.hotel_to_edit.get("vignette", 0)))
@@ -588,7 +662,9 @@ class HotelForm:
             "bungalow_single": self._parse_price(self.entry_bungalow_single.get()),
             "bungalow_double": self._parse_price(self.entry_bungalow_double.get()),
             "bungalow_twin": self._parse_price(self.entry_bungalow_twin.get()),
-            "bungalow_familiale": self._parse_price(self.entry_bungalow_familiale.get()),
+            "bungalow_familiale": self._parse_price(
+                self.entry_bungalow_familiale.get()
+            ),
             "bungalow_triple": self._parse_price(self.entry_bungalow_triple.get()),
             "bungalow_supp": self._parse_price(self.entry_bungalow_supp.get()),
             "deluxe_single": self._parse_price(self.entry_deluxe_single.get()),

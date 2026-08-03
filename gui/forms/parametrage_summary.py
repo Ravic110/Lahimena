@@ -153,12 +153,16 @@ class ParametrageSummary:
 
     def _on_edit_clicked(self):
         if self.tree is None:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à modifier.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à modifier."
+            )
             return
 
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à modifier.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à modifier."
+            )
             return
 
         selected_item = selection[0]
@@ -167,7 +171,9 @@ class ParametrageSummary:
         except (TypeError, ValueError):
             return
 
-        selected_row = next((row for row in self.rows if row.get("row_number") == row_number), None)
+        selected_row = next(
+            (row for row in self.rows if row.get("row_number") == row_number), None
+        )
         if selected_row is None:
             return
 
@@ -176,12 +182,16 @@ class ParametrageSummary:
 
     def _on_delete_clicked(self):
         if self.tree is None:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à supprimer.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à supprimer."
+            )
             return
 
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à supprimer.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à supprimer."
+            )
             return
 
         confirm = messagebox.askyesno(
@@ -202,7 +212,10 @@ class ParametrageSummary:
             messagebox.showinfo("Succès", "Paramètre supprimé avec succès.")
             self._on_refresh_clicked()
         else:
-            messagebox.showerror("Erreur", "Impossible de supprimer. Vérifiez que data-hotel.xlsx n'est pas ouvert.")
+            messagebox.showerror(
+                "Erreur",
+                "Impossible de supprimer. Vérifiez que data-hotel.xlsx n'est pas ouvert.",
+            )
 
     def _filtered_rows(self):
         query = self._normalize(self.search_var.get())
@@ -211,7 +224,9 @@ class ParametrageSummary:
 
         filtered = []
         for row in self.rows:
-            if query in self._normalize(row.get("PARAMETRE")) or query in self._normalize(row.get("VALEUR")):
+            if query in self._normalize(
+                row.get("PARAMETRE")
+            ) or query in self._normalize(row.get("VALEUR")):
                 filtered.append(row)
         return filtered
 
@@ -235,15 +250,23 @@ class ParametrageSummary:
             return
 
         headers = ["PARAMETRE", "VALEUR"]
-        self.tree = ttk.Treeview(self.content_frame, columns=headers, show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(
+            self.content_frame, columns=headers, show="headings", selectmode="browse"
+        )
 
         for header in headers:
             self.tree.heading(header, text=header)
             self.tree.column(header, width=280, anchor="w")
 
-        scrollbar_y = ttk.Scrollbar(self.content_frame, orient="vertical", command=self.tree.yview)
-        scrollbar_x = ttk.Scrollbar(self.content_frame, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+        scrollbar_y = ttk.Scrollbar(
+            self.content_frame, orient="vertical", command=self.tree.yview
+        )
+        scrollbar_x = ttk.Scrollbar(
+            self.content_frame, orient="horizontal", command=self.tree.xview
+        )
+        self.tree.configure(
+            yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set
+        )
 
         for row in rows:
             values = [row.get("PARAMETRE", ""), row.get("VALEUR", "")]

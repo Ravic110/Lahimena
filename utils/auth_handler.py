@@ -24,18 +24,19 @@ PASSWORD_EXPIRY_DAYS = 90  # 3 mois
 
 # Rate limiting : verrouillage après N échecs en WINDOW minutes
 _LOCKOUT_MAX_FAILURES = 5
-_LOCKOUT_WINDOW_MIN   = 10
+_LOCKOUT_WINDOW_MIN = 10
 _LOCKOUT_DURATION_MIN = 15
 # {username_lower: [(timestamp, ...), ...]}
 _failed_attempts: dict = {}
 
 ROLES = {
-    "admin":     "Administrateur — accès complet",
-    "agent":     "Agent — accès clients, cotations, factures",
+    "admin": "Administrateur — accès complet",
+    "agent": "Agent — accès clients, cotations, factures",
     "comptable": "Comptable — accès comptabilité uniquement",
 }
 
 # ── I/O ───────────────────────────────────────────────────────────────────────
+
 
 def _load_users() -> list:
     if not os.path.exists(USERS_FILE):
@@ -73,6 +74,7 @@ def _valid_user_entries(users: list) -> list[dict]:
 
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
+
 
 def _record_failed_attempt(username: str) -> None:
     key = username.lower()
@@ -113,6 +115,7 @@ def check_lockout(username: str) -> tuple[bool, int]:
 
 # ── Cryptographie ─────────────────────────────────────────────────────────────
 
+
 # Version 1 : SHA-256 simple (legacy, lecture seule)
 def _hash_password_v1(password: str, salt: str) -> str:
     combined = (password + salt).encode("utf-8")
@@ -141,6 +144,7 @@ def _generate_salt() -> str:
 
 # ── Statut d'accès ────────────────────────────────────────────────────────────
 
+
 def is_password_expired(user: dict) -> bool:
     """Retourne True si le mot de passe a expiré (>90 jours).
     En cas de timestamp invalide/corrompu, considère le mot de passe comme expiré
@@ -161,7 +165,9 @@ def password_expires_at(user: dict) -> str:
         changed = user.get("password_changed_at") or user.get("created_at", "")
         if not changed:
             return ""
-        dt = datetime.strptime(changed, "%Y-%m-%d %H:%M:%S") + timedelta(days=PASSWORD_EXPIRY_DAYS)
+        dt = datetime.strptime(changed, "%Y-%m-%d %H:%M:%S") + timedelta(
+            days=PASSWORD_EXPIRY_DAYS
+        )
         return dt.strftime("%Y-%m-%d %H:%M:%S")
     except Exception:
         return ""
@@ -216,6 +222,7 @@ def access_status(user: dict) -> str:
 
 # ── Utilisateurs ──────────────────────────────────────────────────────────────
 
+
 def has_users() -> bool:
     return len(_valid_user_entries(_load_users())) > 0
 
@@ -225,7 +232,6 @@ def _admin_count(users: list) -> int:
 
 
 def _current_username() -> str:
-    global _current_user
     return (_current_user or {}).get("username", "")
 
 
@@ -233,24 +239,25 @@ def get_users() -> list:
     users = _valid_user_entries(_load_users())
     return [
         {
-            "username":            u["username"],
-            "role":                u["role"],
-            "created_at":          u.get("created_at", ""),
+            "username": u["username"],
+            "role": u["role"],
+            "created_at": u.get("created_at", ""),
             "password_changed_at": u.get("password_changed_at", ""),
-            "suspended":           u.get("suspended", False),
-            "access_expires_at":   u.get("access_expires_at", ""),
-            "is_expired":          is_password_expired(u),
+            "suspended": u.get("suspended", False),
+            "access_expires_at": u.get("access_expires_at", ""),
+            "is_expired": is_password_expired(u),
             "password_expires_at": password_expires_at(u),
-            "password_days_left":  password_days_left(u),
+            "password_days_left": password_days_left(u),
             "password_expiring_soon": is_password_expiring_soon(u),
-            "status":              access_status(u),
+            "status": access_status(u),
         }
         for u in users
     ]
 
 
-def create_user(username: str, password: str, role: str,
-                access_expires_at: str = "") -> tuple[bool, str]:
+def create_user(
+    username: str, password: str, role: str, access_expires_at: str = ""
+) -> tuple[bool, str]:
     """
     Crée un nouveau compte utilisateur.
     access_expires_at : date au format YYYY-MM-DD, vide = accès illimité.
@@ -272,20 +279,23 @@ def create_user(username: str, password: str, role: str,
         return False, f"L'utilisateur « {username} » existe déjà."
 
     salt = _generate_salt()
-    now  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    users.append({
-        "username":            username,
-        "password_hash":       _hash_password(password, salt),
-        "salt":                salt,
-        "hash_version":        2,
-        "role":                role,
-        "created_at":          now,
-        "password_changed_at": now,
-        "suspended":           False,
-        "access_expires_at":   access_expires_at,
-    })
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    users.append(
+        {
+            "username": username,
+            "password_hash": _hash_password(password, salt),
+            "salt": salt,
+            "hash_version": 2,
+            "role": role,
+            "created_at": now,
+            "password_changed_at": now,
+            "suspended": False,
+            "access_expires_at": access_expires_at,
+        }
+    )
     if _save_users(users):
         from utils.activity_log import log_activity
+
         log_activity("create_user", f"Compte créé : {username} ({role})")
         return True, ""
     return False, "Erreur lors de la sauvegarde du fichier utilisateurs."
@@ -306,6 +316,7 @@ def delete_user(username: str) -> tuple[bool, str]:
     new_users = [u for u in users if u["username"].lower() != username.lower()]
     if _save_users(new_users):
         from utils.activity_log import log_activity
+
         log_activity("delete_user", f"Compte supprimé : {username}")
         return True, ""
     return False, "Erreur lors de la sauvegarde."
@@ -318,15 +329,19 @@ def change_password(username: str, new_password: str) -> tuple[bool, str]:
     for u in users:
         if u["username"].lower() == username.lower():
             salt = _generate_salt()
-            u["password_hash"]       = _hash_password(new_password, salt)
-            u["salt"]                = salt
-            u["hash_version"]        = 2
+            u["password_hash"] = _hash_password(new_password, salt)
+            u["salt"] = salt
+            u["hash_version"] = 2
             u["password_changed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             if _save_users(users):
                 from utils.activity_log import log_activity
-                log_activity("change_password",
-                             f"Mot de passe modifié pour : {username}",
-                             username=username, role=u.get("role", ""))
+
+                log_activity(
+                    "change_password",
+                    f"Mot de passe modifié pour : {username}",
+                    username=username,
+                    role=u.get("role", ""),
+                )
                 return True, ""
             return False, "Erreur lors de la sauvegarde."
     return False, f"Utilisateur « {username} » introuvable."
@@ -345,6 +360,7 @@ def suspend_user(username: str) -> tuple[bool, str]:
             u["suspended"] = True
             if _save_users(users):
                 from utils.activity_log import log_activity
+
                 log_activity("suspend_user", f"Compte suspendu : {username}")
                 return True, ""
             return False, "Erreur lors de la sauvegarde."
@@ -359,6 +375,7 @@ def reactivate_user(username: str) -> tuple[bool, str]:
             u["suspended"] = False
             if _save_users(users):
                 from utils.activity_log import log_activity
+
                 log_activity("reactivate_user", f"Compte réactivé : {username}")
                 return True, ""
             return False, "Erreur lors de la sauvegarde."
@@ -376,8 +393,12 @@ def set_access_expiry(username: str, expires_at: str) -> tuple[bool, str]:
             u["access_expires_at"] = expires_at
             if _save_users(users):
                 from utils.activity_log import log_activity
-                detail = f"Expiration fixée au {expires_at}" if expires_at \
-                         else "Limite d'accès supprimée"
+
+                detail = (
+                    f"Expiration fixée au {expires_at}"
+                    if expires_at
+                    else "Limite d'accès supprimée"
+                )
                 log_activity("set_expiry", f"{detail} pour : {username}")
                 return True, ""
             return False, "Erreur lors de la sauvegarde."
@@ -400,16 +421,24 @@ def update_user_role(username: str, new_role: str) -> tuple[bool, str]:
             u["role"] = new_role
             if _save_users(users):
                 from utils.activity_log import log_activity
-                log_activity("change_user_role", f"Rôle modifié : {username} ({old_role} → {new_role})")
+
+                log_activity(
+                    "change_user_role",
+                    f"Rôle modifié : {username} ({old_role} → {new_role})",
+                )
                 return True, ""
             return False, "Erreur lors de la sauvegarde."
     return False, f"Utilisateur « {username} » introuvable."
 
 
-def duplicate_user(source_username: str, new_username: str, password: str) -> tuple[bool, str]:
+def duplicate_user(
+    source_username: str, new_username: str, password: str
+) -> tuple[bool, str]:
     """Duplique un compte en reprenant rôle et date d'accès, avec un nouveau mot de passe."""
     users = _load_users()
-    source = next((u for u in users if u["username"].lower() == source_username.lower()), None)
+    source = next(
+        (u for u in users if u["username"].lower() == source_username.lower()), None
+    )
     if not source:
         return False, f"Utilisateur source « {source_username} » introuvable."
 
@@ -423,11 +452,15 @@ def duplicate_user(source_username: str, new_username: str, password: str) -> tu
         return False, err
 
     from utils.activity_log import log_activity
-    log_activity("duplicate_user", f"Compte dupliqué : {source_username} → {new_username}")
+
+    log_activity(
+        "duplicate_user", f"Compte dupliqué : {source_username} → {new_username}"
+    )
     return True, ""
 
 
 # ── Authentification ──────────────────────────────────────────────────────────
+
 
 def authenticate(username: str, password: str) -> tuple[bool, dict | None, str]:
     """
@@ -448,8 +481,13 @@ def authenticate(username: str, password: str) -> tuple[bool, dict | None, str]:
     if is_locked:
         mins = (secs + 59) // 60
         from utils.activity_log import log_activity
-        log_activity("login_blocked", f"Tentative bloquée (verrouillage) pour : {username}",
-                     username=username, role="")
+
+        log_activity(
+            "login_blocked",
+            f"Tentative bloquée (verrouillage) pour : {username}",
+            username=username,
+            role="",
+        )
         return False, None, f"locked:{mins}"
 
     users = _load_users()
@@ -465,8 +503,13 @@ def authenticate(username: str, password: str) -> tuple[bool, dict | None, str]:
             if expected != u["password_hash"]:
                 _record_failed_attempt(username)
                 from utils.activity_log import log_activity
-                log_activity("login_failed", f"Tentative échouée pour : {username}",
-                             username=username, role="")
+
+                log_activity(
+                    "login_failed",
+                    f"Tentative échouée pour : {username}",
+                    username=username,
+                    role="",
+                )
                 return False, None, "Mot de passe incorrect."
 
             # ── Succès : effacer le compteur d'échecs ─────────────────────────
@@ -475,9 +518,9 @@ def authenticate(username: str, password: str) -> tuple[bool, dict | None, str]:
             # ── Migration automatique SHA-256 → PBKDF2 ────────────────────────
             if hash_version == 1:
                 new_salt = _generate_salt()
-                u["salt"]         = new_salt
+                u["salt"] = new_salt
                 u["password_hash"] = _hash_password_v2(password, new_salt)
-                u["hash_version"]  = 2
+                u["hash_version"] = 2
                 _save_users(users)
 
             if is_suspended(u):
@@ -486,24 +529,38 @@ def authenticate(username: str, password: str) -> tuple[bool, dict | None, str]:
                 return False, None, "access_expired"
 
             user_info = {
-                "username":            u["username"],
-                "role":                u["role"],
-                "created_at":          u.get("created_at", ""),
+                "username": u["username"],
+                "role": u["role"],
+                "created_at": u.get("created_at", ""),
                 "password_changed_at": u.get("password_changed_at", ""),
             }
             from utils.activity_log import log_activity
+
             if is_password_expired(u):
-                log_activity("login", "Connexion (mot de passe expiré)",
-                             username=user_info["username"], role=user_info["role"])
+                log_activity(
+                    "login",
+                    "Connexion (mot de passe expiré)",
+                    username=user_info["username"],
+                    role=user_info["role"],
+                )
                 return True, user_info, "expired"
-            log_activity("login", "Connexion réussie",
-                         username=user_info["username"], role=user_info["role"])
+            log_activity(
+                "login",
+                "Connexion réussie",
+                username=user_info["username"],
+                role=user_info["role"],
+            )
             return True, user_info, ""
 
     _record_failed_attempt(username)
     from utils.activity_log import log_activity
-    log_activity("login_failed", f"Tentative échouée pour : {username}",
-                 username=username, role="")
+
+    log_activity(
+        "login_failed",
+        f"Tentative échouée pour : {username}",
+        username=username,
+        role="",
+    )
     return False, None, "Nom d'utilisateur introuvable."
 
 
@@ -534,6 +591,11 @@ def logout():
     u = _current_user
     if u:
         from utils.activity_log import log_activity
-        log_activity("logout", "Déconnexion",
-                     username=u.get("username", ""), role=u.get("role", ""))
+
+        log_activity(
+            "logout",
+            "Déconnexion",
+            username=u.get("username", ""),
+            role=u.get("role", ""),
+        )
     set_current_user(None)

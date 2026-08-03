@@ -142,7 +142,14 @@ class CollectiveExpenseDBList:
         )
         style.map("Treeview", background=[("selected", BUTTON_GREEN)])
 
-        columns = ("row", "forfait", "prestataire", "designation", "montant", "id_circuit")
+        columns = (
+            "row",
+            "forfait",
+            "prestataire",
+            "designation",
+            "montant",
+            "id_circuit",
+        )
         self.tree = ttk.Treeview(
             tree_frame,
             columns=columns,
@@ -273,7 +280,9 @@ class CollectiveExpenseDBList:
     def _edit_selected(self):
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à modifier.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à modifier."
+            )
             return
 
         try:
@@ -281,14 +290,18 @@ class CollectiveExpenseDBList:
         except Exception:
             return
 
-        row_data = next((r for r in self.rows if r.get("row_number") == row_number), None)
+        row_data = next(
+            (r for r in self.rows if r.get("row_number") == row_number), None
+        )
         if row_data and self.on_edit_row:
             self.on_edit_row(row_data, row_number)
 
     def _delete_selected(self):
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à supprimer.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à supprimer."
+            )
             return
 
         confirm = messagebox.askyesno(
@@ -308,4 +321,7 @@ class CollectiveExpenseDBList:
             messagebox.showinfo("Succès", "Ligne supprimée avec succès.")
             self._load_rows()
         else:
-            messagebox.showerror("Erreur", "Suppression impossible. Vérifiez que data-hotel.xlsx n'est pas ouvert.")
+            messagebox.showerror(
+                "Erreur",
+                "Suppression impossible. Vérifiez que data-hotel.xlsx n'est pas ouvert.",
+            )

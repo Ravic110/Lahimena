@@ -107,7 +107,9 @@ class TestExcelLoading:
             hotels = load_all_hotels()
             assert isinstance(hotels, list)
 
-    def test_load_all_clients_keeps_status_and_flight_fields(self, tmp_path, monkeypatch):
+    def test_load_all_clients_keeps_status_and_flight_fields(
+        self, tmp_path, monkeypatch
+    ):
         """Status and new flight fields should round-trip through Excel."""
         excel_path = tmp_path / "clients.xlsx"
         monkeypatch.setattr("utils.excel_handler.CLIENT_EXCEL_PATH", str(excel_path))
@@ -255,45 +257,45 @@ class TestClientAirTicketCotationPersistence:
 
     def _client(self):
         return {
-            "ref_client":     "CLI001",
+            "ref_client": "CLI001",
             "numero_dossier": "DOS001",
-            "nom":            "Rakoto",
-            "prenom":         "Aina",
+            "nom": "Rakoto",
+            "prenom": "Aina",
         }
 
     def _rows(self):
         return [
             {
-                "type_trajet":    "aller",
-                "compagnie":      "Air Austral",
-                "ville_depart":   "Antananarivo",
-                "ville_arrivee":  "Nosy Be",
-                "nb_adultes":     "2",
-                "nb_enfants":     "1",
-                "tarif_adulte":   "500",
-                "tarif_enfant":   "200",
+                "type_trajet": "aller",
+                "compagnie": "Air Austral",
+                "ville_depart": "Antananarivo",
+                "ville_arrivee": "Nosy Be",
+                "nb_adultes": "2",
+                "nb_enfants": "1",
+                "tarif_adulte": "500",
+                "tarif_enfant": "200",
                 "montant_adultes": 1000.0,
                 "montant_enfants": 200.0,
-                "sous_total":     1200.0,
-                "marge_pct":      "10",
-                "total":          1320.0,
-                "total_manuel":   False,
+                "sous_total": 1200.0,
+                "marge_pct": "10",
+                "total": 1320.0,
+                "total_manuel": False,
             },
             {
-                "type_trajet":    "retour",
-                "compagnie":      "Air Austral",
-                "ville_depart":   "Nosy Be",
-                "ville_arrivee":  "Antananarivo",
-                "nb_adultes":     "2",
-                "nb_enfants":     "1",
-                "tarif_adulte":   "500",
-                "tarif_enfant":   "200",
+                "type_trajet": "retour",
+                "compagnie": "Air Austral",
+                "ville_depart": "Nosy Be",
+                "ville_arrivee": "Antananarivo",
+                "nb_adultes": "2",
+                "nb_enfants": "1",
+                "tarif_adulte": "500",
+                "tarif_enfant": "200",
                 "montant_adultes": 1000.0,
                 "montant_enfants": 200.0,
-                "sous_total":     1200.0,
-                "marge_pct":      "10",
-                "total":          1500.0,
-                "total_manuel":   True,
+                "sous_total": 1200.0,
+                "marge_pct": "10",
+                "total": 1500.0,
+                "total_manuel": True,
             },
         ]
 
@@ -302,6 +304,7 @@ class TestClientAirTicketCotationPersistence:
             load_client_air_ticket_cotation,
             save_client_air_ticket_cotation_to_excel,
         )
+
         excel_path = str(tmp_path / "client-air.xlsx")
         monkeypatch.setattr("utils.excel_handler.CLIENT_EXCEL_PATH", excel_path)
 
@@ -320,21 +323,35 @@ class TestClientAirTicketCotationPersistence:
             load_client_air_ticket_cotation,
             save_client_air_ticket_cotation_to_excel,
         )
+
         excel_path = str(tmp_path / "client-air.xlsx")
         monkeypatch.setattr("utils.excel_handler.CLIENT_EXCEL_PATH", excel_path)
 
-        assert save_client_air_ticket_cotation_to_excel(self._client(), self._rows()) == 2
+        assert (
+            save_client_air_ticket_cotation_to_excel(self._client(), self._rows()) == 2
+        )
 
-        replacement = [{
-            "type_trajet": "aller", "compagnie": "Tsaradia",
-            "ville_depart": "Antananarivo", "ville_arrivee": "Sainte Marie",
-            "nb_adultes": "1", "nb_enfants": "0",
-            "tarif_adulte": "700", "tarif_enfant": "0",
-            "montant_adultes": 700.0, "montant_enfants": 0.0,
-            "sous_total": 700.0, "marge_pct": "0",
-            "total": 700.0, "total_manuel": False,
-        }]
-        assert save_client_air_ticket_cotation_to_excel(self._client(), replacement) == 1
+        replacement = [
+            {
+                "type_trajet": "aller",
+                "compagnie": "Tsaradia",
+                "ville_depart": "Antananarivo",
+                "ville_arrivee": "Sainte Marie",
+                "nb_adultes": "1",
+                "nb_enfants": "0",
+                "tarif_adulte": "700",
+                "tarif_enfant": "0",
+                "montant_adultes": 700.0,
+                "montant_enfants": 0.0,
+                "sous_total": 700.0,
+                "marge_pct": "0",
+                "total": 700.0,
+                "total_manuel": False,
+            }
+        ]
+        assert (
+            save_client_air_ticket_cotation_to_excel(self._client(), replacement) == 1
+        )
 
         loaded = load_client_air_ticket_cotation(self._client())
         assert len(loaded) == 1
@@ -430,7 +447,9 @@ class TestClientBillingDocumentPersistence:
         excel_path = str(tmp_path / "client-billing.xlsx")
         monkeypatch.setattr("utils.excel_handler.CLIENT_EXCEL_PATH", excel_path)
 
-        saved = save_active_client_quote_to_excel(self._client(), self._quote_document())
+        saved = save_active_client_quote_to_excel(
+            self._client(), self._quote_document()
+        )
         loaded = load_active_client_quote_from_excel(self._client())
 
         assert saved == 2
@@ -472,7 +491,9 @@ class TestClientBillingDocumentPersistence:
         assert loaded["lines"][0]["category"] == "Transport"
         assert loaded["lines"][0]["total_price"] == 450.0
 
-    def test_invoice_round_trip_preserves_detailed_designations(self, tmp_path, monkeypatch):
+    def test_invoice_round_trip_preserves_detailed_designations(
+        self, tmp_path, monkeypatch
+    ):
         from utils.excel_handler import (
             load_active_client_invoice_from_excel,
             save_active_client_invoice_to_excel,

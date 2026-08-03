@@ -3,7 +3,7 @@ Collective expense quotations summary GUI component
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox, ttk
 
 from config import (
     ACCENT_TEXT_COLOR,
@@ -250,65 +250,75 @@ class CollectiveExpenseQuotationSummary:
     def _on_edit_clicked(self):
         """Open form for editing selected quotation"""
         if self.tree is None:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne avant de la modifier.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne avant de la modifier."
+            )
             return
-        
+
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à modifier.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à modifier."
+            )
             return
-        
+
         # Get the selected item (it's an iid from tree.selection())
         selected_item = selection[0]
-        
+
         # Find the corresponding row based on the tree item
         try:
             filtered_rows = self._filtered_rows()
             # tree.get_children() returns items in order, so get the index
             all_items = self.tree.get_children()
             item_index = all_items.index(selected_item)
-            
+
             if 0 <= item_index < len(filtered_rows):
                 selected_row = filtered_rows[item_index]
                 row_number = selected_row.get("row_number")
-                
+
                 if self.callback_edit and row_number is not None:
                     self.callback_edit(selected_row, row_number)
                     logger.info(f"Edit quotation row {row_number}")
         except Exception as e:
             logger.error(f"Error editing quotation: {e}", exc_info=True)
-            messagebox.showerror("Erreur", "Impossible de modifier la cotation sélectionnée.")
+            messagebox.showerror(
+                "Erreur", "Impossible de modifier la cotation sélectionnée."
+            )
 
     def _on_delete_clicked(self):
         """Delete selected quotation"""
         if self.tree is None:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne avant de la supprimer.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne avant de la supprimer."
+            )
             return
-        
+
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("Info", "Veuillez sélectionner une ligne à supprimer.")
+            messagebox.showwarning(
+                "Info", "Veuillez sélectionner une ligne à supprimer."
+            )
             return
-        
+
         confirm = messagebox.askyesno(
             "Confirmation",
-            "Êtes-vous sûr de vouloir supprimer cette cotation ?\n\nCette action ne peut pas être annulée."
+            "Êtes-vous sûr de vouloir supprimer cette cotation ?\n\nCette action ne peut pas être annulée.",
         )
         if not confirm:
             return
-        
+
         try:
             from utils.excel_handler import delete_collective_expense_from_excel
-            
+
             selected_item = selection[0]
             filtered_rows = self._filtered_rows()
             all_items = self.tree.get_children()
             item_index = all_items.index(selected_item)
-            
+
             if 0 <= item_index < len(filtered_rows):
                 selected_row = filtered_rows[item_index]
                 row_number = selected_row.get("row_number")
-                
+
                 if row_number is not None:
                     success = delete_collective_expense_from_excel(row_number)
                     if success:
@@ -317,7 +327,7 @@ class CollectiveExpenseQuotationSummary:
                     else:
                         messagebox.showerror(
                             "Erreur",
-                            "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert."
+                            "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert.",
                         )
         except Exception as e:
             logger.error(f"Error deleting quotation: {e}", exc_info=True)
@@ -396,15 +406,23 @@ class CollectiveExpenseQuotationSummary:
             return
 
         headers = [key for key in rows[0].keys() if key != "row_number"]
-        self.tree = ttk.Treeview(self.content_frame, columns=headers, show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(
+            self.content_frame, columns=headers, show="headings", selectmode="browse"
+        )
 
         for header in headers:
             self.tree.heading(header, text=header)
             self.tree.column(header, width=150, anchor="w")
 
-        scrollbar_y = ttk.Scrollbar(self.content_frame, orient="vertical", command=self.tree.yview)
-        scrollbar_x = ttk.Scrollbar(self.content_frame, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+        scrollbar_y = ttk.Scrollbar(
+            self.content_frame, orient="vertical", command=self.tree.yview
+        )
+        scrollbar_x = ttk.Scrollbar(
+            self.content_frame, orient="horizontal", command=self.tree.xview
+        )
+        self.tree.configure(
+            yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set
+        )
 
         for row in rows:
             values = [row.get(header, "") for header in headers]
@@ -442,7 +460,9 @@ class CollectiveExpenseQuotationSummary:
             )
 
         columns = ["Référence", "Nombre", "Total"]
-        self.tree = ttk.Treeview(self.content_frame, columns=columns, show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(
+            self.content_frame, columns=columns, show="headings", selectmode="browse"
+        )
         for col in columns:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=220 if col == "Référence" else 120, anchor="w")
@@ -454,7 +474,9 @@ class CollectiveExpenseQuotationSummary:
                 values=(ref_value, data["count"], f"{data['total']:,.2f}"),
             )
 
-        scrollbar_y = ttk.Scrollbar(self.content_frame, orient="vertical", command=self.tree.yview)
+        scrollbar_y = ttk.Scrollbar(
+            self.content_frame, orient="vertical", command=self.tree.yview
+        )
         self.tree.configure(yscrollcommand=scrollbar_y.set)
 
         self.tree.pack(fill="both", expand=True, side="left")

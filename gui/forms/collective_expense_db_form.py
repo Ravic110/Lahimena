@@ -48,7 +48,11 @@ class CollectiveExpenseDBForm:
 
         tk.Label(
             self.parent,
-            text="MODIFIER FRAIS COLLECTIFS (DB)" if self.edit_data else "FRAIS COLLECTIFS (DB)",
+            text=(
+                "MODIFIER FRAIS COLLECTIFS (DB)"
+                if self.edit_data
+                else "FRAIS COLLECTIFS (DB)"
+            ),
             font=TITLE_FONT,
             fg=TEXT_COLOR,
             bg=MAIN_BG_COLOR,
@@ -182,7 +186,9 @@ class CollectiveExpenseDBForm:
             self.rows_tree.heading(col, text=headers[col])
             self.rows_tree.column(col, width=widths[col], minwidth=widths[col])
 
-        v_scroll = ttk.Scrollbar(table_container, orient="vertical", command=self.rows_tree.yview)
+        v_scroll = ttk.Scrollbar(
+            table_container, orient="vertical", command=self.rows_tree.yview
+        )
         self.rows_tree.configure(yscrollcommand=v_scroll.set)
         self.rows_tree.pack(side="left", fill="both", expand=True)
         v_scroll.pack(side="right", fill="y")
@@ -223,16 +229,22 @@ class CollectiveExpenseDBForm:
     def _save(self):
         data = self._collect_data()
         if not any(data.values()):
-            messagebox.showwarning("Validation", "Veuillez renseigner au moins un champ.")
+            messagebox.showwarning(
+                "Validation", "Veuillez renseigner au moins un champ."
+            )
             return
 
         if self.edit_data and self.row_number is not None:
             result = update_collective_expense_db_row(self.row_number, data)
             if result == -2:
-                messagebox.showerror("Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez.")
+                messagebox.showerror(
+                    "Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez."
+                )
                 return
             if result == -1:
-                messagebox.showerror("Erreur", "Échec de la mise à jour dans Frais collectifs.")
+                messagebox.showerror(
+                    "Erreur", "Échec de la mise à jour dans Frais collectifs."
+                )
                 return
             messagebox.showinfo("Succès", "Ligne mise à jour avec succès.")
             self._refresh_rows_preview()
@@ -242,10 +254,14 @@ class CollectiveExpenseDBForm:
 
         row = save_collective_expense_db_row(data)
         if row == -2:
-            messagebox.showerror("Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez.")
+            messagebox.showerror(
+                "Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez."
+            )
             return
         if row == -1:
-            messagebox.showerror("Erreur", "Échec de l'enregistrement dans Frais collectifs.")
+            messagebox.showerror(
+                "Erreur", "Échec de l'enregistrement dans Frais collectifs."
+            )
             return
 
         messagebox.showinfo("Succès", f"Ligne enregistrée à la ligne {row}.")

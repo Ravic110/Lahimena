@@ -18,11 +18,11 @@ from config import (
     TITLE_FONT,
 )
 from utils.excel_handler import (
+    delete_parametrage_from_excel,
     get_parametrage_headers,
     load_all_parametrages,
     save_parametrage_to_excel,
     update_parametrage_in_excel,
-    delete_parametrage_from_excel,
 )
 from utils.logger import logger
 
@@ -71,7 +71,9 @@ class ParametrageForm:
         for widget in self.parent.winfo_children():
             widget.destroy()
 
-        title_text = "MODIFIER PARAMÉTRAGE" if self.edit_data else "PARAMÉTRAGE APPLICATION"
+        title_text = (
+            "MODIFIER PARAMÉTRAGE" if self.edit_data else "PARAMÉTRAGE APPLICATION"
+        )
         tk.Label(
             self.parent,
             text=title_text,
@@ -185,7 +187,9 @@ class ParametrageForm:
 
     def _load_edit_data(self):
         try:
-            self.field_vars["PARAMETRE"].set(str(self.edit_data.get("PARAMETRE", "")).strip())
+            self.field_vars["PARAMETRE"].set(
+                str(self.edit_data.get("PARAMETRE", "")).strip()
+            )
             self.field_vars["VALEUR"].set(str(self.edit_data.get("VALEUR", "")).strip())
         except Exception as e:
             logger.error(f"Error loading parameter edit data: {e}", exc_info=True)
@@ -209,7 +213,9 @@ class ParametrageForm:
         if self.edit_data and self.row_number is not None:
             result = update_parametrage_in_excel(self.row_number, form_data)
             if result == -2:
-                messagebox.showerror("Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez.")
+                messagebox.showerror(
+                    "Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez."
+                )
                 return
             if result == -1:
                 messagebox.showerror("Erreur", "Échec de la mise à jour du paramètre.")
@@ -221,7 +227,9 @@ class ParametrageForm:
 
         row = save_parametrage_to_excel(form_data)
         if row == -2:
-            messagebox.showerror("Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez.")
+            messagebox.showerror(
+                "Fichier verrouillé", "Fermez data-hotel.xlsx puis réessayez."
+            )
             return
         if row == -1:
             messagebox.showerror("Erreur", "Échec de l'enregistrement du paramètre.")
@@ -246,7 +254,10 @@ class ParametrageForm:
 
         success = delete_parametrage_from_excel(self.row_number)
         if not success:
-            messagebox.showerror("Erreur", "Impossible de supprimer. Vérifiez que data-hotel.xlsx n'est pas ouvert.")
+            messagebox.showerror(
+                "Erreur",
+                "Impossible de supprimer. Vérifiez que data-hotel.xlsx n'est pas ouvert.",
+            )
             return
 
         messagebox.showinfo("Succès", "Paramètre supprimé avec succès.")

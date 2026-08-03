@@ -20,30 +20,30 @@ from datetime import datetime, time, timedelta
 from time import monotonic
 
 from config import (
-    CLIENT_EXCEL_PATH,
-    FINANCIAL_EXCEL_PATH,
-    CLIENT_INFOS_SHEET_NAME,
-    CLIENT_SHEET_NAME,
-    COTATION_FRAIS_COL_SHEET_NAME,
-    COTATION_REST_SHEET_NAME,
-    COTATION_TRANSPORT_SHEET_NAME,
-    COTATION_AVION_SHEET_NAME,
-    CLIENT_ACTIVE_INVOICE_SHEET_NAME,
-    CLIENT_ACTIVE_QUOTE_SHEET_NAME,
     AVION_SHEET_NAME,
     AVION_SOURCE_SHEET_NAME,
+    CLIENT_ACTIVE_INVOICE_SHEET_NAME,
+    CLIENT_ACTIVE_QUOTE_SHEET_NAME,
+    CLIENT_EXCEL_PATH,
+    CLIENT_INFOS_SHEET_NAME,
+    CLIENT_SHEET_NAME,
+    COTATION_AVION_SHEET_NAME,
+    COTATION_FRAIS_COL_SHEET_NAME,
     COTATION_H_SHEET_NAME,
+    COTATION_REST_SHEET_NAME,
+    COTATION_TRANSPORT_SHEET_NAME,
+    FINANCIAL_EXCEL_PATH,
+    FINANCIAL_STATE_SHEET_NAME,
     FRAIS_COLLECTIFS_SHEET_NAME,
     HOTEL_EXCEL_PATH,
     HOTEL_SHEET_NAME,
-    VISITE_EXCURSION_SHEET_NAME,
-    VISITE_EXCURSION_SOURCE_SHEET_NAME,
-    TRANSPORT_SOURCE_SHEET_NAME,
-    TRANSPORT_SHEET_NAME,
+    INVOICE_SHEET_NAME,
     KM_MADA_SHEET_NAME,
     PARAMETRAGE_SHEET_NAME,
-    INVOICE_SHEET_NAME,
-    FINANCIAL_STATE_SHEET_NAME,
+    TRANSPORT_SHEET_NAME,
+    TRANSPORT_SOURCE_SHEET_NAME,
+    VISITE_EXCURSION_SHEET_NAME,
+    VISITE_EXCURSION_SOURCE_SHEET_NAME,
 )
 from utils.cache import (
     cached_client_data,
@@ -57,7 +57,6 @@ from utils.storage.km_cache import (
     _KM_MADA_CACHE_TTL_SECONDS,
     _invalidate_km_mada_cache,
 )
-from utils.storage.workbook import create_backup
 from utils.storage.reference_tables import (
     _resolve_km_mada_header_map,
     _resolve_transport_source_header_map,
@@ -101,7 +100,7 @@ from utils.storage.sheet import (
     _parse_duration_hours,
     _parse_num,
 )
-
+from utils.storage.workbook import create_backup
 
 _THROTTLED_ERROR_STATE = {}
 _THROTTLED_ERROR_WINDOW_SECONDS = 30.0
@@ -694,11 +693,15 @@ def update_client_statut(row_number, new_statut):
             info_status_col = info_header_map.get("Statut")
             if info_ref_col and info_status_col:
                 for info_row in range(2, info_ws.max_row + 1):
-                    info_ref_value = info_ws.cell(row=info_row, column=info_ref_col).value
+                    info_ref_value = info_ws.cell(
+                        row=info_row, column=info_ref_col
+                    ).value
                     if info_ref_value is None:
                         continue
                     if str(info_ref_value).strip() == ref_client:
-                        info_ws.cell(row=info_row, column=info_status_col, value=new_statut)
+                        info_ws.cell(
+                            row=info_row, column=info_status_col, value=new_statut
+                        )
                         break
 
         wb.save(CLIENT_EXCEL_PATH)
@@ -759,9 +762,7 @@ def _load_client_infos_map():
             "hotels_defaut_villes_circuit": _cell(row, "Hôtels Défaut Circuit")
             or _cell(row, "Hotels Defaut Circuit")
             or "",
-            "prestations_incluses_circuit": _cell(
-                row, "Prestations Incluses Circuit"
-            )
+            "prestations_incluses_circuit": _cell(row, "Prestations Incluses Circuit")
             or "",
             "transports_associes_circuit": _cell(row, "Transports Associés Circuit")
             or _cell(row, "Transports Associes Circuit")
@@ -1158,7 +1159,8 @@ def load_circuit_catalog():
 
         itinerary = (
             str(ws.cell(row=row, column=itinerary_col).value).strip()
-            if itinerary_col and ws.cell(row=row, column=itinerary_col).value is not None
+            if itinerary_col
+            and ws.cell(row=row, column=itinerary_col).value is not None
             else ""
         )
         cities = (
@@ -1309,7 +1311,9 @@ def save_hotel_to_excel(hotel_data):
     header_map_row1 = _get_header_map(ws, 1)
     header_map_row2 = _get_header_map(ws, 2)
     use_grouped_format = (
-        "Ville" in header_map_row2 and "HTL" in header_map_row2 and "Ville" not in header_map_row1
+        "Ville" in header_map_row2
+        and "HTL" in header_map_row2
+        and "Ville" not in header_map_row1
     )
 
     last_row = ws.max_row + 1
@@ -1337,10 +1341,16 @@ def save_hotel_to_excel(hotel_data):
         # STANDARD block
         _set("STANDARD", "SPL", ["Chambre_Single", "chambre_single"])
         _set("STANDARD", "DBL", ["Chambre_Double", "chambre_double"])
-        _set("STANDARD", "TWINS", ["Chambre_Twin", "chambre_twin", "Chambre_Double", "chambre_double"])
+        _set(
+            "STANDARD",
+            "TWINS",
+            ["Chambre_Twin", "chambre_twin", "Chambre_Double", "chambre_double"],
+        )
         _set("STANDARD", "FML", ["Chambre_Familiale", "chambre_familiale"])
         _set("STANDARD", "triple", ["Chambre_Triple", "chambre_triple"])
-        _set("STANDARD", "Chambre chauffeur", ["Chambre_Chauffeur", "chambre_chauffeur"])
+        _set(
+            "STANDARD", "Chambre chauffeur", ["Chambre_Chauffeur", "chambre_chauffeur"]
+        )
         _set("STANDARD", "dortoir", ["Dortoir", "dortoir"])
         _set("STANDARD", "SUPP", ["Lit_Supp", "lit_supp"])
 
@@ -1386,8 +1396,16 @@ def save_hotel_to_excel(hotel_data):
         _set("REPAS", "PDJ", ["Petit_Déjeuner", "petit_dejeuner"])
         _set("REPAS", "DJ", ["Déjeuner", "dejeuner"])
         _set("REPAS", "DR", ["Dîner", "diner"])
-        _set("Autres informations et remarques", "Inclus", ["Inclus", "inclus", "Description", "description"])
-        _set("Autres informations et remarques", "Inclus ", ["Inclus", "inclus", "Description", "description"])
+        _set(
+            "Autres informations et remarques",
+            "Inclus",
+            ["Inclus", "inclus", "Description", "description"],
+        )
+        _set(
+            "Autres informations et remarques",
+            "Inclus ",
+            ["Inclus", "inclus", "Description", "description"],
+        )
     else:
         header_map = _ensure_headers(ws, hotel_headers, hotel_header_style)
         field_map = {
@@ -1469,7 +1487,9 @@ def update_hotel_in_excel(row_number, hotel_data):
     header_map_row1 = _get_header_map(ws, 1)
     header_map_row2 = _get_header_map(ws, 2)
     use_grouped_format = (
-        "Ville" in header_map_row2 and "HTL" in header_map_row2 and "Ville" not in header_map_row1
+        "Ville" in header_map_row2
+        and "HTL" in header_map_row2
+        and "Ville" not in header_map_row1
     )
     hotel_headers = [
         "Ville",
@@ -1522,10 +1542,16 @@ def update_hotel_in_excel(row_number, hotel_data):
         _set("Hotel", "UNITÉ", ["Unité", "unite"], "MGA")
         _set("STANDARD", "SPL", ["Chambre_Single", "chambre_single"])
         _set("STANDARD", "DBL", ["Chambre_Double", "chambre_double"])
-        _set("STANDARD", "TWINS", ["Chambre_Twin", "chambre_twin", "Chambre_Double", "chambre_double"])
+        _set(
+            "STANDARD",
+            "TWINS",
+            ["Chambre_Twin", "chambre_twin", "Chambre_Double", "chambre_double"],
+        )
         _set("STANDARD", "FML", ["Chambre_Familiale", "chambre_familiale"])
         _set("STANDARD", "triple", ["Chambre_Triple", "chambre_triple"])
-        _set("STANDARD", "Chambre chauffeur", ["Chambre_Chauffeur", "chambre_chauffeur"])
+        _set(
+            "STANDARD", "Chambre chauffeur", ["Chambre_Chauffeur", "chambre_chauffeur"]
+        )
         _set("STANDARD", "dortoir", ["Dortoir", "dortoir"])
         _set("STANDARD", "SUPP", ["Lit_Supp", "lit_supp"])
         _set("BUNGALOWS", "SPL", ["Bungalow_Single", "bungalow_single"])
@@ -1561,8 +1587,16 @@ def update_hotel_in_excel(row_number, hotel_data):
         _set("REPAS", "PDJ", ["Petit_Déjeuner", "petit_dejeuner"])
         _set("REPAS", "DJ", ["Déjeuner", "dejeuner"])
         _set("REPAS", "DR", ["Dîner", "diner"])
-        _set("Autres informations et remarques", "Inclus", ["Inclus", "inclus", "Description", "description"])
-        _set("Autres informations et remarques", "Inclus ", ["Inclus", "inclus", "Description", "description"])
+        _set(
+            "Autres informations et remarques",
+            "Inclus",
+            ["Inclus", "inclus", "Description", "description"],
+        )
+        _set(
+            "Autres informations et remarques",
+            "Inclus ",
+            ["Inclus", "inclus", "Description", "description"],
+        )
     else:
         header_map = _ensure_headers(ws, hotel_headers, hotel_header_style)
         field_map = {
@@ -2021,7 +2055,9 @@ def save_active_client_quote_to_excel(client: dict, quote_document: dict) -> int
                     "client_name",
                     f"{client.get('prenom', '')} {client.get('nom', '')}".strip(),
                 ),
-                "Devise": quote_document.get("currency", line.get("currency", "Ariary")),
+                "Devise": quote_document.get(
+                    "currency", line.get("currency", "Ariary")
+                ),
                 "Categorie": line.get("category", ""),
                 "Designation": line.get("designation", ""),
                 "Quantite": _parse_num(line.get("quantity", 1)),
@@ -2080,7 +2116,10 @@ def load_active_client_quote_from_excel(client: dict) -> dict:
         lines = []
         document = {}
         for row_idx in range(2, ws.max_row + 1):
-            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+            if (
+                str(ws.cell(row=row_idx, column=id_col).value or "").strip()
+                != client_ref
+            ):
                 continue
 
             def _get(header, default=""):
@@ -2164,7 +2203,9 @@ def save_active_client_invoice_to_excel(client: dict, invoice_document: dict) ->
                     "client_name",
                     f"{client.get('prenom', '')} {client.get('nom', '')}".strip(),
                 ),
-                "Devise": invoice_document.get("currency", line.get("currency", "Ariary")),
+                "Devise": invoice_document.get(
+                    "currency", line.get("currency", "Ariary")
+                ),
                 "Categorie": line.get("category", ""),
                 "Designation": line.get("designation", ""),
                 "Quantite": _parse_num(line.get("quantity", 1)),
@@ -2217,7 +2258,10 @@ def load_active_client_invoice_from_excel(client: dict) -> dict:
         lines = []
         document = {}
         for row_idx in range(2, ws.max_row + 1):
-            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+            if (
+                str(ws.cell(row=row_idx, column=id_col).value or "").strip()
+                != client_ref
+            ):
                 continue
 
             def _get(header, default=""):
@@ -2284,16 +2328,19 @@ def load_client_hotel_cotation(client: dict) -> list:
             return []
 
         _ROOM_MAP = [
-            ("single",    "SGL"),
-            ("double",    "DBL"),
-            ("twin",      "TWN"),
-            ("triple",    "TPL"),
+            ("single", "SGL"),
+            ("double", "DBL"),
+            ("twin", "TWN"),
+            ("triple", "TPL"),
             ("familiale", "FML"),
         ]
 
         results = []
         for row_idx in range(2, ws.max_row + 1):
-            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+            if (
+                str(ws.cell(row=row_idx, column=id_col).value or "").strip()
+                != client_ref
+            ):
                 continue
 
             def _get(col_name, default=""):
@@ -2303,33 +2350,45 @@ def load_client_hotel_cotation(client: dict) -> list:
             # Reconstruct room_prices
             room_prices = {}
             for rk, lbl in _ROOM_MAP:
-                nb_idx    = header_map.get(f"{lbl}_Nb")
-                prix_idx  = header_map.get(f"{lbl}_Prix_MGA")
-                count = _parse_num(ws.cell(row=row_idx, column=nb_idx).value if nb_idx else 0)
-                price = _parse_num(ws.cell(row=row_idx, column=prix_idx).value if prix_idx else 0)
+                nb_idx = header_map.get(f"{lbl}_Nb")
+                prix_idx = header_map.get(f"{lbl}_Prix_MGA")
+                count = _parse_num(
+                    ws.cell(row=row_idx, column=nb_idx).value if nb_idx else 0
+                )
+                price = _parse_num(
+                    ws.cell(row=row_idx, column=prix_idx).value if prix_idx else 0
+                )
                 room_prices[rk] = {"count": int(count), "price": float(price)}
 
             prix_u = _parse_num(_get("Prix_Unitaire_MGA", 0))
             nuits_raw = str(_get("Nuits", ""))
             nuits_val = int(_parse_num(_get("Nuits", 0))) if _get("Nuits") else ""
             marge_raw = _get("Marge_Pct", "")
-            marge_val = str(int(_parse_num(marge_raw))) if marge_raw not in (None, "") else ""
+            marge_val = (
+                str(int(_parse_num(marge_raw))) if marge_raw not in (None, "") else ""
+            )
 
-            dep   = _parse_num(_get("Dépense_MGA", 0))
+            dep = _parse_num(_get("Dépense_MGA", 0))
             total = _parse_num(_get("Total_MGA", 0))
 
-            results.append({
-                "ville":         str(_get("Ville") or ""),
-                "nuits":         str(nuits_val) if nuits_val != "" else "",
-                "hotel":         str(_get("Hôtel") or ""),
-                "hotel_group":   str(_get("Catégorie_Chambre") or "standard"),
-                "room_prices":   room_prices,
-                "nb_pax":        str(int(_parse_num(_get("Nb_Pax", 0)))) if _get("Nb_Pax") else "",
-                "marge":         marge_val,
-                "prix_unitaire": prix_u,
-                "depense":       dep,
-                "total":         total,
-            })
+            results.append(
+                {
+                    "ville": str(_get("Ville") or ""),
+                    "nuits": str(nuits_val) if nuits_val != "" else "",
+                    "hotel": str(_get("Hôtel") or ""),
+                    "hotel_group": str(_get("Catégorie_Chambre") or "standard"),
+                    "room_prices": room_prices,
+                    "nb_pax": (
+                        str(int(_parse_num(_get("Nb_Pax", 0))))
+                        if _get("Nb_Pax")
+                        else ""
+                    ),
+                    "marge": marge_val,
+                    "prix_unitaire": prix_u,
+                    "depense": dep,
+                    "total": total,
+                }
+            )
         return results
     except Exception as e:
         logger.error(f"Failed to load client hotel cotation: {e}", exc_info=True)
@@ -2370,7 +2429,10 @@ def load_client_collective_cotation(client: dict) -> list:
 
         results = []
         for row_idx in range(2, ws.max_row + 1):
-            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+            if (
+                str(ws.cell(row=row_idx, column=id_col).value or "").strip()
+                != client_ref
+            ):
                 continue
 
             def _get(col_name, default=""):
@@ -2378,22 +2440,26 @@ def load_client_collective_cotation(client: dict) -> list:
                 return ws.cell(row=row_idx, column=idx).value if idx else default
 
             prix_raw = _get("Prix_Unitaire", 0)
-            qty_raw  = _get("Quantité", 0)
+            qty_raw = _get("Quantité", 0)
             marge_raw = _get("Marge_Pct", "")
-            marge_val = str(int(_parse_num(marge_raw))) if marge_raw not in (None, "") else ""
-            prix_val  = _parse_num(prix_raw)
-            qty_val   = int(_parse_num(qty_raw)) if qty_raw not in (None, "") else 0
+            marge_val = (
+                str(int(_parse_num(marge_raw))) if marge_raw not in (None, "") else ""
+            )
+            prix_val = _parse_num(prix_raw)
+            qty_val = int(_parse_num(qty_raw)) if qty_raw not in (None, "") else 0
 
-            results.append({
-                "prestataire":   str(_get("Prestataire") or ""),
-                "designation":   str(_get("Désignation") or ""),
-                "forfait":       str(_get("Forfait") or ""),
-                "quantite":      str(qty_val) if qty_val else "",
-                "prix_unitaire": str(prix_val) if prix_val else "",
-                "marge":         marge_val,
-                "depense":       _parse_num(_get("Dépense", 0)),
-                "total":         _parse_num(_get("Total", 0)),
-            })
+            results.append(
+                {
+                    "prestataire": str(_get("Prestataire") or ""),
+                    "designation": str(_get("Désignation") or ""),
+                    "forfait": str(_get("Forfait") or ""),
+                    "quantite": str(qty_val) if qty_val else "",
+                    "prix_unitaire": str(prix_val) if prix_val else "",
+                    "marge": marge_val,
+                    "depense": _parse_num(_get("Dépense", 0)),
+                    "total": _parse_num(_get("Total", 0)),
+                }
+            )
         return results
     except Exception as e:
         logger.error(f"Failed to load client collective cotation: {e}", exc_info=True)
@@ -2424,14 +2490,30 @@ def save_client_hotel_cotation_to_excel(client: dict, rows: list) -> int:
         return 0
 
     headers = [
-        "Date", "ID_Client", "Numero_Dossier", "Nom_Client", "Prénom_Client",
-        "Ville", "Nuits", "Hôtel", "Catégorie_Chambre",
-        "SGL_Nb", "SGL_Prix_MGA",
-        "DBL_Nb", "DBL_Prix_MGA",
-        "TWN_Nb", "TWN_Prix_MGA",
-        "TPL_Nb", "TPL_Prix_MGA",
-        "FML_Nb", "FML_Prix_MGA",
-        "Nb_Pax", "Prix_Unitaire_MGA", "Dépense_MGA", "Marge_Pct", "Total_MGA",
+        "Date",
+        "ID_Client",
+        "Numero_Dossier",
+        "Nom_Client",
+        "Prénom_Client",
+        "Ville",
+        "Nuits",
+        "Hôtel",
+        "Catégorie_Chambre",
+        "SGL_Nb",
+        "SGL_Prix_MGA",
+        "DBL_Nb",
+        "DBL_Prix_MGA",
+        "TWN_Nb",
+        "TWN_Prix_MGA",
+        "TPL_Nb",
+        "TPL_Prix_MGA",
+        "FML_Nb",
+        "FML_Prix_MGA",
+        "Nb_Pax",
+        "Prix_Unitaire_MGA",
+        "Dépense_MGA",
+        "Marge_Pct",
+        "Total_MGA",
     ]
 
     wb = None
@@ -2452,7 +2534,9 @@ def save_client_hotel_cotation_to_excel(client: dict, rows: list) -> int:
             for col, h in enumerate(headers, 1):
                 cell = ws.cell(row=1, column=col, value=h)
                 cell.font = Font(bold=True, color="FFFFFF")
-                cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+                cell.fill = PatternFill(
+                    start_color="4472C4", end_color="4472C4", fill_type="solid"
+                )
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
         header_map = _ensure_headers(ws, headers)
@@ -2465,10 +2549,10 @@ def save_client_hotel_cotation_to_excel(client: dict, rows: list) -> int:
             _delete_rows_for_client(ws, id_col_idx, client_ref)
 
         _ROOM_MAP = [
-            ("single",    "SGL"),
-            ("double",    "DBL"),
-            ("twin",      "TWN"),
-            ("triple",    "TPL"),
+            ("single", "SGL"),
+            ("double", "DBL"),
+            ("twin", "TWN"),
+            ("triple", "TPL"),
             ("familiale", "FML"),
         ]
 
@@ -2478,25 +2562,25 @@ def save_client_hotel_cotation_to_excel(client: dict, rows: list) -> int:
             rp = rd.get("room_prices", {})
 
             row_values = {
-                "Date":              now_str,
-                "ID_Client":         str(client.get("ref_client") or ""),
-                "Numero_Dossier":    str(client.get("numero_dossier") or ""),
-                "Nom_Client":        str(client.get("nom") or ""),
-                "Prénom_Client":     str(client.get("prenom") or ""),
-                "Ville":             str(rd.get("ville") or ""),
-                "Nuits":             _parse_num(rd.get("nuits", 0)),
-                "Hôtel":             str(rd.get("hotel") or ""),
+                "Date": now_str,
+                "ID_Client": str(client.get("ref_client") or ""),
+                "Numero_Dossier": str(client.get("numero_dossier") or ""),
+                "Nom_Client": str(client.get("nom") or ""),
+                "Prénom_Client": str(client.get("prenom") or ""),
+                "Ville": str(rd.get("ville") or ""),
+                "Nuits": _parse_num(rd.get("nuits", 0)),
+                "Hôtel": str(rd.get("hotel") or ""),
                 "Catégorie_Chambre": str(rd.get("hotel_group") or ""),
-                "Nb_Pax":            _parse_num(rd.get("nb_pax", 0)),
+                "Nb_Pax": _parse_num(rd.get("nb_pax", 0)),
                 "Prix_Unitaire_MGA": _parse_num(rd.get("prix_unitaire", 0)),
-                "Dépense_MGA":       _parse_num(rd.get("depense", 0)),
-                "Marge_Pct":         _parse_num(rd.get("marge", 0)),
-                "Total_MGA":         _parse_num(rd.get("total", 0)),
+                "Dépense_MGA": _parse_num(rd.get("depense", 0)),
+                "Marge_Pct": _parse_num(rd.get("marge", 0)),
+                "Total_MGA": _parse_num(rd.get("total", 0)),
             }
             # Prix et quantité par type de chambre
             for rk, lbl in _ROOM_MAP:
                 entry = rp.get(rk, {})
-                row_values[f"{lbl}_Nb"]       = _parse_num(entry.get("count", 0))
+                row_values[f"{lbl}_Nb"] = _parse_num(entry.get("count", 0))
                 row_values[f"{lbl}_Prix_MGA"] = _parse_num(entry.get("price", 0))
             for h, val in row_values.items():
                 col_idx = header_map.get(h)
@@ -2506,7 +2590,9 @@ def save_client_hotel_cotation_to_excel(client: dict, rows: list) -> int:
 
         wb.save(CLIENT_EXCEL_PATH)
         invalidate_client_cache()
-        logger.info(f"Client hotel cotation: {saved} row(s) saved to {COTATION_H_SHEET_NAME}")
+        logger.info(
+            f"Client hotel cotation: {saved} row(s) saved to {COTATION_H_SHEET_NAME}"
+        )
         return saved
     except PermissionError as e:
         logger.error(f"Excel locked: {e}", exc_info=True)
@@ -2540,9 +2626,19 @@ def save_client_collective_cotation_to_excel(client: dict, rows: list) -> int:
         return 0
 
     headers = [
-        "Date", "ID_Client", "Numero_Dossier", "Nom_Client", "Prénom_Client",
-        "Prestataire", "Forfait", "Désignation",
-        "Quantité", "Prix_Unitaire", "Dépense", "Marge_Pct", "Total",
+        "Date",
+        "ID_Client",
+        "Numero_Dossier",
+        "Nom_Client",
+        "Prénom_Client",
+        "Prestataire",
+        "Forfait",
+        "Désignation",
+        "Quantité",
+        "Prix_Unitaire",
+        "Dépense",
+        "Marge_Pct",
+        "Total",
     ]
 
     wb = None
@@ -2563,7 +2659,9 @@ def save_client_collective_cotation_to_excel(client: dict, rows: list) -> int:
             for col, h in enumerate(headers, 1):
                 cell = ws.cell(row=1, column=col, value=h)
                 cell.font = Font(bold=True, color="FFFFFF")
-                cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+                cell.fill = PatternFill(
+                    start_color="4472C4", end_color="4472C4", fill_type="solid"
+                )
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
         header_map = _ensure_headers(ws, headers)
@@ -2579,19 +2677,19 @@ def save_client_collective_cotation_to_excel(client: dict, rows: list) -> int:
         for rd in rows:
             next_row = ws.max_row + 1
             row_values = {
-                "Date":           now_str,
-                "ID_Client":      str(client.get("ref_client") or ""),
+                "Date": now_str,
+                "ID_Client": str(client.get("ref_client") or ""),
                 "Numero_Dossier": str(client.get("numero_dossier") or ""),
-                "Nom_Client":     str(client.get("nom") or ""),
-                "Prénom_Client":  str(client.get("prenom") or ""),
-                "Prestataire":    str(rd.get("prestataire") or ""),
-                "Forfait":        str(rd.get("forfait") or ""),
-                "Désignation":    str(rd.get("designation") or ""),
-                "Quantité":       _parse_num(rd.get("quantite", 0)),
-                "Prix_Unitaire":  _parse_num(rd.get("prix_unitaire", 0)),
-                "Dépense":        _parse_num(rd.get("depense", 0)),
-                "Marge_Pct":      _parse_num(rd.get("marge", 0)),
-                "Total":          _parse_num(rd.get("total", 0)),
+                "Nom_Client": str(client.get("nom") or ""),
+                "Prénom_Client": str(client.get("prenom") or ""),
+                "Prestataire": str(rd.get("prestataire") or ""),
+                "Forfait": str(rd.get("forfait") or ""),
+                "Désignation": str(rd.get("designation") or ""),
+                "Quantité": _parse_num(rd.get("quantite", 0)),
+                "Prix_Unitaire": _parse_num(rd.get("prix_unitaire", 0)),
+                "Dépense": _parse_num(rd.get("depense", 0)),
+                "Marge_Pct": _parse_num(rd.get("marge", 0)),
+                "Total": _parse_num(rd.get("total", 0)),
             }
             for h, val in row_values.items():
                 col_idx = header_map.get(h)
@@ -2647,15 +2745,18 @@ def load_client_restauration_cotation(client: dict) -> list:
 
         _MEAL_KEYS = [
             ("petit_dejeuner", "PDJ"),
-            ("dejeuner",       "DJ"),
-            ("diner",          "DR"),
-            ("repas_guide",    "REPAS_GUIDE"),
-            ("repas_chauffeur","REPAS_CHAUFFEUR"),
+            ("dejeuner", "DJ"),
+            ("diner", "DR"),
+            ("repas_guide", "REPAS_GUIDE"),
+            ("repas_chauffeur", "REPAS_CHAUFFEUR"),
         ]
 
         results = []
         for row_idx in range(2, ws.max_row + 1):
-            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+            if (
+                str(ws.cell(row=row_idx, column=id_col).value or "").strip()
+                != client_ref
+            ):
                 continue
 
             def _get(col_name, default=""):
@@ -2664,27 +2765,45 @@ def load_client_restauration_cotation(client: dict) -> list:
 
             meal_prices = {}
             for mk, lbl in _MEAL_KEYS:
-                nb_idx    = header_map.get(f"{lbl}_Nb")
-                prix_idx  = header_map.get(f"{lbl}_Prix")
-                grat_idx  = header_map.get(f"{lbl}_Gratuit")
-                count   = int(_parse_num(ws.cell(row=row_idx, column=nb_idx).value if nb_idx else 0))
-                price   = float(_parse_num(ws.cell(row=row_idx, column=prix_idx).value if prix_idx else 0))
-                gratuit = bool(ws.cell(row=row_idx, column=grat_idx).value if grat_idx else False)
+                nb_idx = header_map.get(f"{lbl}_Nb")
+                prix_idx = header_map.get(f"{lbl}_Prix")
+                grat_idx = header_map.get(f"{lbl}_Gratuit")
+                count = int(
+                    _parse_num(
+                        ws.cell(row=row_idx, column=nb_idx).value if nb_idx else 0
+                    )
+                )
+                price = float(
+                    _parse_num(
+                        ws.cell(row=row_idx, column=prix_idx).value if prix_idx else 0
+                    )
+                )
+                gratuit = bool(
+                    ws.cell(row=row_idx, column=grat_idx).value if grat_idx else False
+                )
                 meal_prices[mk] = {"count": count, "price": price, "gratuit": gratuit}
 
             nuits_raw = _get("Nuits", "")
-            nuits_val = str(int(_parse_num(nuits_raw))) if nuits_raw not in (None, "") else ""
+            nuits_val = (
+                str(int(_parse_num(nuits_raw))) if nuits_raw not in (None, "") else ""
+            )
 
-            results.append({
-                "ville":         str(_get("Ville") or ""),
-                "nuits":         nuits_val,
-                "hotel":         str(_get("Hôtel") or ""),
-                "nb_pax":        str(int(_parse_num(_get("Nb_Pax", 0)))) if _get("Nb_Pax") else "",
-                "forfait":       str(_get("Forfait") or ""),
-                "meal_prices":   meal_prices,
-                "prix_unitaire": float(_parse_num(_get("Prix_Unitaire", 0))),
-                "total":         float(_parse_num(_get("Total", 0))),
-            })
+            results.append(
+                {
+                    "ville": str(_get("Ville") or ""),
+                    "nuits": nuits_val,
+                    "hotel": str(_get("Hôtel") or ""),
+                    "nb_pax": (
+                        str(int(_parse_num(_get("Nb_Pax", 0))))
+                        if _get("Nb_Pax")
+                        else ""
+                    ),
+                    "forfait": str(_get("Forfait") or ""),
+                    "meal_prices": meal_prices,
+                    "prix_unitaire": float(_parse_num(_get("Prix_Unitaire", 0))),
+                    "total": float(_parse_num(_get("Total", 0))),
+                }
+            )
         return results
     except Exception as e:
         logger.error(f"Failed to load client restauration cotation: {e}", exc_info=True)
@@ -2712,14 +2831,24 @@ def save_client_restauration_cotation_to_excel(client: dict, rows: list) -> int:
 
     _MEAL_KEYS = [
         ("petit_dejeuner", "PDJ"),
-        ("dejeuner",       "DJ"),
-        ("diner",          "DR"),
-        ("repas_guide",    "REPAS_GUIDE"),
-        ("repas_chauffeur","REPAS_CHAUFFEUR"),
+        ("dejeuner", "DJ"),
+        ("diner", "DR"),
+        ("repas_guide", "REPAS_GUIDE"),
+        ("repas_chauffeur", "REPAS_CHAUFFEUR"),
     ]
 
-    headers = ["Date", "ID_Client", "Numero_Dossier", "Nom_Client", "Prénom_Client",
-               "Ville", "Nuits", "Hôtel", "Nb_Pax", "Forfait"]
+    headers = [
+        "Date",
+        "ID_Client",
+        "Numero_Dossier",
+        "Nom_Client",
+        "Prénom_Client",
+        "Ville",
+        "Nuits",
+        "Hôtel",
+        "Nb_Pax",
+        "Forfait",
+    ]
     for _, lbl in _MEAL_KEYS:
         headers += [f"{lbl}_Nb", f"{lbl}_Prix", f"{lbl}_Gratuit"]
     headers += ["Prix_Unitaire", "Total"]
@@ -2741,8 +2870,11 @@ def save_client_restauration_cotation_to_excel(client: dict, rows: list) -> int:
         for c_i, h in enumerate(headers, 1):
             ws.cell(1, c_i, h)
 
-        header_map = {ws.cell(1, c).value: c for c in range(1, ws.max_column + 1)
-                      if ws.cell(1, c).value}
+        header_map = {
+            ws.cell(1, c).value: c
+            for c in range(1, ws.max_column + 1)
+            if ws.cell(1, c).value
+        }
 
         # Supprimer les lignes existantes du client
         client_ref = str(client.get("ref_client") or "").strip()
@@ -2757,10 +2889,10 @@ def save_client_restauration_cotation_to_excel(client: dict, rows: list) -> int:
 
         # Insérer les nouvelles lignes
         next_row = ws.max_row + 1 if ws.max_row >= 2 else 2
-        now_str  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        nom      = str(client.get("nom", "")).strip()
-        prenom   = str(client.get("prenom", "")).strip()
-        dossier  = str(client.get("numero_dossier", "")).strip()
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        nom = str(client.get("nom", "")).strip()
+        prenom = str(client.get("prenom", "")).strip()
+        dossier = str(client.get("numero_dossier", "")).strip()
 
         saved = 0
         for row in rows:
@@ -2771,31 +2903,33 @@ def save_client_restauration_cotation_to_excel(client: dict, rows: list) -> int:
                 if col:
                     ws.cell(_r, col, value)
 
-            ws.cell(r, header_map.get("Date",           1), now_str)
-            ws.cell(r, header_map.get("ID_Client",      2), client_ref)
+            ws.cell(r, header_map.get("Date", 1), now_str)
+            ws.cell(r, header_map.get("ID_Client", 2), client_ref)
             ws.cell(r, header_map.get("Numero_Dossier", 3), dossier)
-            ws.cell(r, header_map.get("Nom_Client",     4), nom)
-            ws.cell(r, header_map.get("Prénom_Client",  5), prenom)
-            _set("Ville",   row.get("ville", ""))
-            _set("Nuits",   row.get("nuits", ""))
-            _set("Hôtel",   row.get("hotel", ""))
-            _set("Nb_Pax",  row.get("nb_pax", ""))
+            ws.cell(r, header_map.get("Nom_Client", 4), nom)
+            ws.cell(r, header_map.get("Prénom_Client", 5), prenom)
+            _set("Ville", row.get("ville", ""))
+            _set("Nuits", row.get("nuits", ""))
+            _set("Hôtel", row.get("hotel", ""))
+            _set("Nb_Pax", row.get("nb_pax", ""))
             _set("Forfait", row.get("forfait", ""))
 
             mp = row.get("meal_prices", {})
             for mk, lbl in _MEAL_KEYS:
                 entry = mp.get(mk, {})
-                _set(f"{lbl}_Nb",      entry.get("count", 0))
-                _set(f"{lbl}_Prix",    entry.get("price", 0))
+                _set(f"{lbl}_Nb", entry.get("count", 0))
+                _set(f"{lbl}_Prix", entry.get("price", 0))
                 _set(f"{lbl}_Gratuit", 1 if entry.get("gratuit") else 0)
 
             _set("Prix_Unitaire", row.get("prix_unitaire", 0))
-            _set("Total",         row.get("total", 0))
+            _set("Total", row.get("total", 0))
             saved += 1
 
         wb.save(CLIENT_EXCEL_PATH)
         invalidate_client_cache()
-        logger.info(f"Client restauration cotation: {saved} row(s) saved to {COTATION_REST_SHEET_NAME}")
+        logger.info(
+            f"Client restauration cotation: {saved} row(s) saved to {COTATION_REST_SHEET_NAME}"
+        )
         return saved
     except PermissionError as e:
         logger.error(f"Excel locked: {e}", exc_info=True)
@@ -2839,7 +2973,10 @@ def load_client_transport_cotation(client: dict) -> list:
 
         results = []
         for row_idx in range(2, ws.max_row + 1):
-            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+            if (
+                str(ws.cell(row=row_idx, column=id_col).value or "").strip()
+                != client_ref
+            ):
                 continue
 
             def _get(col_name, default=""):
@@ -2850,22 +2987,24 @@ def load_client_transport_cotation(client: dict) -> list:
                 v = _get(col)
                 return str(int(_parse_num(v))) if v not in (None, "") else ""
 
-            results.append({
-                "depart":       str(_get("Depart") or ""),
-                "arrivee":      str(_get("Arrivee") or ""),
-                "km_distance":  _int_str("KM_Distance"),
-                "prestataire":  str(_get("Prestataire") or ""),
-                "type_voiture": str(_get("Type_Voiture") or ""),
-                "nb_places":    _int_str("Nb_Places"),
-                "nb_vehicules": _int_str("Nb_Vehicules") or "1",
-                "nb_jours":     _int_str("Nb_Jours"),
-                "prix_jour":    float(_parse_num(_get("Prix_Jour", 0))),
-                "km":           _int_str("KM"),
-                "consommation": float(_parse_num(_get("Consommation", 0))),
-                "energie":      str(_get("Energie") or ""),
-                "carburant":    float(_parse_num(_get("Carburant", 0))),
-                "total":        float(_parse_num(_get("Total", 0))),
-            })
+            results.append(
+                {
+                    "depart": str(_get("Depart") or ""),
+                    "arrivee": str(_get("Arrivee") or ""),
+                    "km_distance": _int_str("KM_Distance"),
+                    "prestataire": str(_get("Prestataire") or ""),
+                    "type_voiture": str(_get("Type_Voiture") or ""),
+                    "nb_places": _int_str("Nb_Places"),
+                    "nb_vehicules": _int_str("Nb_Vehicules") or "1",
+                    "nb_jours": _int_str("Nb_Jours"),
+                    "prix_jour": float(_parse_num(_get("Prix_Jour", 0))),
+                    "km": _int_str("KM"),
+                    "consommation": float(_parse_num(_get("Consommation", 0))),
+                    "energie": str(_get("Energie") or ""),
+                    "carburant": float(_parse_num(_get("Carburant", 0))),
+                    "total": float(_parse_num(_get("Total", 0))),
+                }
+            )
         return results
     except Exception as e:
         logger.error(f"Failed to load client transport cotation: {e}", exc_info=True)
@@ -2892,10 +3031,25 @@ def save_client_transport_cotation_to_excel(client: dict, rows: list) -> int:
         return 0
 
     headers = [
-        "Date", "ID_Client", "Numero_Dossier", "Nom_Client", "Prénom_Client",
-        "Depart", "Arrivee", "KM_Distance",
-        "Prestataire", "Type_Voiture", "Nb_Places", "Nb_Vehicules", "Nb_Jours",
-        "Prix_Jour", "KM", "Consommation", "Energie", "Carburant", "Total",
+        "Date",
+        "ID_Client",
+        "Numero_Dossier",
+        "Nom_Client",
+        "Prénom_Client",
+        "Depart",
+        "Arrivee",
+        "KM_Distance",
+        "Prestataire",
+        "Type_Voiture",
+        "Nb_Places",
+        "Nb_Vehicules",
+        "Nb_Jours",
+        "Prix_Jour",
+        "KM",
+        "Consommation",
+        "Energie",
+        "Carburant",
+        "Total",
     ]
 
     wb = None
@@ -2915,8 +3069,11 @@ def save_client_transport_cotation_to_excel(client: dict, rows: list) -> int:
         for c_i, h in enumerate(headers, 1):
             ws.cell(1, c_i, h)
 
-        header_map = {ws.cell(1, c).value: c for c in range(1, ws.max_column + 1)
-                      if ws.cell(1, c).value}
+        header_map = {
+            ws.cell(1, c).value: c
+            for c in range(1, ws.max_column + 1)
+            if ws.cell(1, c).value
+        }
 
         # Supprimer les lignes existantes du client
         client_ref = str(client.get("ref_client") or "").strip()
@@ -2931,10 +3088,10 @@ def save_client_transport_cotation_to_excel(client: dict, rows: list) -> int:
 
         # Insérer les nouvelles lignes
         next_row = ws.max_row + 1 if ws.max_row >= 2 else 2
-        now_str  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        nom      = str(client.get("nom", "")).strip()
-        prenom   = str(client.get("prenom", "")).strip()
-        dossier  = str(client.get("numero_dossier", "")).strip()
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        nom = str(client.get("nom", "")).strip()
+        prenom = str(client.get("prenom", "")).strip()
+        dossier = str(client.get("numero_dossier", "")).strip()
 
         saved = 0
         for row in rows:
@@ -2945,30 +3102,32 @@ def save_client_transport_cotation_to_excel(client: dict, rows: list) -> int:
                 if col:
                     ws.cell(_r, col, value)
 
-            ws.cell(r, header_map.get("Date",           1), now_str)
-            ws.cell(r, header_map.get("ID_Client",      2), client_ref)
+            ws.cell(r, header_map.get("Date", 1), now_str)
+            ws.cell(r, header_map.get("ID_Client", 2), client_ref)
             ws.cell(r, header_map.get("Numero_Dossier", 3), dossier)
-            ws.cell(r, header_map.get("Nom_Client",     4), nom)
-            ws.cell(r, header_map.get("Prénom_Client",  5), prenom)
-            _set("Depart",       row.get("depart", ""))
-            _set("Arrivee",      row.get("arrivee", ""))
-            _set("KM_Distance",  row.get("km_distance", ""))
-            _set("Prestataire",  row.get("prestataire", ""))
+            ws.cell(r, header_map.get("Nom_Client", 4), nom)
+            ws.cell(r, header_map.get("Prénom_Client", 5), prenom)
+            _set("Depart", row.get("depart", ""))
+            _set("Arrivee", row.get("arrivee", ""))
+            _set("KM_Distance", row.get("km_distance", ""))
+            _set("Prestataire", row.get("prestataire", ""))
             _set("Type_Voiture", row.get("type_voiture", ""))
-            _set("Nb_Places",    row.get("nb_places", ""))
+            _set("Nb_Places", row.get("nb_places", ""))
             _set("Nb_Vehicules", row.get("nb_vehicules", 1))
-            _set("Nb_Jours",     row.get("nb_jours", ""))
-            _set("Prix_Jour",    row.get("prix_jour", 0))
-            _set("KM",           row.get("km", ""))
+            _set("Nb_Jours", row.get("nb_jours", ""))
+            _set("Prix_Jour", row.get("prix_jour", 0))
+            _set("KM", row.get("km", ""))
             _set("Consommation", row.get("consommation", 0))
-            _set("Energie",      row.get("energie", ""))
-            _set("Carburant",    row.get("carburant", 0))
-            _set("Total",        row.get("total", 0))
+            _set("Energie", row.get("energie", ""))
+            _set("Carburant", row.get("carburant", 0))
+            _set("Total", row.get("total", 0))
             saved += 1
 
         wb.save(CLIENT_EXCEL_PATH)
         invalidate_client_cache()
-        logger.info(f"Client transport cotation: {saved} row(s) saved to {COTATION_TRANSPORT_SHEET_NAME}")
+        logger.info(
+            f"Client transport cotation: {saved} row(s) saved to {COTATION_TRANSPORT_SHEET_NAME}"
+        )
         return saved
     except PermissionError as e:
         logger.error(f"Excel locked: {e}", exc_info=True)
@@ -3120,7 +3279,7 @@ def get_quotations_by_city():
 def load_collective_expenses_data():
     """
     Load all data from Frais collectifs sheet in data-hotel.xlsx
-    
+
     Returns:
         list: List of dicts with FORFAIT, PRESTATAIRES, DESIGNATION, MONTANT, ID circuit
     """
@@ -3139,30 +3298,30 @@ def load_collective_expenses_data():
 
         ws = wb[FRAIS_COLLECTIFS_SHEET_NAME]
         rows = []
-        
+
         for row_idx in range(2, ws.max_row + 1):
             forfait = ws.cell(row=row_idx, column=1).value
             prestataire = ws.cell(row=row_idx, column=2).value
             designation = ws.cell(row=row_idx, column=3).value
             montant = ws.cell(row=row_idx, column=4).value
             id_circuit = ws.cell(row=row_idx, column=5).value
-            
+
             if not forfait and not prestataire and not designation:
                 continue
-                
-            rows.append({
-                "forfait": str(forfait or "").strip(),
-                "prestataire": str(prestataire or "").strip(),
-                "designation": str(designation or "").strip(),
-                "montant": _parse_num(montant),
-                "id_circuit": id_circuit,
-            })
-        
+
+            rows.append(
+                {
+                    "forfait": str(forfait or "").strip(),
+                    "prestataire": str(prestataire or "").strip(),
+                    "designation": str(designation or "").strip(),
+                    "montant": _parse_num(montant),
+                    "id_circuit": id_circuit,
+                }
+            )
+
         return rows
     except Exception as e:
-        logger.error(
-            f"Failed to load collective expenses data: {e}", exc_info=True
-        )
+        logger.error(f"Failed to load collective expenses data: {e}", exc_info=True)
         return []
     finally:
         if wb is not None:
@@ -3175,7 +3334,7 @@ def load_collective_expenses_data():
 def get_collective_expense_prestataires():
     """
     Get unique prestataires from Frais collectifs sheet
-    
+
     Returns:
         list: Sorted list of unique prestataire names
     """
@@ -3190,10 +3349,10 @@ def get_collective_expense_prestataires():
 def get_collective_expense_designations(prestataire=None):
     """
     Get designations, optionally filtered by prestataire
-    
+
     Args:
         prestataire (str): Optional prestataire to filter by
-    
+
     Returns:
         list: Sorted list of designations
     """
@@ -3209,11 +3368,11 @@ def get_collective_expense_designations(prestataire=None):
 def get_collective_expense_montant(prestataire, designation):
     """
     Get montant for a given prestataire + designation combo
-    
+
     Args:
         prestataire (str): Prestataire name
         designation (str): Designation
-    
+
     Returns:
         float: Montant value, or 0 if not found
     """
@@ -3230,11 +3389,11 @@ def get_collective_expense_montant(prestataire, designation):
 def get_collective_expense_forfait(prestataire, designation):
     """
     Get forfait for a given prestataire + designation combo
-    
+
     Args:
         prestataire (str): Prestataire name
         designation (str): Designation
-    
+
     Returns:
         str: Forfait value, or empty string if not found
     """
@@ -3251,47 +3410,51 @@ def get_collective_expense_forfait(prestataire, designation):
 def update_collective_expense_quotation_in_excel(row_number, form_data):
     """
     Update an existing collective expense quotation in Excel
-    
+
     Args:
         row_number (int): Row number to update (1-indexed, excluding header)
         form_data (dict): Form data with headers as keys
-    
+
     Returns:
         int: 0 success, -1 error, -2 PermissionError
     """
     if not OPENPYXL_AVAILABLE:
         logger.warning("openpyxl not available. Cannot update Excel.")
         return -1
-    
+
     if not os.path.exists(CLIENT_EXCEL_PATH):
         logger.error(f"Excel file {CLIENT_EXCEL_PATH} not found")
         return -1
-    
+
     wb = None
     try:
         wb = load_workbook(CLIENT_EXCEL_PATH)
         if COTATION_FRAIS_COL_SHEET_NAME not in wb.sheetnames:
             logger.error(f"Sheet {COTATION_FRAIS_COL_SHEET_NAME} not found")
             return -1
-        
+
         ws = wb[COTATION_FRAIS_COL_SHEET_NAME]
         headers = get_collective_expense_headers()
-        
+
         # Excel row is data row + 1 (for header)
         excel_row = row_number + 1
-        
+
         for col_idx, header in enumerate(headers, start=1):
             value = form_data.get(header, "")
             ws.cell(row=excel_row, column=col_idx, value=value)
-        
+
         wb.save(CLIENT_EXCEL_PATH)
         logger.info(f"Updated collective expense at row {row_number}")
         return 0
     except PermissionError:
-        logger.error(f"Permission error updating collective expense at row {row_number}")
+        logger.error(
+            f"Permission error updating collective expense at row {row_number}"
+        )
         return -2
     except Exception as e:
-        logger.error(f"Error updating collective expense at row {row_number}: {e}", exc_info=True)
+        logger.error(
+            f"Error updating collective expense at row {row_number}: {e}", exc_info=True
+        )
         return -1
     finally:
         if wb:
@@ -3301,38 +3464,40 @@ def update_collective_expense_quotation_in_excel(row_number, form_data):
 def delete_collective_expense_from_excel(row_number):
     """
     Delete a collective expense quotation from Excel
-    
+
     Args:
         row_number (int): Row number to delete (1-indexed in data, excludes header)
-    
+
     Returns:
         bool: True if successful, False otherwise
     """
     if not OPENPYXL_AVAILABLE:
         logger.warning("openpyxl not available. Cannot delete from Excel.")
         return False
-    
+
     if not os.path.exists(CLIENT_EXCEL_PATH):
         logger.error(f"Excel file {CLIENT_EXCEL_PATH} not found")
         return False
-    
+
     wb = None
     try:
         wb = load_workbook(CLIENT_EXCEL_PATH)
         if COTATION_FRAIS_COL_SHEET_NAME not in wb.sheetnames:
             logger.error(f"Sheet {COTATION_FRAIS_COL_SHEET_NAME} not found")
             return False
-        
+
         ws = wb[COTATION_FRAIS_COL_SHEET_NAME]
         # Excel row is data row + 1 (for header)
         excel_row = row_number + 1
         ws.delete_rows(excel_row)
-        
+
         wb.save(CLIENT_EXCEL_PATH)
         logger.info(f"Deleted collective expense at row {row_number}")
         return True
     except Exception as e:
-        logger.error(f"Error deleting collective expense at row {row_number}: {e}", exc_info=True)
+        logger.error(
+            f"Error deleting collective expense at row {row_number}: {e}", exc_info=True
+        )
         return False
     finally:
         if wb:
@@ -3394,16 +3559,22 @@ def load_visite_excursion_data():
                     return header_index[normalized]
             return None
 
-        prestation_col = _find_col([
-            "prestation",
-            "prestations",
-            "prestataire",
-            "prestataires",
-            "fournisseur",
-            "provider",
-        ])
-        designation_col = _find_col(["designation", "désignation", "service", "libelle", "description"])
-        tarif_col = _find_col(["tarif par pax", "tarif/pax", "tarif pax", "montant", "prix", "price"])
+        prestation_col = _find_col(
+            [
+                "prestation",
+                "prestations",
+                "prestataire",
+                "prestataires",
+                "fournisseur",
+                "provider",
+            ]
+        )
+        designation_col = _find_col(
+            ["designation", "désignation", "service", "libelle", "description"]
+        )
+        tarif_col = _find_col(
+            ["tarif par pax", "tarif/pax", "tarif pax", "montant", "prix", "price"]
+        )
 
         if not prestation_col or not designation_col:
             return []
@@ -3432,7 +3603,9 @@ def load_visite_excursion_data():
                     .replace("è", "e")
                     .replace("ê", "e")
                 )
-                raw_fields[hk] = str(ws.cell(row=row_idx, column=col).value or "").strip()
+                raw_fields[hk] = str(
+                    ws.cell(row=row_idx, column=col).value or ""
+                ).strip()
 
             rows.append(
                 {
@@ -3510,7 +3683,10 @@ def get_visite_excursion_prestataires(filters=None):
     values = {
         row.get("prestation")
         for row in data
-        if row.get("prestation") and _match_visite_filters(row, filters, ignore_keys=["prestation", "prestataire"])
+        if row.get("prestation")
+        and _match_visite_filters(
+            row, filters, ignore_keys=["prestation", "prestataire"]
+        )
     }
     return sorted(values)
 
@@ -3523,7 +3699,11 @@ def get_visite_excursion_designations(prestataire=None, filters=None):
 
     values = set()
     for row in data:
-        if _match_visite_filters(row, effective_filters, ignore_keys=["designation", "designations", "désignation"]):
+        if _match_visite_filters(
+            row,
+            effective_filters,
+            ignore_keys=["designation", "designations", "désignation"],
+        ):
             designation = row.get("designation")
             if designation:
                 values.add(designation)
@@ -3697,7 +3877,9 @@ def load_all_visite_excursion_quotations():
 
         return rows
     except Exception as e:
-        logger.error(f"Failed to load visite & excursion quotations: {e}", exc_info=True)
+        logger.error(
+            f"Failed to load visite & excursion quotations: {e}", exc_info=True
+        )
         return []
     finally:
         if wb is not None:
@@ -3733,7 +3915,9 @@ def update_visite_excursion_quotation_in_excel(row_number, form_data):
     except PermissionError:
         return -2
     except Exception as e:
-        logger.error(f"Error updating visite & excursion row {row_number}: {e}", exc_info=True)
+        logger.error(
+            f"Error updating visite & excursion row {row_number}: {e}", exc_info=True
+        )
         return -1
     finally:
         if wb is not None:
@@ -3762,7 +3946,9 @@ def delete_visite_excursion_from_excel(row_number):
         wb.save(CLIENT_EXCEL_PATH)
         return True
     except Exception as e:
-        logger.error(f"Error deleting visite & excursion row {row_number}: {e}", exc_info=True)
+        logger.error(
+            f"Error deleting visite & excursion row {row_number}: {e}", exc_info=True
+        )
         return False
     finally:
         if wb is not None:
@@ -4302,7 +4488,9 @@ PARAMETRAGE_DEFAULT_HEADERS = ["parametre", "valeur"]
 def _ensure_parametrage_sheet(ws):
     header_style = {
         "font": Font(bold=True, color="FFFFFF"),
-        "fill": PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid"),
+        "fill": PatternFill(
+            start_color="1F4E78", end_color="1F4E78", fill_type="solid"
+        ),
         "alignment": Alignment(horizontal="center", vertical="center"),
     }
     return _ensure_headers(ws, PARAMETRAGE_DEFAULT_HEADERS, header_style)
@@ -4591,7 +4779,9 @@ def update_parametrage_in_excel(row_number, form_data):
         if not parameter_col or not value_col:
             return -1
 
-        ws.cell(row=row_number, column=parameter_col, value=form_data.get("PARAMETRE", ""))
+        ws.cell(
+            row=row_number, column=parameter_col, value=form_data.get("PARAMETRE", "")
+        )
         ws.cell(row=row_number, column=value_col, value=form_data.get("VALEUR", ""))
 
         wb.save(HOTEL_EXCEL_PATH)
@@ -4599,7 +4789,9 @@ def update_parametrage_in_excel(row_number, form_data):
     except PermissionError:
         return -2
     except Exception as e:
-        logger.error(f"Failed to update PARAMETRAGE row {row_number}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to update PARAMETRAGE row {row_number}: {e}", exc_info=True
+        )
         return -1
     finally:
         if wb is not None:
@@ -4627,7 +4819,9 @@ def delete_parametrage_from_excel(row_number):
         wb.save(HOTEL_EXCEL_PATH)
         return True
     except Exception as e:
-        logger.error(f"Failed to delete PARAMETRAGE row {row_number}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to delete PARAMETRAGE row {row_number}: {e}", exc_info=True
+        )
         return False
     finally:
         if wb is not None:
@@ -4657,8 +4851,12 @@ def _load_transport_source_rows():
 
         prestataire_col = _find_header_column(header_map, "Prestataire")
         type_col = _find_header_column(header_map, "Type de voiture", "Type voiture")
-        place_col = _find_header_column(header_map, "Nombre de place", "Nombre places", "Places")
-        location_col = _find_header_column(header_map, "Location par jour", "Location/jour")
+        place_col = _find_header_column(
+            header_map, "Nombre de place", "Nombre places", "Places"
+        )
+        location_col = _find_header_column(
+            header_map, "Location par jour", "Location/jour"
+        )
         consommation_col = _find_header_column(
             header_map,
             "Consommation",
@@ -4671,7 +4869,11 @@ def _load_transport_source_rows():
 
         rows = []
         for row in range(data_start_row, ws.max_row + 1):
-            prestataire = ws.cell(row=row, column=prestataire_col).value if prestataire_col else None
+            prestataire = (
+                ws.cell(row=row, column=prestataire_col).value
+                if prestataire_col
+                else None
+            )
             type_voiture = ws.cell(row=row, column=type_col).value if type_col else None
             if not prestataire and not type_voiture:
                 continue
@@ -4680,10 +4882,26 @@ def _load_transport_source_rows():
                 {
                     "prestataire": str(prestataire or "").strip(),
                     "type_voiture": str(type_voiture or "").strip(),
-                    "nombre_place": _parse_num(ws.cell(row=row, column=place_col).value) if place_col else 0,
-                    "location_par_jour": _parse_num(ws.cell(row=row, column=location_col).value) if location_col else 0,
-                    "consommation": _parse_num(ws.cell(row=row, column=consommation_col).value) if consommation_col else 0,
-                    "energie": str(ws.cell(row=row, column=energie_col).value or "").strip() if energie_col else "",
+                    "nombre_place": (
+                        _parse_num(ws.cell(row=row, column=place_col).value)
+                        if place_col
+                        else 0
+                    ),
+                    "location_par_jour": (
+                        _parse_num(ws.cell(row=row, column=location_col).value)
+                        if location_col
+                        else 0
+                    ),
+                    "consommation": (
+                        _parse_num(ws.cell(row=row, column=consommation_col).value)
+                        if consommation_col
+                        else 0
+                    ),
+                    "energie": (
+                        str(ws.cell(row=row, column=energie_col).value or "").strip()
+                        if energie_col
+                        else ""
+                    ),
                 }
             )
 
@@ -4722,7 +4940,10 @@ def get_transport_vehicle_types(prestataire=None):
 
 def get_transport_vehicle_data(prestataire, type_voiture):
     for row in _load_transport_source_rows():
-        if row.get("prestataire") == prestataire and row.get("type_voiture") == type_voiture:
+        if (
+            row.get("prestataire") == prestataire
+            and row.get("type_voiture") == type_voiture
+        ):
             return row
     return {
         "prestataire": str(prestataire or "").strip(),
@@ -4738,17 +4959,15 @@ def get_transport_vehicle_data(prestataire, type_voiture):
 
 # Alias métier connus (clé = forme normalisée sans accents ni casse)
 _CITY_ALIASES: dict = {
-    "tuler":          "Toliary",
-    "tulear":         "Toliary",
-    "toliara":        "Toliary",
+    "tuler": "Toliary",
+    "tulear": "Toliary",
+    "toliara": "Toliary",
     "ranohira isalo": "Ranohira",
 }
 
 # Regex : supprime les suffixes de durée saisis dans les noms de ville
 # ex.  "(1 jours)", "(2 jour)", "(3 jours)", "(1jours)", ...
-_RE_DURATION_SUFFIX = re.compile(
-    r"\(\s*\d+\s*jou?rs?\s*\)", re.IGNORECASE
-)
+_RE_DURATION_SUFFIX = re.compile(r"\(\s*\d+\s*jou?rs?\s*\)", re.IGNORECASE)
 
 
 def _city_key(name: str) -> str:
@@ -4834,11 +5053,11 @@ def get_km_mada_km_for_repere(repere) -> float:
     """
     if not repere:
         return 0
-    clean   = normalize_city_name(str(repere))
-    key     = _city_key(clean)
+    clean = normalize_city_name(str(repere))
+    key = _city_key(clean)
     if not key:
         return 0
-    _load_km_mada_rows()   # garantit que le cache est à jour
+    _load_km_mada_rows()  # garantit que le cache est à jour
     cached_row = _KM_MADA_CACHE["lookup"].get(key)
     if cached_row:
         return _parse_num(cached_row.get("km", 0))
@@ -4850,7 +5069,7 @@ def get_km_mada_duration_for_repere(repere) -> float:
     if not repere:
         return 0.0
     clean = normalize_city_name(str(repere))
-    key   = _city_key(clean)
+    key = _city_key(clean)
     if not key:
         return 0.0
     _load_km_mada_rows()
@@ -4906,7 +5125,11 @@ def migrate_normalize_infos_clients() -> dict:
         return ", ".join(cleaned)
 
     target_cols = {
-        CLIENT_INFOS_SHEET_NAME: ["Ville Départ", "Ville Arrivée", "Itinéraire Circuit"],
+        CLIENT_INFOS_SHEET_NAME: [
+            "Ville Départ",
+            "Ville Arrivée",
+            "Itinéraire Circuit",
+        ],
     }
 
     wb = None
@@ -4939,7 +5162,9 @@ def migrate_normalize_infos_clients() -> dict:
         if modified:
             wb.save(CLIENT_EXCEL_PATH)
             invalidate_client_cache()
-            logger.info(f"migrate_normalize_infos_clients: {modified} cellule(s) normalisée(s).")
+            logger.info(
+                f"migrate_normalize_infos_clients: {modified} cellule(s) normalisée(s)."
+            )
         return {"modified": modified, "errors": errors}
     except PermissionError as e:
         msg = f"Fichier verrouillé : {e}"
@@ -5346,7 +5571,7 @@ INVOICE_HEADERS = [
     "Devise",
     "Montant_HT",
     "Cout_HT",
-    "Marge_%", 
+    "Marge_%",
     "Marge_Montant",
     "Base_Taxable_HT",
     "TVA_%",
@@ -5422,7 +5647,9 @@ def calculate_invoice_totals(
     if acompte > total_ttc:
         acompte = total_ttc
     reste = max(0.0, total_ttc - acompte)
-    normalized_status = _normalize_invoice_status(statut, total_ttc=total_ttc, acompte=acompte)
+    normalized_status = _normalize_invoice_status(
+        statut, total_ttc=total_ttc, acompte=acompte
+    )
 
     if normalized_status == INVOICE_STATUS_PAID:
         acompte = total_ttc
@@ -5514,7 +5741,9 @@ def save_invoice_to_excel(invoice_data):
 
         ws = _ensure_invoice_sheet(wb)
         calculations = calculate_invoice_totals(
-            montant_ht=invoice_data.get("Montant_HT", invoice_data.get("montant_ht", 0)),
+            montant_ht=invoice_data.get(
+                "Montant_HT", invoice_data.get("montant_ht", 0)
+            ),
             cout_ht=invoice_data.get("Cout_HT", invoice_data.get("cout_ht", 0)),
             marge_pct=invoice_data.get("Marge_%", invoice_data.get("marge_pct", 0)),
             tva_pct=invoice_data.get("TVA_%", invoice_data.get("tva_pct", 0)),
@@ -5528,12 +5757,22 @@ def save_invoice_to_excel(invoice_data):
             invoice_id = _next_invoice_id(ws)
 
         values = {
-            "Date": invoice_data.get("Date", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+            "Date": invoice_data.get(
+                "Date", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ),
             "ID_Facture": invoice_id,
-            "Source_Type": invoice_data.get("Source_Type", invoice_data.get("source_type", "")),
-            "Source_Ref": invoice_data.get("Source_Ref", invoice_data.get("source_ref", "")),
-            "Client_ID": invoice_data.get("Client_ID", invoice_data.get("client_id", "")),
-            "Client_Nom": invoice_data.get("Client_Nom", invoice_data.get("client_nom", "")),
+            "Source_Type": invoice_data.get(
+                "Source_Type", invoice_data.get("source_type", "")
+            ),
+            "Source_Ref": invoice_data.get(
+                "Source_Ref", invoice_data.get("source_ref", "")
+            ),
+            "Client_ID": invoice_data.get(
+                "Client_ID", invoice_data.get("client_id", "")
+            ),
+            "Client_Nom": invoice_data.get(
+                "Client_Nom", invoice_data.get("client_nom", "")
+            ),
             "Devise": invoice_data.get("Devise", invoice_data.get("devise", "Ariary")),
             **calculations,
         }
@@ -5706,7 +5945,9 @@ def _rebuild_financial_state_in_workbook(wb):
         totals["CA_TTC"] += total_ttc
         totals["Acomptes_Recus"] += acompte
         totals["Restes_A_Encaisser"] += reste
-        totals["Encaissements_Estimes"] += max(acompte, total_ttc if status == INVOICE_STATUS_PAID else acompte)
+        totals["Encaissements_Estimes"] += max(
+            acompte, total_ttc if status == INVOICE_STATUS_PAID else acompte
+        )
 
         if status == INVOICE_STATUS_PAID:
             totals["Nb_Payees"] += 1
@@ -5794,6 +6035,7 @@ def load_financial_state_snapshot():
 
 # ── Cotation avion client ──────────────────────────────────────────────────────
 
+
 def load_client_air_ticket_cotation(client: dict) -> list:
     """
     Charge les lignes de cotation avion sauvegardées pour un client donné.
@@ -5822,32 +6064,57 @@ def load_client_air_ticket_cotation(client: dict) -> list:
 
         results = []
         for row_idx in range(2, ws.max_row + 1):
-            if str(ws.cell(row=row_idx, column=id_col).value or "").strip() != client_ref:
+            if (
+                str(ws.cell(row=row_idx, column=id_col).value or "").strip()
+                != client_ref
+            ):
                 continue
 
             def _get(col_name, default="", _r=row_idx):
                 idx = header_map.get(col_name)
                 return ws.cell(row=_r, column=idx).value if idx else default
 
-            results.append({
-                "date_vol":        str(_get("Date_Vol") or ""),
-                "numero_vol":      str(_get("Numero_Vol") or ""),
-                "type_trajet":     str(_get("Type_Trajet") or ""),
-                "compagnie":       str(_get("Compagnie") or ""),
-                "ville_depart":    str(_get("Ville_Depart") or ""),
-                "ville_arrivee":   str(_get("Ville_Arrivee") or ""),
-                "classe":          str(_get("Classe") or "Économique"),
-                "nb_adultes":      str(int(_parse_num(_get("Nb_Adultes", 0)))) if _get("Nb_Adultes") not in (None, "") else "",
-                "nb_enfants":      str(int(_parse_num(_get("Nb_Enfants", 0)))) if _get("Nb_Enfants") not in (None, "") else "",
-                "tarif_adulte":    str(_parse_num(_get("Tarif_Adulte", 0))) if _get("Tarif_Adulte") not in (None, "") else "",
-                "tarif_enfant":    str(_parse_num(_get("Tarif_Enfant", 0))) if _get("Tarif_Enfant") not in (None, "") else "",
-                "montant_adultes": float(_parse_num(_get("Montant_Adultes", 0))),
-                "montant_enfants": float(_parse_num(_get("Montant_Enfants", 0))),
-                "sous_total":      float(_parse_num(_get("Sous_Total", 0))),
-                "marge_pct":       str(_parse_num(_get("Marge_Pct", 0))) if _get("Marge_Pct") not in (None, "") else "",
-                "total":           float(_parse_num(_get("Total", 0))),
-                "total_manuel":    bool(_parse_num(_get("Total_Manuel", 0))),
-            })
+            results.append(
+                {
+                    "date_vol": str(_get("Date_Vol") or ""),
+                    "numero_vol": str(_get("Numero_Vol") or ""),
+                    "type_trajet": str(_get("Type_Trajet") or ""),
+                    "compagnie": str(_get("Compagnie") or ""),
+                    "ville_depart": str(_get("Ville_Depart") or ""),
+                    "ville_arrivee": str(_get("Ville_Arrivee") or ""),
+                    "classe": str(_get("Classe") or "Économique"),
+                    "nb_adultes": (
+                        str(int(_parse_num(_get("Nb_Adultes", 0))))
+                        if _get("Nb_Adultes") not in (None, "")
+                        else ""
+                    ),
+                    "nb_enfants": (
+                        str(int(_parse_num(_get("Nb_Enfants", 0))))
+                        if _get("Nb_Enfants") not in (None, "")
+                        else ""
+                    ),
+                    "tarif_adulte": (
+                        str(_parse_num(_get("Tarif_Adulte", 0)))
+                        if _get("Tarif_Adulte") not in (None, "")
+                        else ""
+                    ),
+                    "tarif_enfant": (
+                        str(_parse_num(_get("Tarif_Enfant", 0)))
+                        if _get("Tarif_Enfant") not in (None, "")
+                        else ""
+                    ),
+                    "montant_adultes": float(_parse_num(_get("Montant_Adultes", 0))),
+                    "montant_enfants": float(_parse_num(_get("Montant_Enfants", 0))),
+                    "sous_total": float(_parse_num(_get("Sous_Total", 0))),
+                    "marge_pct": (
+                        str(_parse_num(_get("Marge_Pct", 0)))
+                        if _get("Marge_Pct") not in (None, "")
+                        else ""
+                    ),
+                    "total": float(_parse_num(_get("Total", 0))),
+                    "total_manuel": bool(_parse_num(_get("Total_Manuel", 0))),
+                }
+            )
         return results
     except Exception as exc:
         logger.error(f"Failed to load client air ticket cotation: {exc}", exc_info=True)
@@ -5868,18 +6135,36 @@ def save_client_air_ticket_cotation_to_excel(client: dict, rows: list) -> int:
         int: Nombre de lignes sauvegardées, -1 erreur, -2 fichier verrouillé.
     """
     if not OPENPYXL_AVAILABLE:
-        logger.warning("openpyxl not available. Cannot save air ticket client cotation.")
+        logger.warning(
+            "openpyxl not available. Cannot save air ticket client cotation."
+        )
         return -1
     if not rows:
         return 0
 
     headers = [
-        "Date", "ID_Client", "Numero_Dossier", "Nom_Client", "Prénom_Client",
-        "Date_Vol", "Numero_Vol", "Type_Trajet", "Compagnie",
-        "Ville_Depart", "Ville_Arrivee", "Classe",
-        "Nb_Adultes", "Nb_Enfants", "Tarif_Adulte", "Tarif_Enfant",
-        "Montant_Adultes", "Montant_Enfants", "Sous_Total", "Marge_Pct",
-        "Total", "Total_Manuel",
+        "Date",
+        "ID_Client",
+        "Numero_Dossier",
+        "Nom_Client",
+        "Prénom_Client",
+        "Date_Vol",
+        "Numero_Vol",
+        "Type_Trajet",
+        "Compagnie",
+        "Ville_Depart",
+        "Ville_Arrivee",
+        "Classe",
+        "Nb_Adultes",
+        "Nb_Enfants",
+        "Tarif_Adulte",
+        "Tarif_Enfant",
+        "Montant_Adultes",
+        "Montant_Enfants",
+        "Sous_Total",
+        "Marge_Pct",
+        "Total",
+        "Total_Manuel",
     ]
 
     wb = None
@@ -5905,28 +6190,28 @@ def save_client_air_ticket_cotation_to_excel(client: dict, rows: list) -> int:
         for rd in rows:
             next_row = ws.max_row + 1
             row_values = {
-                "Date":           now_str,
-                "ID_Client":      client_ref,
+                "Date": now_str,
+                "ID_Client": client_ref,
                 "Numero_Dossier": str(client.get("numero_dossier") or ""),
-                "Nom_Client":     str(client.get("nom") or ""),
-                "Prénom_Client":  str(client.get("prenom") or ""),
-                "Date_Vol":       str(rd.get("date_vol") or ""),
-                "Numero_Vol":     str(rd.get("numero_vol") or ""),
-                "Type_Trajet":    str(rd.get("type_trajet") or ""),
-                "Compagnie":      str(rd.get("compagnie") or ""),
-                "Ville_Depart":   str(rd.get("ville_depart") or ""),
-                "Ville_Arrivee":  str(rd.get("ville_arrivee") or ""),
-                "Classe":         str(rd.get("classe") or "Économique"),
-                "Nb_Adultes":     _parse_num(rd.get("nb_adultes", 0)),
-                "Nb_Enfants":     _parse_num(rd.get("nb_enfants", 0)),
-                "Tarif_Adulte":   _parse_num(rd.get("tarif_adulte", 0)),
-                "Tarif_Enfant":   _parse_num(rd.get("tarif_enfant", 0)),
-                "Montant_Adultes":_parse_num(rd.get("montant_adultes", 0)),
-                "Montant_Enfants":_parse_num(rd.get("montant_enfants", 0)),
-                "Sous_Total":     _parse_num(rd.get("sous_total", 0)),
-                "Marge_Pct":      _parse_num(rd.get("marge_pct", 0)),
-                "Total":          _parse_num(rd.get("total", 0)),
-                "Total_Manuel":   1 if rd.get("total_manuel") else 0,
+                "Nom_Client": str(client.get("nom") or ""),
+                "Prénom_Client": str(client.get("prenom") or ""),
+                "Date_Vol": str(rd.get("date_vol") or ""),
+                "Numero_Vol": str(rd.get("numero_vol") or ""),
+                "Type_Trajet": str(rd.get("type_trajet") or ""),
+                "Compagnie": str(rd.get("compagnie") or ""),
+                "Ville_Depart": str(rd.get("ville_depart") or ""),
+                "Ville_Arrivee": str(rd.get("ville_arrivee") or ""),
+                "Classe": str(rd.get("classe") or "Économique"),
+                "Nb_Adultes": _parse_num(rd.get("nb_adultes", 0)),
+                "Nb_Enfants": _parse_num(rd.get("nb_enfants", 0)),
+                "Tarif_Adulte": _parse_num(rd.get("tarif_adulte", 0)),
+                "Tarif_Enfant": _parse_num(rd.get("tarif_enfant", 0)),
+                "Montant_Adultes": _parse_num(rd.get("montant_adultes", 0)),
+                "Montant_Enfants": _parse_num(rd.get("montant_enfants", 0)),
+                "Sous_Total": _parse_num(rd.get("sous_total", 0)),
+                "Marge_Pct": _parse_num(rd.get("marge_pct", 0)),
+                "Total": _parse_num(rd.get("total", 0)),
+                "Total_Manuel": 1 if rd.get("total_manuel") else 0,
             }
             for header, value in row_values.items():
                 col = header_map.get(header)
@@ -5935,7 +6220,9 @@ def save_client_air_ticket_cotation_to_excel(client: dict, rows: list) -> int:
 
         wb.save(CLIENT_EXCEL_PATH)
         invalidate_client_cache()
-        logger.info(f"Client air ticket cotation: {len(rows)} row(s) saved to {COTATION_AVION_SHEET_NAME}")
+        logger.info(
+            f"Client air ticket cotation: {len(rows)} row(s) saved to {COTATION_AVION_SHEET_NAME}"
+        )
         return len(rows)
     except PermissionError as exc:
         logger.error(f"Excel locked: {exc}", exc_info=True)

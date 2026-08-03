@@ -2,8 +2,8 @@
 Visite & Excursion quotation GUI component
 """
 
-from datetime import datetime
 import tkinter as tk
+from datetime import datetime
 from tkinter import messagebox, ttk
 
 from config import (
@@ -114,13 +114,36 @@ class VisiteExcursionQuotation:
             return "client_firstname"
         if norm in {"id", "id client", "id_client", "ref client", "reference", "ref"}:
             return "client_id"
-        if norm in {"quantite", "quantité", "qty", "quantity", "nombre", "participants", "nombre participants"}:
+        if norm in {
+            "quantite",
+            "quantité",
+            "qty",
+            "quantity",
+            "nombre",
+            "participants",
+            "nombre participants",
+        }:
             return "quantity"
-        if norm in {"prestation", "prestations", "prestataire", "prestataires", "fournisseur", "provider"}:
+        if norm in {
+            "prestation",
+            "prestations",
+            "prestataire",
+            "prestataires",
+            "fournisseur",
+            "provider",
+        }:
             return "prestataire"
         if norm in {"designation", "désignation", "libelle", "description", "service"}:
             return "designation"
-        if norm in {"montant", "price", "prix", "fee", "montant unitaire", "tarif", "tarif par pax"}:
+        if norm in {
+            "montant",
+            "price",
+            "prix",
+            "fee",
+            "montant unitaire",
+            "tarif",
+            "tarif par pax",
+        }:
             return "montant"
         if norm in {"total", "montant total", "total prix"}:
             return "total"
@@ -132,7 +155,9 @@ class VisiteExcursionQuotation:
         for widget in self.parent.winfo_children():
             widget.destroy()
 
-        title_text = "MODIFIER VISITE & EXCURSION" if self.edit_data else "VISITE & EXCURSION"
+        title_text = (
+            "MODIFIER VISITE & EXCURSION" if self.edit_data else "VISITE & EXCURSION"
+        )
         title = tk.Label(
             self.parent,
             text=title_text,
@@ -205,7 +230,13 @@ class VisiteExcursionQuotation:
                 )
                 widget.bind("<<ComboboxSelected>>", self._on_client_id_changed)
             elif field_type == "client_name":
-                client_names = sorted({str(c.get("nom") or "").strip() for c in self.clients if str(c.get("nom") or "").strip()})
+                client_names = sorted(
+                    {
+                        str(c.get("nom") or "").strip()
+                        for c in self.clients
+                        if str(c.get("nom") or "").strip()
+                    }
+                )
                 widget = ttk.Combobox(
                     form_frame,
                     textvariable=field_var,
@@ -214,9 +245,17 @@ class VisiteExcursionQuotation:
                     width=30,
                     state="readonly",
                 )
-                widget.bind("<<ComboboxSelected>>", self._on_client_name_or_firstname_changed)
+                widget.bind(
+                    "<<ComboboxSelected>>", self._on_client_name_or_firstname_changed
+                )
             elif field_type == "client_firstname":
-                first_names = sorted({str(c.get("prenom") or "").strip() for c in self.clients if str(c.get("prenom") or "").strip()})
+                first_names = sorted(
+                    {
+                        str(c.get("prenom") or "").strip()
+                        for c in self.clients
+                        if str(c.get("prenom") or "").strip()
+                    }
+                )
                 widget = ttk.Combobox(
                     form_frame,
                     textvariable=field_var,
@@ -225,7 +264,9 @@ class VisiteExcursionQuotation:
                     width=30,
                     state="readonly",
                 )
-                widget.bind("<<ComboboxSelected>>", self._on_client_name_or_firstname_changed)
+                widget.bind(
+                    "<<ComboboxSelected>>", self._on_client_name_or_firstname_changed
+                )
             elif field_type == "prestataire":
                 widget = ttk.Combobox(
                     form_frame,
@@ -353,7 +394,9 @@ class VisiteExcursionQuotation:
                 prestataire = self.field_vars[prestataire_header].get().strip()
                 if prestataire and designation_header in self.field_widgets:
                     _, widget = self.field_widgets[designation_header]
-                    widget["values"] = [""] + get_visite_excursion_designations(prestataire, self._build_source_filters())
+                    widget["values"] = [""] + get_visite_excursion_designations(
+                        prestataire, self._build_source_filters()
+                    )
 
             self._update_montant_and_total()
         except Exception as e:
@@ -364,9 +407,21 @@ class VisiteExcursionQuotation:
         nom_header = self._find_header_by_type("client_name")
         prenom_header = self._find_header_by_type("client_firstname")
 
-        ref = self.field_vars.get(id_header, tk.StringVar()).get().strip() if id_header else ""
-        nom = self.field_vars.get(nom_header, tk.StringVar()).get().strip() if nom_header else ""
-        prenom = self.field_vars.get(prenom_header, tk.StringVar()).get().strip() if prenom_header else ""
+        ref = (
+            self.field_vars.get(id_header, tk.StringVar()).get().strip()
+            if id_header
+            else ""
+        )
+        nom = (
+            self.field_vars.get(nom_header, tk.StringVar()).get().strip()
+            if nom_header
+            else ""
+        )
+        prenom = (
+            self.field_vars.get(prenom_header, tk.StringVar()).get().strip()
+            if prenom_header
+            else ""
+        )
 
         if ref and ref in self.client_map:
             return self.client_map[ref]
@@ -375,7 +430,9 @@ class VisiteExcursionQuotation:
         if nom:
             matches = [c for c in matches if str(c.get("nom") or "").strip() == nom]
         if prenom:
-            matches = [c for c in matches if str(c.get("prenom") or "").strip() == prenom]
+            matches = [
+                c for c in matches if str(c.get("prenom") or "").strip() == prenom
+            ]
 
         return matches[0] if matches else None
 
@@ -427,7 +484,11 @@ class VisiteExcursionQuotation:
 
             prestataire = self.field_vars[prestataire_header].get().strip()
             filters = self._build_source_filters()
-            designations = get_visite_excursion_designations(prestataire, filters) if prestataire else get_visite_excursion_designations(filters=filters)
+            designations = (
+                get_visite_excursion_designations(prestataire, filters)
+                if prestataire
+                else get_visite_excursion_designations(filters=filters)
+            )
 
             _, widget = self.field_widgets[designation_header]
             widget["values"] = [""] + designations
@@ -451,7 +512,15 @@ class VisiteExcursionQuotation:
             if not value:
                 continue
             field_type = self._get_field_type(header)
-            if field_type in {"date", "client_id", "client_name", "client_firstname", "quantity", "montant", "total"}:
+            if field_type in {
+                "date",
+                "client_id",
+                "client_name",
+                "client_firstname",
+                "quantity",
+                "montant",
+                "total",
+            }:
                 continue
             filters[header] = value
         return filters
@@ -479,13 +548,27 @@ class VisiteExcursionQuotation:
             montant_header = self._find_header_by_type("montant")
             total_header = self._find_header_by_type("total")
 
-            prestataire = self.field_vars.get(prestataire_header, tk.StringVar()).get().strip() if prestataire_header else ""
-            designation = self.field_vars.get(designation_header, tk.StringVar()).get().strip() if designation_header else ""
-            quantity_str = self.field_vars.get(quantity_header, tk.StringVar()).get().strip() if quantity_header else ""
+            prestataire = (
+                self.field_vars.get(prestataire_header, tk.StringVar()).get().strip()
+                if prestataire_header
+                else ""
+            )
+            designation = (
+                self.field_vars.get(designation_header, tk.StringVar()).get().strip()
+                if designation_header
+                else ""
+            )
+            quantity_str = (
+                self.field_vars.get(quantity_header, tk.StringVar()).get().strip()
+                if quantity_header
+                else ""
+            )
 
             montant = 0
             if prestataire and designation:
-                montant = get_visite_excursion_montant(prestataire, designation, self._build_source_filters())
+                montant = get_visite_excursion_montant(
+                    prestataire, designation, self._build_source_filters()
+                )
 
             if montant_header:
                 self.field_vars[montant_header].set(str(montant) if montant else "")
@@ -508,15 +591,26 @@ class VisiteExcursionQuotation:
     def _save(self):
         form_data = self._collect_form_data()
 
-        has_data = any(str(v).strip() for k, v in form_data.items() if self._normalize_header(k) != "date")
+        has_data = any(
+            str(v).strip()
+            for k, v in form_data.items()
+            if self._normalize_header(k) != "date"
+        )
         if not has_data:
-            messagebox.showwarning("Validation", "Veuillez renseigner au moins un champ avant l'enregistrement.")
+            messagebox.showwarning(
+                "Validation",
+                "Veuillez renseigner au moins un champ avant l'enregistrement.",
+            )
             return
 
         client_id_header = self._find_header_by_type("client_id")
         client_name_header = self._find_header_by_type("client_name")
-        client_id = form_data.get(client_id_header, "").strip() if client_id_header else ""
-        client_name = form_data.get(client_name_header, "").strip() if client_name_header else ""
+        client_id = (
+            form_data.get(client_id_header, "").strip() if client_id_header else ""
+        )
+        client_name = (
+            form_data.get(client_name_header, "").strip() if client_name_header else ""
+        )
         if not client_id and not client_name:
             messagebox.showwarning(
                 "Validation",
@@ -525,12 +619,18 @@ class VisiteExcursionQuotation:
             return
 
         if self.edit_data and self.row_number is not None:
-            result = update_visite_excursion_quotation_in_excel(self.row_number, form_data)
+            result = update_visite_excursion_quotation_in_excel(
+                self.row_number, form_data
+            )
             if result == -2:
-                messagebox.showerror("Fichier verrouillé", "Fermez data.xlsx puis réessayez.")
+                messagebox.showerror(
+                    "Fichier verrouillé", "Fermez data.xlsx puis réessayez."
+                )
                 return
             if result == -1:
-                messagebox.showerror("Erreur", "Échec de la modification dans VISITE_EXCURSION.")
+                messagebox.showerror(
+                    "Erreur", "Échec de la modification dans VISITE_EXCURSION."
+                )
                 return
             messagebox.showinfo("Succès", "Cotation modifiée avec succès.")
             if self.callback_on_done:
@@ -539,13 +639,19 @@ class VisiteExcursionQuotation:
 
         row = save_visite_excursion_quotation_to_excel(form_data)
         if row == -2:
-            messagebox.showerror("Fichier verrouillé", "Fermez data.xlsx puis réessayez.")
+            messagebox.showerror(
+                "Fichier verrouillé", "Fermez data.xlsx puis réessayez."
+            )
             return
         if row == -1:
-            messagebox.showerror("Erreur", "Échec de l'enregistrement dans VISITE_EXCURSION.")
+            messagebox.showerror(
+                "Erreur", "Échec de l'enregistrement dans VISITE_EXCURSION."
+            )
             return
 
-        messagebox.showinfo("Succès", f"Cotation enregistrée avec succès à la ligne {row}.")
+        messagebox.showinfo(
+            "Succès", f"Cotation enregistrée avec succès à la ligne {row}."
+        )
         self._clear()
 
     def _delete(self):
@@ -560,7 +666,10 @@ class VisiteExcursionQuotation:
 
         success = delete_visite_excursion_from_excel(self.row_number)
         if not success:
-            messagebox.showerror("Erreur", "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert.")
+            messagebox.showerror(
+                "Erreur",
+                "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert.",
+            )
             return
 
         messagebox.showinfo("Succès", "Cotation supprimée avec succès.")

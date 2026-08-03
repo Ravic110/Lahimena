@@ -24,23 +24,23 @@ from config import (
 )
 
 _STATUT_COLORS = {
-    "En cours":   "#0097A7",   # cyan foncé
-    "Accepté":    "#2E7D32",   # vert foncé
-    "En circuit": "#E65100",   # orange foncé
-    "Annulé":     "#C62828",   # rouge foncé
+    "En cours": "#0097A7",  # cyan foncé
+    "Accepté": "#2E7D32",  # vert foncé
+    "En circuit": "#E65100",  # orange foncé
+    "Annulé": "#C62828",  # rouge foncé
 }
 _STATUT_ROW_BG = {
-    "En cours":   "#E0F7FA",   # cyan clair
-    "Accepté":    "#E8F5E9",   # vert clair
-    "En circuit": "#FFF3E0",   # orange clair
-    "Annulé":     "#FFEBEE",   # rouge clair
+    "En cours": "#E0F7FA",  # cyan clair
+    "Accepté": "#E8F5E9",  # vert clair
+    "En circuit": "#FFF3E0",  # orange clair
+    "Annulé": "#FFEBEE",  # rouge clair
 }
 # Emoji badge affiché dans la colonne Statut
 _STATUT_BADGE = {
-    "En cours":   "🔵  En cours",
-    "Accepté":    "🟢  Accepté",
+    "En cours": "🔵  En cours",
+    "Accepté": "🟢  Accepté",
     "En circuit": "🟠  En circuit",
-    "Annulé":     "🔴  Annulé",
+    "Annulé": "🔴  Annulé",
 }
 
 
@@ -88,6 +88,7 @@ class HomePage:
     def _load_dashboard_stats_async(self):
         def worker():
             self._pending_dashboard_stats = self._load_dashboard_stats()
+
         threading.Thread(target=worker, daemon=True).start()
 
     def _poll_dashboard_stats(self):
@@ -114,9 +115,7 @@ class HomePage:
                 return
         except Exception:
             return
-        self._dashboard_value_labels["clients"].configure(
-            text=f"{stats['clients']}"
-        )
+        self._dashboard_value_labels["clients"].configure(text=f"{stats['clients']}")
         self._dashboard_value_labels["collective"].configure(
             text=f"{stats['collective_count']} | {stats['collective_total']:,.0f} MGA"
         )
@@ -153,6 +152,7 @@ class HomePage:
             load_all_hotel_quotations,
             load_all_invoices,
         )
+
         stats = self._empty_dashboard_stats()
         try:
             clients = load_all_clients()
@@ -191,9 +191,11 @@ class HomePage:
         def worker():
             try:
                 from utils.excel_handler import load_all_clients
+
                 self._pending_clients = load_all_clients()
             except Exception:
                 self._pending_clients = []
+
         threading.Thread(target=worker, daemon=True).start()
 
     def _poll_clients(self):
@@ -211,13 +213,22 @@ class HomePage:
         if self._client_tree is None or not self._client_tree.winfo_exists():
             return
         search = (self._search_var.get() if self._search_var else "").lower().strip()
-        statut_filter = (self._statut_filter_var.get() if self._statut_filter_var else "Tous")
+        statut_filter = (
+            self._statut_filter_var.get() if self._statut_filter_var else "Tous"
+        )
         for item in self._client_tree.get_children():
             self._client_tree.delete(item)
         for client in self._all_clients:
             if search and not any(
                 search in str(client.get(f, "")).lower()
-                for f in ("nom", "ref_client", "email", "telephone", "circuit", "numero_dossier")
+                for f in (
+                    "nom",
+                    "ref_client",
+                    "email",
+                    "telephone",
+                    "circuit",
+                    "numero_dossier",
+                )
             ):
                 continue
             statut = client.get("statut") or "En cours"
@@ -254,8 +265,11 @@ class HomePage:
 
         # Hero banner
         hero = ctk.CTkFrame(
-            shell, fg_color=PANEL_BG_COLOR, corner_radius=18,
-            border_width=1, border_color="#C9DDE3",
+            shell,
+            fg_color=PANEL_BG_COLOR,
+            corner_radius=18,
+            border_width=1,
+            border_color="#C9DDE3",
         )
         hero.pack(fill="x", pady=(0, 18))
         hero.grid_columnconfigure(0, weight=1)
@@ -279,13 +293,15 @@ class HomePage:
         clock_box.grid(row=0, column=1, rowspan=2, sticky="e", padx=18, pady=14)
 
         ctk.CTkLabel(
-            clock_box, text="Heure locale",
+            clock_box,
+            text="Heure locale",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=MUTED_TEXT_COLOR,
         ).pack(padx=14, pady=(10, 4))
 
         self.clock_label = ctk.CTkLabel(
-            clock_box, text="--/--/----\n--:--:--",
+            clock_box,
+            text="--/--/----\n--:--:--",
             font=ctk.CTkFont(size=20, weight="bold"),
             text_color=TEXT_COLOR,
         )
@@ -295,12 +311,44 @@ class HomePage:
         quick_actions = ctk.CTkFrame(shell, fg_color="transparent")
         quick_actions.pack(fill="x", pady=(0, 14))
 
-        self._add_quick_action(quick_actions, "Demande client", "client_page", BUTTON_GREEN, BUTTON_GREEN_HOVER)
-        self._add_quick_action(quick_actions, "Cotation hotel multi-villes", "hotel_quotation_page", BUTTON_BLUE, BUTTON_GREEN_HOVER)
-        self._add_quick_action(quick_actions, "Transport + Parametre", "transport_page", BUTTON_GREEN, BUTTON_GREEN_HOVER)
-        self._add_quick_action(quick_actions, "Frais collectifs", "collective_expense_page", BUTTON_ORANGE, "#D48806")
-        self._add_quick_action(quick_actions, "Devis clients", "client_quotes_page", BUTTON_BLUE, BUTTON_GREEN_HOVER)
-        self._add_quick_action(quick_actions, "Factures clients", "current_invoices", BUTTON_RED, "#B71C1C")
+        self._add_quick_action(
+            quick_actions,
+            "Demande client",
+            "client_page",
+            BUTTON_GREEN,
+            BUTTON_GREEN_HOVER,
+        )
+        self._add_quick_action(
+            quick_actions,
+            "Cotation hotel multi-villes",
+            "hotel_quotation_page",
+            BUTTON_BLUE,
+            BUTTON_GREEN_HOVER,
+        )
+        self._add_quick_action(
+            quick_actions,
+            "Transport + Parametre",
+            "transport_page",
+            BUTTON_GREEN,
+            BUTTON_GREEN_HOVER,
+        )
+        self._add_quick_action(
+            quick_actions,
+            "Frais collectifs",
+            "collective_expense_page",
+            BUTTON_ORANGE,
+            "#D48806",
+        )
+        self._add_quick_action(
+            quick_actions,
+            "Devis clients",
+            "client_quotes_page",
+            BUTTON_BLUE,
+            BUTTON_GREEN_HOVER,
+        )
+        self._add_quick_action(
+            quick_actions, "Factures clients", "current_invoices", BUTTON_RED, "#B71C1C"
+        )
 
         cards_container = ctk.CTkFrame(shell, fg_color="transparent")
         cards_container.pack(fill="both", expand=True)
@@ -311,6 +359,7 @@ class HomePage:
     def _add_quick_action(self, parent, text, route, color, hover):
         try:
             from utils.auth_handler import current_role
+
             is_comptable = current_role() == "comptable"
         except Exception:
             is_comptable = False
@@ -327,22 +376,30 @@ class HomePage:
             txt_color = "white"
 
         ctk.CTkButton(
-            parent, text=text,
+            parent,
+            text=text,
             command=lambda: self._navigate(route),
-            fg_color=fg, hover_color=hv,
-            corner_radius=12, height=42, text_color=txt_color,
+            fg_color=fg,
+            hover_color=hv,
+            corner_radius=12,
+            height=42,
+            text_color=txt_color,
             state=btn_state,
         ).pack(side="left", padx=(0, 10), pady=4)
 
     def _add_dashboard(self, parent):
         wrapper = ctk.CTkFrame(
-            parent, fg_color=PANEL_BG_COLOR,
-            corner_radius=14, border_width=1, border_color="#C9DDE3",
+            parent,
+            fg_color=PANEL_BG_COLOR,
+            corner_radius=14,
+            border_width=1,
+            border_color="#C9DDE3",
         )
         wrapper.pack(fill="x", pady=8)
 
         ctk.CTkLabel(
-            wrapper, text="Dashboard synthetique",
+            wrapper,
+            text="Dashboard synthetique",
             font=ctk.CTkFont(size=17, weight="bold"),
             text_color=TEXT_COLOR,
         ).pack(anchor="w", padx=16, pady=(12, 10))
@@ -361,17 +418,22 @@ class HomePage:
 
         for idx, (title, key, color) in enumerate(cards):
             card = ctk.CTkFrame(
-                grid, fg_color=CARD_BG_COLOR,
-                corner_radius=12, border_width=1, border_color="#D3E2E7",
+                grid,
+                fg_color=CARD_BG_COLOR,
+                corner_radius=12,
+                border_width=1,
+                border_color="#D3E2E7",
             )
             card.grid(row=0, column=idx, sticky="nsew", padx=6, pady=4)
             ctk.CTkLabel(
-                card, text=title,
+                card,
+                text=title,
                 font=ctk.CTkFont(size=12, weight="bold"),
                 text_color=MUTED_TEXT_COLOR,
             ).pack(anchor="w", padx=10, pady=(10, 2))
             value_label = ctk.CTkLabel(
-                card, text="--",
+                card,
+                text="--",
                 font=ctk.CTkFont(size=15, weight="bold"),
                 text_color=color,
             )
@@ -380,8 +442,11 @@ class HomePage:
 
     def _add_client_list(self, parent):
         wrapper = ctk.CTkFrame(
-            parent, fg_color=PANEL_BG_COLOR,
-            corner_radius=14, border_width=1, border_color="#C9DDE3",
+            parent,
+            fg_color=PANEL_BG_COLOR,
+            corner_radius=14,
+            border_width=1,
+            border_color="#C9DDE3",
         )
         wrapper.pack(fill="both", expand=True, pady=8)
 
@@ -390,18 +455,24 @@ class HomePage:
         header.pack(fill="x", padx=16, pady=(12, 8))
 
         tk.Label(
-            header, text="Liste des clients",
+            header,
+            text="Liste des clients",
             font=("Poppins", 17, "bold"),
-            fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
         ).pack(side="left")
 
         # Refresh button
         tk.Button(
-            header, text="🔄",
+            header,
+            text="🔄",
             command=self._reload_clients,
-            bg=BUTTON_BLUE, fg="white",
-            font=("Poppins", 11), relief="flat",
-            padx=8, cursor="hand2",
+            bg=BUTTON_BLUE,
+            fg="white",
+            font=("Poppins", 11),
+            relief="flat",
+            padx=8,
+            cursor="hand2",
         ).pack(side="right", padx=(6, 0))
 
         # Search bar
@@ -411,15 +482,20 @@ class HomePage:
             header,
             textvariable=self._search_var,
             font=("Poppins", 12),
-            bg=INPUT_BG_COLOR, fg=TEXT_COLOR,
+            bg=INPUT_BG_COLOR,
+            fg=TEXT_COLOR,
             insertbackground=TEXT_COLOR,
-            relief="flat", bd=2, width=28,
+            relief="flat",
+            bd=2,
+            width=28,
         )
         search_entry.pack(side="right", padx=(6, 0), ipady=4)
         tk.Label(
-            header, text="🔍",
+            header,
+            text="🔍",
             font=("Poppins", 12),
-            fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR,
+            fg=MUTED_TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
         ).pack(side="right")
 
         # Filtre statut
@@ -436,9 +512,11 @@ class HomePage:
         )
         statut_combo.pack(side="right", padx=(6, 0), ipady=3)
         tk.Label(
-            header, text="Statut :",
+            header,
+            text="Statut :",
             font=("Poppins", 11),
-            fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
         ).pack(side="right", padx=(12, 0))
 
         # Hint
@@ -446,7 +524,8 @@ class HomePage:
             wrapper,
             text="Double-cliquez sur un client pour le modifier ou changer son statut.",
             font=("Poppins", 10),
-            fg=MUTED_TEXT_COLOR, bg=PANEL_BG_COLOR,
+            fg=MUTED_TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
         ).pack(anchor="w", padx=16, pady=(0, 6))
 
         # Treeview
@@ -457,37 +536,54 @@ class HomePage:
         hsb = ttk.Scrollbar(tree_frame, orient="horizontal")
 
         cols = (
-            "statut", "numero_dossier", "nom", "nombre_participants",
-            "duree_sejour", "date_arrivee", "date_depart",
-            "restauration", "compagnie", "heure_arrivee", "heure_depart",
+            "statut",
+            "numero_dossier",
+            "nom",
+            "nombre_participants",
+            "duree_sejour",
+            "date_arrivee",
+            "date_depart",
+            "restauration",
+            "compagnie",
+            "heure_arrivee",
+            "heure_depart",
         )
         self._client_tree = ttk.Treeview(
-            tree_frame, columns=cols, show="headings",
-            yscrollcommand=vsb.set, xscrollcommand=hsb.set,
+            tree_frame,
+            columns=cols,
+            show="headings",
+            yscrollcommand=vsb.set,
+            xscrollcommand=hsb.set,
             height=16,
         )
         vsb.config(command=self._client_tree.yview)
         hsb.config(command=self._client_tree.xview)
 
         headers = {
-            "statut":               "Statut",
-            "numero_dossier":       "N° Dossier",
-            "nom":                  "Nom clients",
-            "nombre_participants":  "Nb pax",
-            "duree_sejour":         "Durée",
-            "date_arrivee":         "Début",
-            "date_depart":          "Fin",
-            "restauration":         "Formule",
-            "compagnie":            "Compagnie",
-            "heure_arrivee":        "H. Arrivée",
-            "heure_depart":         "H. Départ",
+            "statut": "Statut",
+            "numero_dossier": "N° Dossier",
+            "nom": "Nom clients",
+            "nombre_participants": "Nb pax",
+            "duree_sejour": "Durée",
+            "date_arrivee": "Début",
+            "date_depart": "Fin",
+            "restauration": "Formule",
+            "compagnie": "Compagnie",
+            "heure_arrivee": "H. Arrivée",
+            "heure_depart": "H. Départ",
         }
         widths = {
-            "statut": 130, "numero_dossier": 130, "nom": 170,
-            "nombre_participants": 60, "duree_sejour": 60,
-            "date_arrivee": 90, "date_depart": 90,
-            "restauration": 130, "compagnie": 120,
-            "heure_arrivee": 80, "heure_depart": 80,
+            "statut": 130,
+            "numero_dossier": 130,
+            "nom": 170,
+            "nombre_participants": 60,
+            "duree_sejour": 60,
+            "date_arrivee": 90,
+            "date_depart": 90,
+            "restauration": 130,
+            "compagnie": 120,
+            "heure_arrivee": 80,
+            "heure_depart": 80,
         }
         for c in cols:
             self._client_tree.heading(c, text=headers[c])
@@ -512,6 +608,7 @@ class HomePage:
 
     def _reload_clients(self):
         from utils.cache import invalidate_client_cache
+
         invalidate_client_cache()
         self._load_clients_async()
         self._poll_clients()
@@ -540,7 +637,8 @@ class HomePage:
         client = self._get_selected_client()
         if client:
             _ClientActionModal(
-                self.parent, client,
+                self.parent,
+                client,
                 self._on_change_statut,
                 self._on_modify_client,
                 self._on_hotel_cotation,
@@ -588,9 +686,15 @@ class HomePage:
 
     def _start_clock(self):
         try:
-            if not self._is_alive() or not self.clock_label or not self.clock_label.winfo_exists():
+            if (
+                not self._is_alive()
+                or not self.clock_label
+                or not self.clock_label.winfo_exists()
+            ):
                 return
-            self.clock_label.configure(text=datetime.now().strftime("%d/%m/%Y\n%H:%M:%S"))
+            self.clock_label.configure(
+                text=datetime.now().strftime("%d/%m/%Y\n%H:%M:%S")
+            )
             self._schedule_after("_clock_after_id", 1000, self._start_clock)
         except Exception:
             return
@@ -599,7 +703,11 @@ class HomePage:
         if self._destroyed:
             return False
         try:
-            return bool(self.parent.winfo_exists() and self._shell and self._shell.winfo_exists())
+            return bool(
+                self.parent.winfo_exists()
+                and self._shell
+                and self._shell.winfo_exists()
+            )
         except Exception:
             return False
 
@@ -636,12 +744,22 @@ class HomePage:
 
 # ── Modal: choisir l'action sur un client ─────────────────────────────────────
 
+
 class _ClientActionModal(tk.Toplevel):
 
-    def __init__(self, parent, client, on_change_statut, on_modify,
-                 on_hotel_cotation=None, on_collective_cotation=None,
-                 on_transport_cotation=None, on_air_ticket_cotation=None,
-                 on_client_quote=None, on_client_invoice=None):
+    def __init__(
+        self,
+        parent,
+        client,
+        on_change_statut,
+        on_modify,
+        on_hotel_cotation=None,
+        on_collective_cotation=None,
+        on_transport_cotation=None,
+        on_air_ticket_cotation=None,
+        on_client_quote=None,
+        on_client_invoice=None,
+    ):
         super().__init__(parent)
         self.client = client
         self.on_change_statut = on_change_statut
@@ -674,81 +792,125 @@ class _ClientActionModal(tk.Toplevel):
         color = _STATUT_COLORS.get(statut, BUTTON_BLUE)
 
         tk.Label(
-            self, text=nom,
+            self,
+            text=nom,
             font=("Poppins", 15, "bold"),
-            fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
         ).pack(padx=32, pady=(20, 4))
 
         tk.Label(
-            self, text=f"Statut : {statut}",
+            self,
+            text=f"Statut : {statut}",
             font=("Poppins", 11),
-            fg=color, bg=PANEL_BG_COLOR,
+            fg=color,
+            bg=PANEL_BG_COLOR,
         ).pack(pady=(0, 20))
 
         btn_frame = tk.Frame(self, bg=PANEL_BG_COLOR)
         btn_frame.pack(padx=32, pady=(0, 24))
 
         tk.Button(
-            btn_frame, text="🔄  Changer le statut",
+            btn_frame,
+            text="🔄  Changer le statut",
             font=("Poppins", 11, "bold"),
-            bg=BUTTON_ORANGE, fg="white",
-            relief="flat", padx=18, pady=10, cursor="hand2",
+            bg=BUTTON_ORANGE,
+            fg="white",
+            relief="flat",
+            padx=18,
+            pady=10,
+            cursor="hand2",
             command=self._action_statut,
         ).pack(fill="x", pady=(0, 8))
 
         tk.Button(
-            btn_frame, text="✏️  Modifier les informations",
+            btn_frame,
+            text="✏️  Modifier les informations",
             font=("Poppins", 11, "bold"),
-            bg=BUTTON_GREEN, fg="white",
-            relief="flat", padx=18, pady=10, cursor="hand2",
+            bg=BUTTON_GREEN,
+            fg="white",
+            relief="flat",
+            padx=18,
+            pady=10,
+            cursor="hand2",
             command=self._action_modify,
         ).pack(fill="x", pady=(0, 8))
 
         tk.Button(
-            btn_frame, text="🏨  Cotation hôtel",
+            btn_frame,
+            text="🏨  Cotation hôtel",
             font=("Poppins", 11, "bold"),
-            bg=BUTTON_BLUE, fg="white",
-            relief="flat", padx=18, pady=10, cursor="hand2",
+            bg=BUTTON_BLUE,
+            fg="white",
+            relief="flat",
+            padx=18,
+            pady=10,
+            cursor="hand2",
             command=self._action_hotel_cotation,
         ).pack(fill="x", pady=(0, 8))
 
         tk.Button(
-            btn_frame, text="📋  Frais collectifs",
+            btn_frame,
+            text="📋  Frais collectifs",
             font=("Poppins", 11, "bold"),
-            bg="#546E7A", fg="white",
-            relief="flat", padx=18, pady=10, cursor="hand2",
+            bg="#546E7A",
+            fg="white",
+            relief="flat",
+            padx=18,
+            pady=10,
+            cursor="hand2",
             command=self._action_collective_cotation,
         ).pack(fill="x", pady=(0, 8))
 
         tk.Button(
-            btn_frame, text="🚗  Cotation transport",
+            btn_frame,
+            text="🚗  Cotation transport",
             font=("Poppins", 11, "bold"),
-            bg="#37474F", fg="white",
-            relief="flat", padx=18, pady=10, cursor="hand2",
+            bg="#37474F",
+            fg="white",
+            relief="flat",
+            padx=18,
+            pady=10,
+            cursor="hand2",
             command=self._action_transport_cotation,
         ).pack(fill="x", pady=(0, 8))
 
         tk.Button(
-            btn_frame, text="✈️  Cotation avion",
+            btn_frame,
+            text="✈️  Cotation avion",
             font=("Poppins", 11, "bold"),
-            bg="#455A64", fg="white",
-            relief="flat", padx=18, pady=10, cursor="hand2",
+            bg="#455A64",
+            fg="white",
+            relief="flat",
+            padx=18,
+            pady=10,
+            cursor="hand2",
             command=self._action_air_ticket_cotation,
         ).pack(fill="x", pady=(0, 8))
 
         tk.Button(
-            btn_frame, text="📄  Devis client",
+            btn_frame,
+            text="📄  Devis client",
             font=("Poppins", 11, "bold"),
-            bg=BUTTON_GREEN, fg="white",
-            relief="flat", padx=18, pady=10, cursor="hand2",
+            bg=BUTTON_GREEN,
+            fg="white",
+            relief="flat",
+            padx=18,
+            pady=10,
+            cursor="hand2",
             command=self._action_client_quote,
         ).pack(fill="x", pady=(0, 8))
 
         tk.Button(
-            btn_frame, text="🧾  Factures client",
+            btn_frame,
+            text="🧾  Factures client",
             font=("Poppins", 11, "bold"),
-            bg=BUTTON_RED, fg="white",
-            relief="flat", padx=18, pady=10, cursor="hand2",
+            bg=BUTTON_RED,
+            fg="white",
+            relief="flat",
+            padx=18,
+            pady=10,
+            cursor="hand2",
             command=self._action_client_invoice,
         ).pack(fill="x")
 
@@ -829,13 +991,14 @@ class _ClientActionModal(tk.Toplevel):
 
 # ── Dialog: changer le statut ─────────────────────────────────────────────────
 
+
 class _ChangeStatutDialog(tk.Toplevel):
 
     _STATUTS = [
-        ("En cours",   BUTTON_BLUE,   "#0097A7"),
-        ("Accepté",    BUTTON_GREEN,  "#2E7D32"),
+        ("En cours", BUTTON_BLUE, "#0097A7"),
+        ("Accepté", BUTTON_GREEN, "#2E7D32"),
         ("En circuit", BUTTON_ORANGE, "#E65100"),
-        ("Annulé",     BUTTON_RED,    "#B71C1C"),
+        ("Annulé", BUTTON_RED, "#B71C1C"),
     ]
 
     def __init__(self, parent, client, on_done=None):
@@ -862,15 +1025,19 @@ class _ChangeStatutDialog(tk.Toplevel):
         current = self.client.get("statut") or "En cours"
 
         tk.Label(
-            self, text=f"Statut de : {nom}",
+            self,
+            text=f"Statut de : {nom}",
             font=("Poppins", 13, "bold"),
-            fg=TEXT_COLOR, bg=PANEL_BG_COLOR,
+            fg=TEXT_COLOR,
+            bg=PANEL_BG_COLOR,
         ).pack(padx=32, pady=(20, 6))
 
         tk.Label(
-            self, text=f"Statut actuel : {current}",
+            self,
+            text=f"Statut actuel : {current}",
             font=("Poppins", 11),
-            fg=_STATUT_COLORS.get(current, TEXT_COLOR), bg=PANEL_BG_COLOR,
+            fg=_STATUT_COLORS.get(current, TEXT_COLOR),
+            bg=PANEL_BG_COLOR,
         ).pack(pady=(0, 14))
 
         btn_frame = tk.Frame(self, bg=PANEL_BG_COLOR)
@@ -879,10 +1046,15 @@ class _ChangeStatutDialog(tk.Toplevel):
         for label, color, hover in self._STATUTS:
             is_current = label == current
             tk.Button(
-                btn_frame, text=f"{'✔  ' if is_current else '      '}{label}",
+                btn_frame,
+                text=f"{'✔  ' if is_current else '      '}{label}",
                 font=("Poppins", 11, "bold"),
-                bg=color, fg="white",
-                relief="flat", padx=18, pady=8, cursor="hand2",
+                bg=color,
+                fg="white",
+                relief="flat",
+                padx=18,
+                pady=8,
+                cursor="hand2",
                 state="disabled" if is_current else "normal",
                 command=lambda s=label: self._apply_statut(s),
             ).pack(fill="x", pady=3)
@@ -896,9 +1068,12 @@ class _ChangeStatutDialog(tk.Toplevel):
 
     def _apply_statut(self, new_statut):
         from utils.excel_handler import update_client_statut
+
         row = self.client.get("row_number")
         if not row:
-            messagebox.showerror("Erreur", "Impossible d'identifier la ligne du client.", parent=self)
+            messagebox.showerror(
+                "Erreur", "Impossible d'identifier la ligne du client.", parent=self
+            )
             return
         if update_client_statut(row, new_statut):
             on_done = self.on_done
@@ -907,4 +1082,6 @@ class _ChangeStatutDialog(tk.Toplevel):
             if on_done:
                 parent.after(10, on_done)
         else:
-            messagebox.showerror("Erreur", "La mise à jour du statut a échoué.", parent=self)
+            messagebox.showerror(
+                "Erreur", "La mise à jour du statut a échoué.", parent=self
+            )

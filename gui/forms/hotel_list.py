@@ -28,7 +28,9 @@ class HotelList:
     Hotel list component with search and management features
     """
 
-    def __init__(self, parent, on_edit_hotel=None, on_new_hotel=None, on_back_to_db=None):
+    def __init__(
+        self, parent, on_edit_hotel=None, on_new_hotel=None, on_back_to_db=None
+    ):
         """
         Initialize hotel list
 

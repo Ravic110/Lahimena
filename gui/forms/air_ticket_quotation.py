@@ -2,9 +2,9 @@
 Air ticket quotation GUI component
 """
 
-from datetime import datetime
 import re
 import tkinter as tk
+from datetime import datetime
 from tkinter import messagebox, ttk
 
 from config import (
@@ -100,7 +100,9 @@ class AirTicketQuotation:
             ("child_count", "Nombre Enfants"),
         ]
         for field_type, fallback_header in reversed(required):
-            has_field = any(self._get_field_type(header) == field_type for header in self.headers)
+            has_field = any(
+                self._get_field_type(header) == field_type for header in self.headers
+            )
             if not has_field:
                 self.headers.insert(0, fallback_header)
 
@@ -214,7 +216,9 @@ class AirTicketQuotation:
         return " ".join(part[:1].upper() + part[1:].lower() for part in parts)
 
     def _set_city_options(self, widget, cities):
-        display_to_raw = {self._format_city_label(city): city for city in cities if str(city).strip()}
+        display_to_raw = {
+            self._format_city_label(city): city for city in cities if str(city).strip()
+        }
         widget._display_to_raw = display_to_raw
         widget._raw_to_display = {
             raw: display for display, raw in display_to_raw.items()
@@ -278,7 +282,15 @@ class AirTicketQuotation:
 
         if norm in {"date"}:
             return "date"
-        if norm in {"id", "id client", "id_client", "ref client", "reference", "ref", "ref. client"}:
+        if norm in {
+            "id",
+            "id client",
+            "id_client",
+            "ref client",
+            "reference",
+            "ref",
+            "ref. client",
+        }:
             return "client_id"
         if norm in {"nom", "nom client", "client nom", "nom du client"}:
             return "client_name"
@@ -286,9 +298,25 @@ class AirTicketQuotation:
             return "departure_city"
         if norm.startswith("ville") and "arriv" in norm:
             return "arrival_city"
-        if norm in {"nombre adulte", "nombre adultes", "adultes", "adulte", "nb adultes", "nb adulte", "nombres adultes"}:
+        if norm in {
+            "nombre adulte",
+            "nombre adultes",
+            "adultes",
+            "adulte",
+            "nb adultes",
+            "nb adulte",
+            "nombres adultes",
+        }:
             return "adult_count"
-        if norm in {"nombre enfant", "nombre enfants", "nombres enfants", "enfant", "enfants", "nb enfants", "nb enfant"}:
+        if norm in {
+            "nombre enfant",
+            "nombre enfants",
+            "nombres enfants",
+            "enfant",
+            "enfants",
+            "nb enfants",
+            "nb enfant",
+        }:
             return "child_count"
         if norm in {"tarif adulte", "tarif adultes", "prix adulte", "prix adultes"}:
             return "adult_tarif"
@@ -308,9 +336,19 @@ class AirTicketQuotation:
             "prix bébés",
         }:
             return "child_tarif"
-        if norm in {"montant adulte", "montant adultes", "total adultes", "montant adulte total"}:
+        if norm in {
+            "montant adulte",
+            "montant adultes",
+            "total adultes",
+            "montant adulte total",
+        }:
             return "adult_amount"
-        if norm in {"montant enfant", "montant enfants", "total enfants", "montant enfant total"}:
+        if norm in {
+            "montant enfant",
+            "montant enfants",
+            "total enfants",
+            "montant enfant total",
+        }:
             return "child_amount"
         if norm in {"total", "montant total", "total prix"}:
             return "total"
@@ -326,7 +364,11 @@ class AirTicketQuotation:
         for widget in self.parent.winfo_children():
             widget.destroy()
 
-        title_text = "MODIFIER RÉSERVATION BILLET AVION" if self.edit_data else "RÉSERVATION BILLET AVION"
+        title_text = (
+            "MODIFIER RÉSERVATION BILLET AVION"
+            if self.edit_data
+            else "RÉSERVATION BILLET AVION"
+        )
         tk.Label(
             self.parent,
             text=title_text,
@@ -428,7 +470,15 @@ class AirTicketQuotation:
                     state="readonly",
                 )
                 widget.bind("<<ComboboxSelected>>", self._on_city_changed)
-            elif field_type in {"adult_count", "child_count", "adult_tarif", "child_tarif", "adult_amount", "child_amount", "total"}:
+            elif field_type in {
+                "adult_count",
+                "child_count",
+                "adult_tarif",
+                "child_tarif",
+                "adult_amount",
+                "child_amount",
+                "total",
+            }:
                 widget = tk.Entry(
                     form_frame,
                     textvariable=field_var,
@@ -549,7 +599,10 @@ class AirTicketQuotation:
                 continue
             value = var.get().strip()
             if value:
-                if field_type in {"departure_city", "arrival_city"} and header in self.field_widgets:
+                if (
+                    field_type in {"departure_city", "arrival_city"}
+                    and header in self.field_widgets
+                ):
                     _, widget = self.field_widgets[header]
                     value = getattr(widget, "_display_to_raw", {}).get(value, value)
                 filters[header] = value
@@ -562,22 +615,34 @@ class AirTicketQuotation:
         if departure_header and departure_header in self.field_widgets:
             current_departure = self.field_vars[departure_header].get().strip()
             _, dep_widget = self.field_widgets[departure_header]
-            current_departure_raw = self._resolve_city_raw(dep_widget, current_departure)
+            current_departure_raw = self._resolve_city_raw(
+                dep_widget, current_departure
+            )
             arrival_value = ""
             if arrival_header:
                 arrival_value = self.field_vars[arrival_header].get().strip()
                 if arrival_header in self.field_widgets:
                     _, arr_widget_for_dep = self.field_widgets[arrival_header]
-                    arrival_value = self._resolve_city_raw(arr_widget_for_dep, arrival_value)
+                    arrival_value = self._resolve_city_raw(
+                        arr_widget_for_dep, arrival_value
+                    )
             departure_options = get_avion_departure_cities(
-                {arrival_header: arrival_value} if arrival_header and arrival_value else None
+                {arrival_header: arrival_value}
+                if arrival_header and arrival_value
+                else None
             )
 
-            if current_departure_raw and all(str(current_departure_raw).strip().lower() != str(opt).strip().lower() for opt in departure_options):
+            if current_departure_raw and all(
+                str(current_departure_raw).strip().lower() != str(opt).strip().lower()
+                for opt in departure_options
+            ):
                 departure_options = departure_options + [current_departure_raw]
 
             self._set_city_options(dep_widget, departure_options)
-            if current_departure_raw and all(str(current_departure_raw).strip().lower() != str(opt).strip().lower() for opt in departure_options):
+            if current_departure_raw and all(
+                str(current_departure_raw).strip().lower() != str(opt).strip().lower()
+                for opt in departure_options
+            ):
                 self.field_vars[departure_header].set("")
             else:
                 self._normalize_city_selection(departure_header)
@@ -591,16 +656,26 @@ class AirTicketQuotation:
                 departure_value = self.field_vars[departure_header].get().strip()
                 if departure_header in self.field_widgets:
                     _, dep_widget_for_arr = self.field_widgets[departure_header]
-                    departure_value = self._resolve_city_raw(dep_widget_for_arr, departure_value)
+                    departure_value = self._resolve_city_raw(
+                        dep_widget_for_arr, departure_value
+                    )
             arrival_options = get_avion_arrival_cities(
-                {departure_header: departure_value} if departure_header and departure_value else None
+                {departure_header: departure_value}
+                if departure_header and departure_value
+                else None
             )
 
-            if current_arrival_raw and all(str(current_arrival_raw).strip().lower() != str(opt).strip().lower() for opt in arrival_options):
+            if current_arrival_raw and all(
+                str(current_arrival_raw).strip().lower() != str(opt).strip().lower()
+                for opt in arrival_options
+            ):
                 arrival_options = arrival_options + [current_arrival_raw]
 
             self._set_city_options(arr_widget, arrival_options)
-            if current_arrival_raw and all(str(current_arrival_raw).strip().lower() != str(opt).strip().lower() for opt in arrival_options):
+            if current_arrival_raw and all(
+                str(current_arrival_raw).strip().lower() != str(opt).strip().lower()
+                for opt in arrival_options
+            ):
                 self.field_vars[arrival_header].set("")
             else:
                 self._normalize_city_selection(arrival_header)
@@ -669,11 +744,15 @@ class AirTicketQuotation:
 
             departure_selected = True
             if departure_header:
-                departure_selected = bool(self.field_vars.get(departure_header, tk.StringVar()).get().strip())
+                departure_selected = bool(
+                    self.field_vars.get(departure_header, tk.StringVar()).get().strip()
+                )
 
             arrival_selected = True
             if arrival_header:
-                arrival_selected = bool(self.field_vars.get(arrival_header, tk.StringVar()).get().strip())
+                arrival_selected = bool(
+                    self.field_vars.get(arrival_header, tk.StringVar()).get().strip()
+                )
 
             if not (departure_selected and arrival_selected):
                 if adult_tarif_header:
@@ -688,8 +767,16 @@ class AirTicketQuotation:
                     self.field_vars[total_header].set("")
                 return
 
-            adult_count = self._to_int(self.field_vars.get(adult_header, tk.StringVar()).get() if adult_header else 0)
-            child_count = self._to_int(self.field_vars.get(child_header, tk.StringVar()).get() if child_header else 0)
+            adult_count = self._to_int(
+                self.field_vars.get(adult_header, tk.StringVar()).get()
+                if adult_header
+                else 0
+            )
+            child_count = self._to_int(
+                self.field_vars.get(child_header, tk.StringVar()).get()
+                if child_header
+                else 0
+            )
 
             tarif_adulte, tarif_enfant = get_avion_tarifs(self._build_tarif_filters())
             montant_adultes = adult_count * self._to_float(tarif_adulte)
@@ -697,13 +784,25 @@ class AirTicketQuotation:
             total = montant_adultes + montant_enfants
 
             if adult_tarif_header:
-                self.field_vars[adult_tarif_header].set(str(self._to_float(tarif_adulte)) if self._to_float(tarif_adulte) else "")
+                self.field_vars[adult_tarif_header].set(
+                    str(self._to_float(tarif_adulte))
+                    if self._to_float(tarif_adulte)
+                    else ""
+                )
             if child_tarif_header:
-                self.field_vars[child_tarif_header].set(str(self._to_float(tarif_enfant)) if self._to_float(tarif_enfant) else "")
+                self.field_vars[child_tarif_header].set(
+                    str(self._to_float(tarif_enfant))
+                    if self._to_float(tarif_enfant)
+                    else ""
+                )
             if adult_amount_header:
-                self.field_vars[adult_amount_header].set(str(montant_adultes) if montant_adultes else "")
+                self.field_vars[adult_amount_header].set(
+                    str(montant_adultes) if montant_adultes else ""
+                )
             if child_amount_header:
-                self.field_vars[child_amount_header].set(str(montant_enfants) if montant_enfants else "")
+                self.field_vars[child_amount_header].set(
+                    str(montant_enfants) if montant_enfants else ""
+                )
             if total_header:
                 self.field_vars[total_header].set(str(total) if total else "")
         except Exception as e:
@@ -715,7 +814,9 @@ class AirTicketQuotation:
                 var.set(str(self.edit_data.get(header, "")).strip())
             self._sync_city_dropdowns()
             has_tarif_or_total = any(
-                str(self.field_vars.get(header, tk.StringVar()).get() if header else "").strip()
+                str(
+                    self.field_vars.get(header, tk.StringVar()).get() if header else ""
+                ).strip()
                 for header in [
                     self._find_header_by_type("adult_tarif"),
                     self._find_header_by_type("child_tarif"),
@@ -734,15 +835,26 @@ class AirTicketQuotation:
 
     def _save(self):
         form_data = self._collect_form_data()
-        has_data = any(str(v).strip() for k, v in form_data.items() if self._normalize_header(k) != "date")
+        has_data = any(
+            str(v).strip()
+            for k, v in form_data.items()
+            if self._normalize_header(k) != "date"
+        )
         if not has_data:
-            messagebox.showwarning("Validation", "Veuillez renseigner au moins un champ avant l'enregistrement.")
+            messagebox.showwarning(
+                "Validation",
+                "Veuillez renseigner au moins un champ avant l'enregistrement.",
+            )
             return
 
         client_id_header = self._find_header_by_type("client_id")
         client_name_header = self._find_header_by_type("client_name")
-        client_id = form_data.get(client_id_header, "").strip() if client_id_header else ""
-        client_name = form_data.get(client_name_header, "").strip() if client_name_header else ""
+        client_id = (
+            form_data.get(client_id_header, "").strip() if client_id_header else ""
+        )
+        client_name = (
+            form_data.get(client_name_header, "").strip() if client_name_header else ""
+        )
         if not client_id and not client_name:
             messagebox.showwarning(
                 "Validation",
@@ -753,7 +865,9 @@ class AirTicketQuotation:
         if self.edit_data and self.row_number is not None:
             result = update_air_ticket_quotation_in_excel(self.row_number, form_data)
             if result == -2:
-                messagebox.showerror("Fichier verrouillé", "Fermez data.xlsx puis réessayez.")
+                messagebox.showerror(
+                    "Fichier verrouillé", "Fermez data.xlsx puis réessayez."
+                )
                 return
             if result == -1:
                 messagebox.showerror("Erreur", "Échec de la modification dans AVION.")
@@ -765,13 +879,17 @@ class AirTicketQuotation:
 
         row = save_air_ticket_quotation_to_excel(form_data)
         if row == -2:
-            messagebox.showerror("Fichier verrouillé", "Fermez data.xlsx puis réessayez.")
+            messagebox.showerror(
+                "Fichier verrouillé", "Fermez data.xlsx puis réessayez."
+            )
             return
         if row == -1:
             messagebox.showerror("Erreur", "Échec de l'enregistrement dans AVION.")
             return
 
-        messagebox.showinfo("Succès", f"Réservation enregistrée avec succès à la ligne {row}.")
+        messagebox.showinfo(
+            "Succès", f"Réservation enregistrée avec succès à la ligne {row}."
+        )
         if self.callback_on_done:
             self.callback_on_done()
         else:
@@ -790,7 +908,10 @@ class AirTicketQuotation:
 
         success = delete_air_ticket_from_excel(self.row_number)
         if not success:
-            messagebox.showerror("Erreur", "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert.")
+            messagebox.showerror(
+                "Erreur",
+                "Impossible de supprimer. Vérifiez que data.xlsx n'est pas ouvert.",
+            )
             return
 
         messagebox.showinfo("Succès", "Réservation supprimée avec succès.")

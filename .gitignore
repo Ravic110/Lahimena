@@ -160,6 +160,10 @@ data.xlsx.*.bak
 # Activity logs & archives
 activity_log_archive/
 activity_log.*.json
+# Donnees d'execution : comptes et journal courant. Le depot est public et
+# l'application recree les comptes par defaut au premier lancement.
+activity_log.json
+users.json
 
 # Application logs
 logs/

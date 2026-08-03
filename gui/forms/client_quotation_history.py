@@ -173,7 +173,9 @@ class ClientQuotationHistory:
             messagebox.showwarning("Aucun devis", "Veuillez sélectionner un devis.")
             return
         if not os.path.exists(filepath):
-            messagebox.showwarning("Fichier introuvable", f"Le fichier PDF est introuvable :\n{filepath}")
+            messagebox.showwarning(
+                "Fichier introuvable", f"Le fichier PDF est introuvable :\n{filepath}"
+            )
             return
         try:
             if os.name == "nt":
