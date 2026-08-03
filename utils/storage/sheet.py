@@ -192,3 +192,112 @@ def _first_available(data, keys, default=""):
         if key in data and data.get(key) not in (None, ""):
             return data.get(key)
     return default
+
+
+def resolve_sheet_name(wb, wanted):
+    """Retrouve une feuille malgre une casse ou des accents differents.
+
+    Les classeurs sont edites a la main : la feuille "Visite_excursion" peut
+    s'y trouver ecrite "visite excursion". On tente d'abord la correspondance
+    exacte, puis la comparaison normalisee.
+
+    Args:
+        wb: classeur openpyxl.
+        wanted (str): nom recherche.
+
+    Returns:
+        str | None: nom reel de la feuille, ou None si absente.
+    """
+    if wanted in wb.sheetnames:
+        return wanted
+
+    target = _normalize_header_key(wanted)
+    for name in wb.sheetnames:
+        if _normalize_header_key(name) == target:
+            return name
+    return None
+
+
+def index_header_map(headers):
+    """Associe chaque en-tete a sa position, en partant de la colonne 1.
+
+    Utile pour les feuilles adressees par position plutot que par nom : le
+    lecteur de lignes n'a alors plus besoin de connaitre cette difference.
+
+    Args:
+        headers (list): libelles, dans l'ordre des colonnes.
+
+    Returns:
+        dict: libelle -> numero de colonne.
+    """
+    return {header: col for col, header in enumerate(headers, start=1)}
+
+
+def read_data_rows(ws, header_map, start_row):
+    """Lit les lignes de donnees d'une feuille.
+
+    Reproduit la boucle repetee a l'identique par les chargeurs de tables de
+    reference : une ligne entierement vide est ignoree, une cellule vide
+    devient une chaine vide, et chaque ligne porte son numero.
+
+    Args:
+        ws: feuille openpyxl.
+        header_map (dict): libelle -> numero de colonne.
+        start_row (int): premiere ligne de donnees.
+
+    Returns:
+        list[dict]: lignes, chacune avec sa cle `row_number`.
+    """
+    rows = []
+    for row_idx in range(start_row, ws.max_row + 1):
+        row_dict = {"row_number": row_idx}
+        has_values = False
+        for header, col in header_map.items():
+            value = ws.cell(row=row_idx, column=col).value
+            if value not in (None, ""):
+                has_values = True
+            row_dict[header] = "" if value is None else value
+        if has_values:
+            rows.append(row_dict)
+    return rows
+
+
+def next_empty_row(ws, header_map, start_row=2):
+    """Premiere ligne dont toutes les colonnes connues sont vides.
+
+    Strategie d'insertion par balayage. Elle differe de `ws.max_row + 1`, qui
+    se decale des qu'une ligne vide traine en fin de feuille : les deux sont
+    employees dans le code d'origine et ne sont pas interchangeables.
+
+    Args:
+        ws: feuille openpyxl.
+        header_map (dict): libelle -> numero de colonne.
+        start_row (int): ligne a partir de laquelle balayer.
+
+    Returns:
+        int: numero de la premiere ligne libre.
+    """
+    row = start_row
+    while True:
+        if all(
+            ws.cell(row=row, column=col).value in (None, "")
+            for col in header_map.values()
+        ):
+            return row
+        row += 1
+
+
+def write_row(ws, header_map, row_number, row_data):
+    """Ecrit un dict sur une ligne, colonne par colonne.
+
+    Les colonnes absentes de `row_data` sont vidées, comportement d'origine des
+    fonctions `update_*` : une mise a jour remplace la ligne entiere.
+
+    Args:
+        ws: feuille openpyxl.
+        header_map (dict): libelle -> numero de colonne.
+        row_number (int): ligne cible.
+        row_data (dict): valeurs a ecrire.
+    """
+    for header, col in header_map.items():
+        ws.cell(row=row_number, column=col, value=row_data.get(header, ""))

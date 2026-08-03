@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 
+import config
 from config import (
     AVION_SOURCE_SHEET_NAME,
     FRAIS_COLLECTIFS_SHEET_NAME,
@@ -34,6 +35,7 @@ from config import (
     VISITE_EXCURSION_SOURCE_SHEET_NAME,
 )
 from utils import excel_handler
+from utils.storage import workbook as wbmod
 
 SNAPSHOT_PATH = Path(__file__).parent / "fixtures" / "storage_characterization.json"
 UPDATE_SNAPSHOT = os.getenv("LAHIMENA_UPDATE_SNAPSHOT") == "1"
@@ -112,6 +114,17 @@ ENTITIES = {
 }
 
 
+def _rediriger_classeur(monkeypatch, path):
+    """Redirige data-hotel.xlsx vers un chemin temporaire.
+
+    Deux points de substitution pendant la migration : les fonctions restees
+    dans excel_handler lisent la constante importee dans leur module, celles
+    deplacees vers utils.storage la relisent depuis config a chaque appel.
+    """
+    monkeypatch.setattr(excel_handler, "HOTEL_EXCEL_PATH", path)
+    monkeypatch.setattr(config, "HOTEL_EXCEL_PATH", path)
+
+
 def _jsonable(value):
     """Rend une valeur comparable et serialisable, sans masquer son type."""
     if isinstance(value, bool) or value is None or isinstance(value, (int, float, str)):
@@ -144,7 +157,7 @@ def _run_scenario(tmp_path, monkeypatch, entity):
     """Joue le meme scenario CRUD pour une entite et enregistre tout."""
     sheet, row_suffix, rows_suffix, payloads = ENTITIES[entity]
     path = str(tmp_path / "data-hotel.xlsx")
-    monkeypatch.setattr(excel_handler, "HOTEL_EXCEL_PATH", path)
+    _rediriger_classeur(monkeypatch, path)
 
     save = getattr(excel_handler, f"save_{row_suffix}")
     update = getattr(excel_handler, f"update_{row_suffix}")
@@ -220,14 +233,15 @@ class TestOpenpyxlIndisponible:
 
     @pytest.fixture(autouse=True)
     def _sans_openpyxl(self, monkeypatch):
+        # Deux points de substitution pendant la migration, comme pour le
+        # chemin du classeur : l'ancien module et le nouveau socle.
         monkeypatch.setattr(excel_handler, "OPENPYXL_AVAILABLE", False)
+        monkeypatch.setattr(wbmod, "OPENPYXL_AVAILABLE", False)
 
     @pytest.mark.parametrize("entity", sorted(ENTITIES))
     def test_sentinelles(self, entity, tmp_path, monkeypatch):
         sheet, row_suffix, rows_suffix, payloads = ENTITIES[entity]
-        monkeypatch.setattr(
-            excel_handler, "HOTEL_EXCEL_PATH", str(tmp_path / "data-hotel.xlsx")
-        )
+        _rediriger_classeur(monkeypatch, str(tmp_path / "data-hotel.xlsx"))
         assert getattr(excel_handler, f"save_{row_suffix}")(payloads[0]) == -1
         assert getattr(excel_handler, f"update_{row_suffix}")(2, payloads[0]) == -1
         assert getattr(excel_handler, f"delete_{row_suffix}")(2) is False
@@ -248,7 +262,7 @@ class TestEnTetesEnDeuxiemeLigne:
         from openpyxl import Workbook
 
         path = str(tmp_path / "data-hotel.xlsx")
-        monkeypatch.setattr(excel_handler, "HOTEL_EXCEL_PATH", path)
+        _rediriger_classeur(monkeypatch, path)
         return path, Workbook()
 
     def test_transport_lit_les_donnees_a_partir_de_la_ligne_3(self, classeur):
@@ -306,7 +320,7 @@ class TestInvalidationCacheKmMada:
 
     def test_delete_invalide_le_cache(self, tmp_path, monkeypatch):
         path = str(tmp_path / "data-hotel.xlsx")
-        monkeypatch.setattr(excel_handler, "HOTEL_EXCEL_PATH", path)
+        _rediriger_classeur(monkeypatch, path)
         excel_handler.save_km_mada_db_row({"Colonne A": "a1"})
 
         excel_handler._KM_MADA_CACHE["loaded_at"] = 12345.0
@@ -316,7 +330,7 @@ class TestInvalidationCacheKmMada:
 
     def test_les_autres_entites_ne_touchent_pas_ce_cache(self, tmp_path, monkeypatch):
         path = str(tmp_path / "data-hotel.xlsx")
-        monkeypatch.setattr(excel_handler, "HOTEL_EXCEL_PATH", path)
+        _rediriger_classeur(monkeypatch, path)
         excel_handler.save_circuit_db_row({"Colonne A": "a1"})
 
         excel_handler._KM_MADA_CACHE["loaded_at"] = 12345.0

@@ -52,7 +52,23 @@ from utils.cache import (
     invalidate_hotel_cache,
 )
 from utils.logger import logger
+from utils.storage.km_cache import (
+    _KM_MADA_CACHE,
+    _KM_MADA_CACHE_TTL_SECONDS,
+    _invalidate_km_mada_cache,
+)
 from utils.storage.workbook import create_backup
+from utils.storage.reference_tables import (
+    delete_circuit_db_row,
+    delete_collective_expense_db_row,
+    get_circuit_db_headers,
+    load_circuit_db_rows,
+    load_collective_expense_db_rows,
+    save_circuit_db_row,
+    save_collective_expense_db_row,
+    update_circuit_db_row,
+    update_collective_expense_db_row,
+)
 from utils.storage.sheet import (
     _ensure_headers,
     _find_header_column,
@@ -65,14 +81,6 @@ from utils.storage.sheet import (
 )
 
 
-_KM_MADA_CACHE_TTL_SECONDS = 10.0
-_KM_MADA_CACHE = {
-    "path": None,
-    "mtime": None,
-    "loaded_at": 0.0,
-    "rows": [],
-    "lookup": {},
-}
 _THROTTLED_ERROR_STATE = {}
 _THROTTLED_ERROR_WINDOW_SECONDS = 30.0
 
@@ -118,14 +126,6 @@ def _log_error_throttled(key, message, exc_info=True):
     if now - last >= _THROTTLED_ERROR_WINDOW_SECONDS:
         _THROTTLED_ERROR_STATE[key] = now
         logger.error(message, exc_info=exc_info)
-
-
-def _invalidate_km_mada_cache():
-    _KM_MADA_CACHE["path"] = None
-    _KM_MADA_CACHE["mtime"] = None
-    _KM_MADA_CACHE["loaded_at"] = 0.0
-    _KM_MADA_CACHE["rows"] = []
-    _KM_MADA_CACHE["lookup"] = {}
 
 
 def save_client_to_excel(client_data):
@@ -1217,224 +1217,6 @@ def load_all_circuits():
         list: List of circuit names
     """
     return [circuit["nom"] for circuit in load_circuit_catalog() if circuit.get("nom")]
-
-
-def get_circuit_db_headers():
-    """Load header list from data-hotel.xlsx / Circuits."""
-    if not OPENPYXL_AVAILABLE:
-        return []
-
-    if not os.path.exists(HOTEL_EXCEL_PATH):
-        return []
-
-    wb = None
-    try:
-        wb = load_workbook(HOTEL_EXCEL_PATH)
-        if "Circuits" not in wb.sheetnames:
-            return []
-
-        ws = wb["Circuits"]
-        default_headers = [
-            "ID circuit",
-            "Nom du circuit",
-            "itinéraire",
-            "Villes parcourues",
-            "Activité",
-            "Durée",
-            "condition physique",
-            "Type de voiture",
-            "Hôtels défaut par ville",
-            "Prestations incluses",
-            "Transports associés",
-        ]
-        header_map = _ensure_headers(ws, default_headers)
-        wb.save(HOTEL_EXCEL_PATH)
-        return list(header_map.keys())
-    except Exception as e:
-        logger.error(f"Failed to load circuit DB headers: {e}", exc_info=True)
-        return []
-    finally:
-        if wb is not None:
-            try:
-                wb.close()
-            except Exception:
-                pass
-
-
-def load_circuit_db_rows():
-    """Load raw DB rows from data-hotel.xlsx / Circuits."""
-    if not OPENPYXL_AVAILABLE:
-        return []
-
-    if not os.path.exists(HOTEL_EXCEL_PATH):
-        return []
-
-    wb = None
-    try:
-        wb = load_workbook(HOTEL_EXCEL_PATH)
-        if "Circuits" not in wb.sheetnames:
-            return []
-
-        ws = wb["Circuits"]
-        header_map = _get_header_map(ws, 1)
-        if not header_map:
-            return []
-
-        headers = list(header_map.keys())
-        rows = []
-        for row_idx in range(2, ws.max_row + 1):
-            row_dict = {"row_number": row_idx}
-            has_values = False
-            for header in headers:
-                col = header_map[header]
-                value = ws.cell(row=row_idx, column=col).value
-                if value not in (None, ""):
-                    has_values = True
-                row_dict[header] = "" if value is None else value
-            if has_values:
-                rows.append(row_dict)
-        return rows
-    except Exception as e:
-        logger.error(f"Failed to load circuit DB rows: {e}", exc_info=True)
-        return []
-    finally:
-        if wb is not None:
-            try:
-                wb.close()
-            except Exception:
-                pass
-
-
-def save_circuit_db_row(row_data):
-    """Save one row into data-hotel.xlsx / Circuits."""
-    if not OPENPYXL_AVAILABLE:
-        return -1
-
-    wb = None
-    try:
-        if not os.path.exists(HOTEL_EXCEL_PATH):
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "Circuits"
-        else:
-            wb = load_workbook(HOTEL_EXCEL_PATH)
-            if "Circuits" not in wb.sheetnames:
-                ws = wb.create_sheet("Circuits")
-            else:
-                ws = wb["Circuits"]
-
-        default_headers = [
-            "ID circuit",
-            "Nom du circuit",
-            "itinéraire",
-            "Villes parcourues",
-            "Activité",
-            "Durée",
-            "condition physique",
-            "Type de voiture",
-            "Hôtels défaut par ville",
-            "Prestations incluses",
-            "Transports associés",
-        ]
-        header_map = _ensure_headers(ws, default_headers)
-        if row_data:
-            header_map = _ensure_headers(ws, list(row_data.keys()))
-        if not header_map:
-            return -1
-
-        next_row = 2
-        while True:
-            has_data = False
-            for header, col in header_map.items():
-                if ws.cell(row=next_row, column=col).value not in (None, ""):
-                    has_data = True
-                    break
-            if not has_data:
-                break
-            next_row += 1
-
-        for header, col in header_map.items():
-            ws.cell(row=next_row, column=col, value=row_data.get(header, ""))
-
-        wb.save(HOTEL_EXCEL_PATH)
-        return next_row
-    except PermissionError:
-        return -2
-    except Exception as e:
-        logger.error(f"Failed to save circuit DB row: {e}", exc_info=True)
-        return -1
-    finally:
-        if wb is not None:
-            try:
-                wb.close()
-            except Exception:
-                pass
-
-
-def update_circuit_db_row(row_number, row_data):
-    """Update one row in data-hotel.xlsx / Circuits."""
-    if not OPENPYXL_AVAILABLE:
-        return -1
-
-    if not os.path.exists(HOTEL_EXCEL_PATH):
-        return -1
-
-    wb = None
-    try:
-        wb = load_workbook(HOTEL_EXCEL_PATH)
-        if "Circuits" not in wb.sheetnames:
-            return -1
-
-        ws = wb["Circuits"]
-        header_map = _get_header_map(ws, 1)
-        if not header_map:
-            return -1
-
-        for header, col in header_map.items():
-            ws.cell(row=row_number, column=col, value=row_data.get(header, ""))
-
-        wb.save(HOTEL_EXCEL_PATH)
-        return 0
-    except PermissionError:
-        return -2
-    except Exception as e:
-        logger.error(f"Failed to update circuit DB row {row_number}: {e}", exc_info=True)
-        return -1
-    finally:
-        if wb is not None:
-            try:
-                wb.close()
-            except Exception:
-                pass
-
-
-def delete_circuit_db_row(row_number):
-    """Delete one row from data-hotel.xlsx / Circuits."""
-    if not OPENPYXL_AVAILABLE:
-        return False
-
-    if not os.path.exists(HOTEL_EXCEL_PATH):
-        return False
-
-    wb = None
-    try:
-        wb = load_workbook(HOTEL_EXCEL_PATH)
-        if "Circuits" not in wb.sheetnames:
-            return False
-
-        ws = wb["Circuits"]
-        ws.delete_rows(row_number)
-        wb.save(HOTEL_EXCEL_PATH)
-        return True
-    except Exception as e:
-        logger.error(f"Failed to delete circuit DB row {row_number}: {e}", exc_info=True)
-        return False
-    finally:
-        if wb is not None:
-            try:
-                wb.close()
-            except Exception:
-                pass
 
 
 def save_hotel_to_excel(hotel_data):
@@ -3442,170 +3224,6 @@ def get_collective_expense_forfait(prestataire, designation):
         ):
             return str(row.get("forfait", "")).strip()
     return ""
-
-
-def load_collective_expense_db_rows():
-    """
-    Load raw DB rows from data-hotel.xlsx / Frais collectifs sheet.
-
-    Returns:
-        list: row dictionaries with row_number and DB fields.
-    """
-    if not OPENPYXL_AVAILABLE:
-        return []
-
-    if not os.path.exists(HOTEL_EXCEL_PATH):
-        return []
-
-    wb = None
-    try:
-        wb = load_workbook(HOTEL_EXCEL_PATH)
-        if FRAIS_COLLECTIFS_SHEET_NAME not in wb.sheetnames:
-            return []
-
-        ws = wb[FRAIS_COLLECTIFS_SHEET_NAME]
-        rows = []
-        for row_idx in range(2, ws.max_row + 1):
-            forfait = ws.cell(row=row_idx, column=1).value
-            prestataire = ws.cell(row=row_idx, column=2).value
-            designation = ws.cell(row=row_idx, column=3).value
-            montant = ws.cell(row=row_idx, column=4).value
-            id_circuit = ws.cell(row=row_idx, column=5).value
-
-            if all(v in (None, "") for v in [forfait, prestataire, designation, montant, id_circuit]):
-                continue
-
-            rows.append(
-                {
-                    "row_number": row_idx,
-                    "forfait": str(forfait or "").strip(),
-                    "prestataire": str(prestataire or "").strip(),
-                    "designation": str(designation or "").strip(),
-                    "montant": _parse_num(montant),
-                    "id_circuit": "" if id_circuit is None else str(id_circuit).strip(),
-                }
-            )
-        return rows
-    except Exception as e:
-        logger.error(f"Failed to load collective expense DB rows: {e}", exc_info=True)
-        return []
-    finally:
-        if wb is not None:
-            try:
-                wb.close()
-            except Exception:
-                pass
-
-
-def save_collective_expense_db_row(row_data):
-    """Insert one row into data-hotel.xlsx / Frais collectifs."""
-    if not OPENPYXL_AVAILABLE:
-        return -1
-
-    wb = None
-    try:
-        if not os.path.exists(HOTEL_EXCEL_PATH):
-            wb = Workbook()
-            ws = wb.active
-            ws.title = FRAIS_COLLECTIFS_SHEET_NAME
-        else:
-            wb = load_workbook(HOTEL_EXCEL_PATH)
-            if FRAIS_COLLECTIFS_SHEET_NAME not in wb.sheetnames:
-                ws = wb.create_sheet(FRAIS_COLLECTIFS_SHEET_NAME)
-            else:
-                ws = wb[FRAIS_COLLECTIFS_SHEET_NAME]
-
-        if ws.max_row == 1 and ws.cell(row=1, column=1).value in (None, ""):
-            headers = ["FORFAIT", "PRESTATAIRES", "DESIGNATION", "MONTANT", "ID circuit"]
-            for col_idx, header in enumerate(headers, start=1):
-                ws.cell(row=1, column=col_idx, value=header)
-
-        next_row = ws.max_row + 1
-        ws.cell(row=next_row, column=1, value=row_data.get("forfait", ""))
-        ws.cell(row=next_row, column=2, value=row_data.get("prestataire", ""))
-        ws.cell(row=next_row, column=3, value=row_data.get("designation", ""))
-        ws.cell(row=next_row, column=4, value=_parse_num(row_data.get("montant", 0)))
-        ws.cell(row=next_row, column=5, value=row_data.get("id_circuit", ""))
-
-        wb.save(HOTEL_EXCEL_PATH)
-        return next_row
-    except PermissionError:
-        return -2
-    except Exception as e:
-        logger.error(f"Failed to save collective expense DB row: {e}", exc_info=True)
-        return -1
-    finally:
-        if wb is not None:
-            try:
-                wb.close()
-            except Exception:
-                pass
-
-
-def update_collective_expense_db_row(row_number, row_data):
-    """Update one row in data-hotel.xlsx / Frais collectifs."""
-    if not OPENPYXL_AVAILABLE:
-        return -1
-
-    if not os.path.exists(HOTEL_EXCEL_PATH):
-        return -1
-
-    wb = None
-    try:
-        wb = load_workbook(HOTEL_EXCEL_PATH)
-        if FRAIS_COLLECTIFS_SHEET_NAME not in wb.sheetnames:
-            return -1
-
-        ws = wb[FRAIS_COLLECTIFS_SHEET_NAME]
-        ws.cell(row=row_number, column=1, value=row_data.get("forfait", ""))
-        ws.cell(row=row_number, column=2, value=row_data.get("prestataire", ""))
-        ws.cell(row=row_number, column=3, value=row_data.get("designation", ""))
-        ws.cell(row=row_number, column=4, value=_parse_num(row_data.get("montant", 0)))
-        if "id_circuit" in row_data:
-            ws.cell(row=row_number, column=5, value=row_data.get("id_circuit", ""))
-
-        wb.save(HOTEL_EXCEL_PATH)
-        return 0
-    except PermissionError:
-        return -2
-    except Exception as e:
-        logger.error(f"Failed to update collective expense DB row {row_number}: {e}", exc_info=True)
-        return -1
-    finally:
-        if wb is not None:
-            try:
-                wb.close()
-            except Exception:
-                pass
-
-
-def delete_collective_expense_db_row(row_number):
-    """Delete one row from data-hotel.xlsx / Frais collectifs."""
-    if not OPENPYXL_AVAILABLE:
-        return False
-
-    if not os.path.exists(HOTEL_EXCEL_PATH):
-        return False
-
-    wb = None
-    try:
-        wb = load_workbook(HOTEL_EXCEL_PATH)
-        if FRAIS_COLLECTIFS_SHEET_NAME not in wb.sheetnames:
-            return False
-
-        ws = wb[FRAIS_COLLECTIFS_SHEET_NAME]
-        ws.delete_rows(row_number)
-        wb.save(HOTEL_EXCEL_PATH)
-        return True
-    except Exception as e:
-        logger.error(f"Failed to delete collective expense DB row {row_number}: {e}", exc_info=True)
-        return False
-    finally:
-        if wb is not None:
-            try:
-                wb.close()
-            except Exception:
-                pass
 
 
 def update_collective_expense_quotation_in_excel(row_number, form_data):
