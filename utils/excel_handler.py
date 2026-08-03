@@ -52,6 +52,17 @@ from utils.cache import (
     invalidate_hotel_cache,
 )
 from utils.logger import logger
+from utils.storage.workbook import create_backup
+from utils.storage.sheet import (
+    _ensure_headers,
+    _find_header_column,
+    _first_available,
+    _get_header_map,
+    _iter_grouped_columns,
+    _normalize_header_key,
+    _parse_duration_hours,
+    _parse_num,
+)
 
 
 _KM_MADA_CACHE_TTL_SECONDS = 10.0
@@ -115,222 +126,6 @@ def _invalidate_km_mada_cache():
     _KM_MADA_CACHE["loaded_at"] = 0.0
     _KM_MADA_CACHE["rows"] = []
     _KM_MADA_CACHE["lookup"] = {}
-
-
-def _parse_num(val):
-    """Parse a cell value into int or float, stripping thousand separators and currency text.
-
-    Returns 0 on failure or empty values.
-    """
-    if val is None or val == "":
-        return 0
-    if isinstance(val, (int, float)):
-        return val
-    try:
-        s = str(val).strip()
-        s = s.replace(",", "").replace(" ", "")
-        m = re.search(r"-?\d+(?:\.\d+)?", s)
-        if not m:
-            return 0
-        num_str = m.group(0)
-        if "." in num_str:
-            return float(num_str)
-        return int(num_str)
-    except Exception:
-        return 0
-
-
-def _parse_duration_hours(val):
-    """Parse duration values into hours.
-
-    Supports numeric hours, Excel time/timedelta values, and strings like
-    "3h30", "03:30", "210 min", or "2.5".
-    """
-    if val is None or val == "":
-        return 0.0
-
-    if isinstance(val, timedelta):
-        return max(0.0, float(val.total_seconds()) / 3600)
-
-    if isinstance(val, time):
-        return val.hour + (val.minute / 60.0) + (val.second / 3600.0)
-
-    if isinstance(val, datetime):
-        return val.hour + (val.minute / 60.0) + (val.second / 3600.0)
-
-    if isinstance(val, (int, float)):
-        hours = float(val)
-        return hours if hours > 0 else 0.0
-
-    raw = str(val).strip().lower().replace(",", ".")
-    if not raw:
-        return 0.0
-
-    compact = re.sub(r"\s+", "", raw)
-
-    match_h = re.fullmatch(r"(\d+(?:\.\d+)?)h(?:(\d+(?:\.\d+)?)(?:mn|min|m)?)?", compact)
-    if match_h:
-        hours = float(match_h.group(1))
-        minutes = float(match_h.group(2)) if match_h.group(2) else 0.0
-        return max(0.0, hours + (minutes / 60.0))
-
-    match_clock = re.fullmatch(r"(\d{1,3}):(\d{1,2})(?::(\d{1,2}))?", compact)
-    if match_clock:
-        hh = int(match_clock.group(1))
-        mm = int(match_clock.group(2))
-        ss = int(match_clock.group(3) or 0)
-        return max(0.0, hh + (mm / 60.0) + (ss / 3600.0))
-
-    match_min = re.fullmatch(r"(\d+(?:\.\d+)?)(?:mn|min|m)", compact)
-    if match_min:
-        minutes = float(match_min.group(1))
-        return max(0.0, minutes / 60.0)
-
-    try:
-        parsed = float(compact)
-        return parsed if parsed > 0 else 0.0
-    except Exception:
-        return 0.0
-
-
-def create_backup(filepath):
-    """
-    Create a backup of Excel file before modification
-
-    Args:
-        filepath (str): Path to the Excel file to backup
-
-    Returns:
-        str: Path to backup file, or None if failed
-    """
-    if not os.path.exists(filepath):
-        logger.warning(f"File not found for backup: {filepath}")
-        return None
-
-    try:
-        # Create backups directory
-        backup_dir = os.path.join(os.path.dirname(filepath), "backups")
-        os.makedirs(backup_dir, exist_ok=True)
-
-        # Create backup filename with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = os.path.basename(filepath)
-        backup_path = os.path.join(backup_dir, f"{filename}.{timestamp}.bak")
-
-        # Copy file
-        shutil.copy2(filepath, backup_path)
-        logger.info(f"Backup created: {backup_path}")
-
-        return backup_path
-    except Exception as e:
-        logger.error(f"Failed to create backup for {filepath}: {e}", exc_info=True)
-        return None
-
-
-def _ensure_headers(ws, headers, header_style=None):
-    header_map = {}
-    max_col = ws.max_column if ws.max_column and ws.max_column > 0 else 0
-    for col in range(1, max_col + 1):
-        value = ws.cell(row=1, column=col).value
-        if value:
-            header_map[str(value).strip()] = col
-
-    if max_col == 1 and not header_map and ws.cell(row=1, column=1).value is None:
-        max_col = 0
-
-    next_col = max_col + 1 if max_col else 1
-    for header in headers:
-        if header not in header_map:
-            cell = ws.cell(row=1, column=next_col, value=header)
-            if header_style:
-                if header_style.get("font"):
-                    cell.font = header_style["font"]
-                if header_style.get("fill"):
-                    cell.fill = header_style["fill"]
-                if header_style.get("alignment"):
-                    cell.alignment = header_style["alignment"]
-            header_map[header] = next_col
-            next_col += 1
-
-    return header_map
-
-
-def _get_header_map(ws, header_row=1):
-    header_map = {}
-    max_col = ws.max_column if ws.max_column and ws.max_column > 0 else 0
-    for col in range(1, max_col + 1):
-        value = ws.cell(row=header_row, column=col).value
-        if value is not None and str(value).strip() != "":
-            header_map[str(value).strip()] = col
-    return header_map
-
-
-def _iter_grouped_columns(ws, group_row=1, header_row=2):
-    columns = []
-    last_group = ""
-    max_col = ws.max_column if ws.max_column and ws.max_column > 0 else 0
-    for col in range(1, max_col + 1):
-        group_val = ws.cell(row=group_row, column=col).value
-        if group_val is not None and str(group_val).strip() != "":
-            last_group = str(group_val).strip()
-        header_val = ws.cell(row=header_row, column=col).value
-        if header_val is None or str(header_val).strip() == "":
-            continue
-        columns.append((last_group, str(header_val).strip(), col))
-    return columns
-
-
-def _first_available(data, keys, default=""):
-    for key in keys:
-        if key in data and data.get(key) not in (None, ""):
-            return data.get(key)
-    return default
-
-
-def _normalize_header_key(value):
-    """Normalize header labels for resilient matching."""
-    if value is None:
-        return ""
-    normalized = str(value).strip().lower()
-    replacements = str.maketrans(
-        {
-            "é": "e",
-            "è": "e",
-            "ê": "e",
-            "ë": "e",
-            "à": "a",
-            "â": "a",
-            "ä": "a",
-            "î": "i",
-            "ï": "i",
-            "ô": "o",
-            "ö": "o",
-            "ù": "u",
-            "û": "u",
-            "ü": "u",
-            "ç": "c",
-            "'": " ",
-            "_": " ",
-            "-": " ",
-        }
-    )
-    normalized = normalized.translate(replacements)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
-    return normalized
-
-
-def _find_header_column(header_map, *aliases):
-    """Find a header column using exact or normalized aliases."""
-    for alias in aliases:
-        if alias in header_map:
-            return header_map[alias]
-
-    normalized_map = {_normalize_header_key(k): v for k, v in header_map.items()}
-    for alias in aliases:
-        col = normalized_map.get(_normalize_header_key(alias))
-        if col:
-            return col
-    return None
 
 
 def save_client_to_excel(client_data):
