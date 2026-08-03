@@ -63,7 +63,9 @@ def _parse_duration_hours(val):
 
     compact = re.sub(r"\s+", "", raw)
 
-    match_h = re.fullmatch(r"(\d+(?:\.\d+)?)h(?:(\d+(?:\.\d+)?)(?:mn|min|m)?)?", compact)
+    match_h = re.fullmatch(
+        r"(\d+(?:\.\d+)?)h(?:(\d+(?:\.\d+)?)(?:mn|min|m)?)?", compact
+    )
     if match_h:
         hours = float(match_h.group(1))
         minutes = float(match_h.group(2)) if match_h.group(2) else 0.0

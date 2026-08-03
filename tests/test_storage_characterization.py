@@ -146,7 +146,10 @@ def _dump_sheet(path, sheet):
             return None
         ws = wb[sheet]
         return [
-            [_jsonable(ws.cell(row=r, column=c).value) for c in range(1, ws.max_column + 1)]
+            [
+                _jsonable(ws.cell(row=r, column=c).value)
+                for c in range(1, ws.max_column + 1)
+            ]
             for r in range(1, ws.max_row + 1)
         ]
     finally:
@@ -223,8 +226,8 @@ def test_comportement_crud_inchange(entity, tmp_path, monkeypatch):
         for step, value in observed.items()
         if expected.get(step) != value
     ]
-    assert not divergences, (
-        f"Comportement modifie pour {entity} :\n" + "\n".join(divergences)
+    assert not divergences, f"Comportement modifie pour {entity} :\n" + "\n".join(
+        divergences
     )
 
 
@@ -348,7 +351,9 @@ class TestSurfaceApiPublique:
 
     def test_toutes_les_fonctions_publiques_restent_appelables(self):
         manquantes = [
-            nom for nom in API_PUBLIQUE if not callable(getattr(excel_handler, nom, None))
+            nom
+            for nom in API_PUBLIQUE
+            if not callable(getattr(excel_handler, nom, None))
         ]
         assert manquantes == []
 

@@ -164,9 +164,7 @@ class TestSentinelOnError:
 
     def test_erreur_inattendue_est_journalisee(self, monkeypatch):
         appels = []
-        monkeypatch.setattr(
-            wbmod.logger, "error", lambda msg, **kw: appels.append(msg)
-        )
+        monkeypatch.setattr(wbmod.logger, "error", lambda msg, **kw: appels.append(msg))
 
         @sentinel_on_error([], label="lecture")
         def operation():
@@ -179,9 +177,7 @@ class TestSentinelOnError:
     def test_causes_attendues_ne_sont_pas_journalisees(self, monkeypatch):
         """Comportement d'origine : pas de bruit pour un fichier absent."""
         appels = []
-        monkeypatch.setattr(
-            wbmod.logger, "error", lambda msg, **kw: appels.append(msg)
-        )
+        monkeypatch.setattr(wbmod.logger, "error", lambda msg, **kw: appels.append(msg))
 
         @sentinel_on_error([])
         def operation():
