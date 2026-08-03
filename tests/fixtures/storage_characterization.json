@@ -1,0 +1,755 @@
+{
+  "avion": {
+    "delete_ligne_2": true,
+    "delete_sur_fichier_absent": false,
+    "grille_apres_delete": [
+      [
+        "Colonne A",
+        "Colonne B"
+      ],
+      [
+        "a2",
+        "b2"
+      ]
+    ],
+    "grille_apres_save_1": [
+      [
+        "Colonne A",
+        "Colonne B"
+      ],
+      [
+        "a1",
+        "b1"
+      ]
+    ],
+    "grille_apres_save_2": [
+      [
+        "Colonne A",
+        "Colonne B"
+      ],
+      [
+        "a1",
+        "b1"
+      ],
+      [
+        "a2",
+        "b2"
+      ]
+    ],
+    "grille_apres_update": [
+      [
+        "Colonne A",
+        "Colonne B"
+      ],
+      [
+        "a3",
+        "b3"
+      ],
+      [
+        "a2",
+        "b2"
+      ]
+    ],
+    "load_apres_delete": [
+      {
+        "Colonne A": "a2",
+        "Colonne B": "b2",
+        "row_number": 2
+      }
+    ],
+    "load_apres_saves": [
+      {
+        "Colonne A": "a1",
+        "Colonne B": "b1",
+        "row_number": 2
+      },
+      {
+        "Colonne A": "a2",
+        "Colonne B": "b2",
+        "row_number": 3
+      }
+    ],
+    "load_apres_update": [
+      {
+        "Colonne A": "a3",
+        "Colonne B": "b3",
+        "row_number": 2
+      },
+      {
+        "Colonne A": "a2",
+        "Colonne B": "b2",
+        "row_number": 3
+      }
+    ],
+    "load_sur_fichier_absent": [],
+    "save_1": 2,
+    "save_2": 3,
+    "update_ligne_2": 0,
+    "update_sur_fichier_absent": -1
+  },
+  "circuit": {
+    "delete_ligne_2": true,
+    "delete_sur_fichier_absent": false,
+    "grille_apres_delete": [
+      [
+        "ID circuit",
+        "Nom du circuit",
+        "itinéraire",
+        "Villes parcourues",
+        "Activité",
+        "Durée",
+        "condition physique",
+        "Type de voiture",
+        "Hôtels défaut par ville",
+        "Prestations incluses",
+        "Transports associés",
+        "Colonne A",
+        "Colonne B"
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "a2",
+        "b2"
+      ]
+    ],
+    "grille_apres_save_1": [
+      [
+        "ID circuit",
+        "Nom du circuit",
+        "itinéraire",
+        "Villes parcourues",
+        "Activité",
+        "Durée",
+        "condition physique",
+        "Type de voiture",
+        "Hôtels défaut par ville",
+        "Prestations incluses",
+        "Transports associés",
+        "Colonne A",
+        "Colonne B"
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "a1",
+        "b1"
+      ]
+    ],
+    "grille_apres_save_2": [
+      [
+        "ID circuit",
+        "Nom du circuit",
+        "itinéraire",
+        "Villes parcourues",
+        "Activité",
+        "Durée",
+        "condition physique",
+        "Type de voiture",
+        "Hôtels défaut par ville",
+        "Prestations incluses",
+        "Transports associés",
+        "Colonne A",
+        "Colonne B"
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "a1",
+        "b1"
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "a2",
+        "b2"
+      ]
+    ],
+    "grille_apres_update": [
+      [
+        "ID circuit",
+        "Nom du circuit",
+        "itinéraire",
+        "Villes parcourues",
+        "Activité",
+        "Durée",
+        "condition physique",
+        "Type de voiture",
+        "Hôtels défaut par ville",
+        "Prestations incluses",
+        "Transports associés",
+        "Colonne A",
+        "Colonne B"
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "a3",
+        "b3"
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "a2",
+        "b2"
+      ]
+    ],
+    "load_apres_delete": [
+      {
+        "Activité": "",
+        "Colonne A": "a2",
+        "Colonne B": "b2",
+        "Durée": "",
+        "Hôtels défaut par ville": "",
+        "ID circuit": "",
+        "Nom du circuit": "",
+        "Prestations incluses": "",
+        "Transports associés": "",
+        "Type de voiture": "",
+        "Villes parcourues": "",
+        "condition physique": "",
+        "itinéraire": "",
+        "row_number": 2
+      }
+    ],
+    "load_apres_saves": [
+      {
+        "Activité": "",
+        "Colonne A": "a1",
+        "Colonne B": "b1",
+        "Durée": "",
+        "Hôtels défaut par ville": "",
+        "ID circuit": "",
+        "Nom du circuit": "",
+        "Prestations incluses": "",
+        "Transports associés": "",
+        "Type de voiture": "",
+        "Villes parcourues": "",
+        "condition physique": "",
+        "itinéraire": "",
+        "row_number": 2
+      },
+      {
+        "Activité": "",
+        "Colonne A": "a2",
+        "Colonne B": "b2",
+        "Durée": "",
+        "Hôtels défaut par ville": "",
+        "ID circuit": "",
+        "Nom du circuit": "",
+        "Prestations incluses": "",
+        "Transports associés": "",
+        "Type de voiture": "",
+        "Villes parcourues": "",
+        "condition physique": "",
+        "itinéraire": "",
+        "row_number": 3
+      }
+    ],
+    "load_apres_update": [
+      {
+        "Activité": "",
+        "Colonne A": "a3",
+        "Colonne B": "b3",
+        "Durée": "",
+        "Hôtels défaut par ville": "",
+        "ID circuit": "",
+        "Nom du circuit": "",
+        "Prestations incluses": "",
+        "Transports associés": "",
+        "Type de voiture": "",
+        "Villes parcourues": "",
+        "condition physique": "",
+        "itinéraire": "",
+        "row_number": 2
+      },
+      {
+        "Activité": "",
+        "Colonne A": "a2",
+        "Colonne B": "b2",
+        "Durée": "",
+        "Hôtels défaut par ville": "",
+        "ID circuit": "",
+        "Nom du circuit": "",
+        "Prestations incluses": "",
+        "Transports associés": "",
+        "Type de voiture": "",
+        "Villes parcourues": "",
+        "condition physique": "",
+        "itinéraire": "",
+        "row_number": 3
+      }
+    ],
+    "load_sur_fichier_absent": [],
+    "save_1": 2,
+    "save_2": 3,
+    "update_ligne_2": 0,
+    "update_sur_fichier_absent": -1
+  },
+  "collective_expense": {
+    "delete_ligne_2": true,
+    "delete_sur_fichier_absent": false,
+    "grille_apres_delete": [
+      [
+        "FORFAIT",
+        "PRESTATAIRES",
+        "DESIGNATION",
+        "MONTANT",
+        "ID circuit"
+      ],
+      [
+        "F2",
+        "P2",
+        "D2",
+        800,
+        "C2"
+      ]
+    ],
+    "grille_apres_save_1": [
+      [
+        "FORFAIT",
+        "PRESTATAIRES",
+        "DESIGNATION",
+        "MONTANT",
+        "ID circuit"
+      ],
+      [
+        "F1",
+        "P1",
+        "D1",
+        1200,
+        "C1"
+      ]
+    ],
+    "grille_apres_save_2": [
+      [
+        "FORFAIT",
+        "PRESTATAIRES",
+        "DESIGNATION",
+        "MONTANT",
+        "ID circuit"
+      ],
+      [
+        "F1",
+        "P1",
+        "D1",
+        1200,
+        "C1"
+      ],
+      [
+        "F2",
+        "P2",
+        "D2",
+        800,
+        "C2"
+      ]
+    ],
+    "grille_apres_update": [
+      [
+        "FORFAIT",
+        "PRESTATAIRES",
+        "DESIGNATION",
+        "MONTANT",
+        "ID circuit"
+      ],
+      [
+        "F3",
+        "P3",
+        "D3",
+        950,
+        "C3"
+      ],
+      [
+        "F2",
+        "P2",
+        "D2",
+        800,
+        "C2"
+      ]
+    ],
+    "load_apres_delete": [
+      {
+        "designation": "D2",
+        "forfait": "F2",
+        "id_circuit": "C2",
+        "montant": 800,
+        "prestataire": "P2",
+        "row_number": 2
+      }
+    ],
+    "load_apres_saves": [
+      {
+        "designation": "D1",
+        "forfait": "F1",
+        "id_circuit": "C1",
+        "montant": 1200,
+        "prestataire": "P1",
+        "row_number": 2
+      },
+      {
+        "designation": "D2",
+        "forfait": "F2",
+        "id_circuit": "C2",
+        "montant": 800,
+        "prestataire": "P2",
+        "row_number": 3
+      }
+    ],
+    "load_apres_update": [
+      {
+        "designation": "D3",
+        "forfait": "F3",
+        "id_circuit": "C3",
+        "montant": 950,
+        "prestataire": "P3",
+        "row_number": 2
+      },
+      {
+        "designation": "D2",
+        "forfait": "F2",
+        "id_circuit": "C2",
+        "montant": 800,
+        "prestataire": "P2",
+        "row_number": 3
+      }
+    ],
+    "load_sur_fichier_absent": [],
+    "save_1": 2,
+    "save_2": 3,
+    "update_ligne_2": 0,
+    "update_sur_fichier_absent": -1
+  },
+  "km_mada": {
+    "delete_ligne_2": true,
+    "delete_sur_fichier_absent": false,
+    "grille_apres_delete": [
+      [
+        "REPERES",
+        "KM"
+      ],
+      [
+        "Tana-Majunga",
+        570
+      ]
+    ],
+    "grille_apres_save_1": [
+      [
+        "REPERES",
+        "KM"
+      ],
+      [
+        "Tana-Tamatave",
+        350
+      ]
+    ],
+    "grille_apres_save_2": [
+      [
+        "REPERES",
+        "KM"
+      ],
+      [
+        "Tana-Tamatave",
+        350
+      ],
+      [
+        "Tana-Majunga",
+        570
+      ]
+    ],
+    "grille_apres_update": [
+      [
+        "REPERES",
+        "KM"
+      ],
+      [
+        "Tana-Tulear",
+        940
+      ],
+      [
+        "Tana-Majunga",
+        570
+      ]
+    ],
+    "load_apres_delete": [
+      {
+        "KM": 570,
+        "REPERES": "Tana-Majunga",
+        "row_number": 2
+      }
+    ],
+    "load_apres_saves": [
+      {
+        "KM": 350,
+        "REPERES": "Tana-Tamatave",
+        "row_number": 2
+      },
+      {
+        "KM": 570,
+        "REPERES": "Tana-Majunga",
+        "row_number": 3
+      }
+    ],
+    "load_apres_update": [
+      {
+        "KM": 940,
+        "REPERES": "Tana-Tulear",
+        "row_number": 2
+      },
+      {
+        "KM": 570,
+        "REPERES": "Tana-Majunga",
+        "row_number": 3
+      }
+    ],
+    "load_sur_fichier_absent": [],
+    "save_1": 2,
+    "save_2": 3,
+    "update_ligne_2": 0,
+    "update_sur_fichier_absent": -1
+  },
+  "transport": {
+    "delete_ligne_2": true,
+    "delete_sur_fichier_absent": false,
+    "grille_apres_delete": [
+      [
+        "Prestataire",
+        "Type de voiture",
+        "Nombre de place"
+      ],
+      [
+        "P2",
+        "Minibus",
+        12
+      ]
+    ],
+    "grille_apres_save_1": [
+      [
+        "Prestataire",
+        "Type de voiture",
+        "Nombre de place"
+      ],
+      [
+        "P1",
+        "4x4",
+        4
+      ]
+    ],
+    "grille_apres_save_2": [
+      [
+        "Prestataire",
+        "Type de voiture",
+        "Nombre de place"
+      ],
+      [
+        "P1",
+        "4x4",
+        4
+      ],
+      [
+        "P2",
+        "Minibus",
+        12
+      ]
+    ],
+    "grille_apres_update": [
+      [
+        "Prestataire",
+        "Type de voiture",
+        "Nombre de place"
+      ],
+      [
+        "P3",
+        "Berline",
+        3
+      ],
+      [
+        "P2",
+        "Minibus",
+        12
+      ]
+    ],
+    "load_apres_delete": [
+      {
+        "Nombre de place": 12,
+        "Prestataire": "P2",
+        "Type de voiture": "Minibus",
+        "row_number": 2
+      }
+    ],
+    "load_apres_saves": [
+      {
+        "Nombre de place": 4,
+        "Prestataire": "P1",
+        "Type de voiture": "4x4",
+        "row_number": 2
+      },
+      {
+        "Nombre de place": 12,
+        "Prestataire": "P2",
+        "Type de voiture": "Minibus",
+        "row_number": 3
+      }
+    ],
+    "load_apres_update": [
+      {
+        "Nombre de place": 3,
+        "Prestataire": "P3",
+        "Type de voiture": "Berline",
+        "row_number": 2
+      },
+      {
+        "Nombre de place": 12,
+        "Prestataire": "P2",
+        "Type de voiture": "Minibus",
+        "row_number": 3
+      }
+    ],
+    "load_sur_fichier_absent": [],
+    "save_1": 2,
+    "save_2": 3,
+    "update_ligne_2": 0,
+    "update_sur_fichier_absent": -1
+  },
+  "visite_excursion": {
+    "delete_ligne_2": true,
+    "delete_sur_fichier_absent": false,
+    "grille_apres_delete": [
+      [
+        "Colonne A",
+        "Colonne B"
+      ],
+      [
+        "a2",
+        "b2"
+      ]
+    ],
+    "grille_apres_save_1": [
+      [
+        "Colonne A",
+        "Colonne B"
+      ],
+      [
+        "a1",
+        "b1"
+      ]
+    ],
+    "grille_apres_save_2": [
+      [
+        "Colonne A",
+        "Colonne B"
+      ],
+      [
+        "a1",
+        "b1"
+      ],
+      [
+        "a2",
+        "b2"
+      ]
+    ],
+    "grille_apres_update": [
+      [
+        "Colonne A",
+        "Colonne B"
+      ],
+      [
+        "a3",
+        "b3"
+      ],
+      [
+        "a2",
+        "b2"
+      ]
+    ],
+    "load_apres_delete": [
+      {
+        "Colonne A": "a2",
+        "Colonne B": "b2",
+        "row_number": 2
+      }
+    ],
+    "load_apres_saves": [
+      {
+        "Colonne A": "a1",
+        "Colonne B": "b1",
+        "row_number": 2
+      },
+      {
+        "Colonne A": "a2",
+        "Colonne B": "b2",
+        "row_number": 3
+      }
+    ],
+    "load_apres_update": [
+      {
+        "Colonne A": "a3",
+        "Colonne B": "b3",
+        "row_number": 2
+      },
+      {
+        "Colonne A": "a2",
+        "Colonne B": "b2",
+        "row_number": 3
+      }
+    ],
+    "load_sur_fichier_absent": [],
+    "save_1": 2,
+    "save_2": 3,
+    "update_ligne_2": 0,
+    "update_sur_fichier_absent": -1
+  }
+}
