@@ -12,4 +12,7 @@ pytest-timeout>=2.1.0
 mock>=4.0.3
 
 # Code quality and coverage
-coverage>=6.0
+# 7.13.4 est cassee : coverage/__init__.py importe control (l.14) avant de lier
+# __version__ (l.22), et control -> jsonreport fait `from coverage import __version__`.
+# Resultat : ImportError des `import coverage`. Exclue tant qu'elle n'est pas corrigee.
+coverage>=6.0,!=7.13.4
