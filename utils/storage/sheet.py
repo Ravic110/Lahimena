@@ -303,3 +303,37 @@ def write_row(ws, header_map, row_number, row_data):
     """
     for header, col in header_map.items():
         ws.cell(row=row_number, column=col, value=row_data.get(header, ""))
+
+
+def normalize_sheet_key(value):
+    """Cle de comparaison d'un nom de feuille.
+
+    Va plus loin que `_normalize_header_key` sur deux points : le `&` est
+    ramene a un separateur, et les espaces consecutifs sont replies. Les
+    classeurs reels ecrivent en effet la meme feuille de plusieurs facons --
+    `Visite&excursion`, `Visite_excursion`, `VISITE & EXCURSION` -- alors que
+    `config.py` n'en connait qu'une.
+
+    Cette tolerance reste cantonnee aux noms de feuilles : sur un libelle de
+    colonne, le `&` peut porter du sens et ne doit pas etre efface.
+    """
+    normalized = _normalize_header_key(value).replace("&", " ")
+    return " ".join(normalized.split())
+
+
+def find_sheet(wb, wanted):
+    """Nom reel de la feuille `wanted` dans `wb`, ou None si elle est absente.
+
+    La correspondance exacte prime ; a defaut seulement, on compare les noms
+    normalises. Un classeur contenant a la fois `avion` et `Avion` resout donc
+    chaque nom vers lui-meme.
+    """
+    if wanted in wb.sheetnames:
+        return wanted
+    cible = normalize_sheet_key(wanted)
+    if not cible:
+        return None
+    for nom in wb.sheetnames:
+        if normalize_sheet_key(nom) == cible:
+            return nom
+    return None
