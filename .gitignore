@@ -164,6 +164,10 @@ activity_log.*.json
 # l'application recree les comptes par defaut au premier lancement.
 activity_log.json
 users.json
+# Verrouillage anti-force-brute : etat local, propre a chaque poste.
+.login_attempts.json
+# Verrous d'ecriture des classeurs : ephemeres, propres a chaque poste.
+*.xlsx.lock
 
 # Application logs
 logs/
@@ -179,6 +183,11 @@ tmp/
 *.xlsx
 *.xls
 *.csv
+
+# Exception : les gabarits de structure. Ils ne portent que les noms de
+# feuilles et les lignes d'en-tete -- aucune donnee metier -- et sont ce qui
+# permet a un poste neuf de demarrer sur des classeurs coherents.
+!templates/*.template.xlsx
 
 # Local configuration
 config.local.json
