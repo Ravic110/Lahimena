@@ -14,6 +14,7 @@ Cases observed in real data:
 import os
 import sys
 import unittest
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -24,6 +25,35 @@ from utils.excel_handler import (  # noqa: E402
     get_segment_distance,
     normalize_city_name,
 )
+
+
+@contextmanager
+def km_mada_dataset(entries):
+    """Installe un jeu KM_MADA en memoire, sans dependre d'un classeur.
+
+    `entries` est une liste de couples (repere, km).
+
+    Neutralise _load_km_mada_rows : appelee sans data-hotel.xlsx sur le disque,
+    elle appelle _invalidate_km_mada_cache() et vide donc le cache que le test
+    vient d'injecter. Sans ce garde-fou les tests dependent du classeur local
+    du poste de developpement et ne verifient plus rien en CI.
+    """
+    import utils.excel_handler as eh
+
+    rows = [{"repere": r, "km": k, "duree": 0} for r, k in entries]
+    lookup = eh._rebuild_km_mada_lookup(rows)
+    with patch.object(eh, "_load_km_mada_rows", return_value=rows):
+        with patch.dict(
+            eh._KM_MADA_CACHE,
+            {
+                "lookup": lookup,
+                "rows": rows,
+                "path": None,
+                "mtime": None,
+                "loaded_at": float("inf"),
+            },
+        ):
+            yield
 
 
 class TestNormalizeCityName(unittest.TestCase):
@@ -87,37 +117,47 @@ class TestKmMadaLookupRobust(unittest.TestCase):
         lookup = _rebuild_km_mada_lookup(rows)
         import utils.excel_handler as eh
 
-        with patch.dict(
-            eh._KM_MADA_CACHE,
-            {
-                "lookup": lookup,
-                "rows": rows,
-                "path": None,
-                "mtime": None,
-                "loaded_at": float("inf"),
-            },
-        ):
-            result = get_km_mada_km_for_repere("antsirabe")
+        # _load_km_mada_rows() doit etre neutralise : sans classeur sur le
+        # disque il appelle _invalidate_km_mada_cache(), qui efface le cache
+        # injecte juste avant la lecture. Le test dependait donc du fichier
+        # data-hotel.xlsx local et echouait sur un clone frais.
+        with patch.object(eh, "_load_km_mada_rows", return_value=rows):
+            with patch.dict(
+                eh._KM_MADA_CACHE,
+                {
+                    "lookup": lookup,
+                    "rows": rows,
+                    "path": None,
+                    "mtime": None,
+                    "loaded_at": float("inf"),
+                },
+            ):
+                result = get_km_mada_km_for_repere("antsirabe")
         self.assertEqual(result, 169)
 
     def test_lookup_city_with_duration_suffix(self):
         """City name with duration suffix must resolve via normalize_city_name."""
-        result_clean = get_km_mada_km_for_repere("Antsirabe")
-        result_dirty = get_km_mada_km_for_repere("Antsirabe(2 jours)")
-        # Both should return the same value (or both 0 if not in BD)
-        self.assertEqual(result_clean, result_dirty)
+        with km_mada_dataset([("ANTSIRABE", 169)]):
+            result_clean = get_km_mada_km_for_repere("Antsirabe")
+            result_dirty = get_km_mada_km_for_repere("Antsirabe(2 jours)")
+        self.assertEqual(result_clean, 169)
+        self.assertEqual(result_dirty, 169)
 
     def test_lookup_alias_tuler(self):
         """'Tuler' must resolve to 'Toliary' km."""
-        km_toliary = get_km_mada_km_for_repere("Toliary")
-        km_tuler = get_km_mada_km_for_repere("Tuler")
-        self.assertEqual(km_toliary, km_tuler)
+        with km_mada_dataset([("TOLIARY", 936)]):
+            km_toliary = get_km_mada_km_for_repere("Toliary")
+            km_tuler = get_km_mada_km_for_repere("Tuler")
+        self.assertEqual(km_toliary, 936)
+        self.assertEqual(km_tuler, 936)
 
     def test_lookup_alias_ranohira_isalo(self):
         """'Ranohira (Isalo)' must resolve to same km as 'Ranohira'."""
-        km_plain = get_km_mada_km_for_repere("Ranohira")
-        km_isalo = get_km_mada_km_for_repere("Ranohira (Isalo)")
-        self.assertEqual(km_plain, km_isalo)
+        with km_mada_dataset([("RANOHIRA", 690)]):
+            km_plain = get_km_mada_km_for_repere("Ranohira")
+            km_isalo = get_km_mada_km_for_repere("Ranohira (Isalo)")
+        self.assertEqual(km_plain, 690)
+        self.assertEqual(km_isalo, 690)
 
     def test_duplicate_repere_prefers_nonzero(self):
         """When KM_MADA has duplicate repères, prefer km > 0."""
@@ -150,43 +190,63 @@ class TestKmMadaLookupRobust(unittest.TestCase):
         self.assertEqual(_parse_num_local(best.get("km", 0)), 298)
 
 
+# Jeu de reference partage par les tests de distance. Valeurs de la RN7 telles
+# qu'elles figurent dans KM_MADA : le km est cumule depuis Antananarivo.
+RN7 = [
+    ("ANTANANARIVO", 0),
+    ("ANTSIRABE", 169),
+    ("FIANARANTSOA", 411),
+    ("RANOHIRA", 690),
+    ("TOLIARY", 936),
+]
+
+
 class TestSegmentDistance(unittest.TestCase):
     """get_segment_distance doit retourner abs(km_arr - km_dep)."""
 
     def test_segment_antananarivo_to_antsirabe(self):
-        """Antananarivo = 0 km (origin), Antsirabe = 169 km → distance = 169."""
-        km_dep = get_km_mada_km_for_repere("Antananarivo")
-        km_arr = get_km_mada_km_for_repere("Antsirabe")
-        dist = get_segment_distance("Antananarivo", "Antsirabe")
-        expected = abs(km_arr - km_dep)
-        self.assertEqual(dist, expected)
+        """Antananarivo = 0 km (origine), Antsirabe = 169 km → distance = 169."""
+        with km_mada_dataset(RN7):
+            self.assertEqual(get_segment_distance("Antananarivo", "Antsirabe"), 169)
 
     def test_segment_antsirabe_to_fianarantsoa(self):
-        km_dep = get_km_mada_km_for_repere("Antsirabe")
-        km_arr = get_km_mada_km_for_repere("Fianarantsoa")
-        dist = get_segment_distance("Antsirabe", "Fianarantsoa")
-        expected = abs(km_arr - km_dep)
-        self.assertEqual(dist, expected)
+        with km_mada_dataset(RN7):
+            self.assertEqual(get_segment_distance("Antsirabe", "Fianarantsoa"), 242)
+
+    def test_segment_is_symmetric(self):
+        """La distance ne depend pas du sens du trajet."""
+        with km_mada_dataset(RN7):
+            aller = get_segment_distance("Antsirabe", "Fianarantsoa")
+            retour = get_segment_distance("Fianarantsoa", "Antsirabe")
+        self.assertEqual(aller, 242)
+        self.assertEqual(retour, 242)
 
     def test_segment_with_dirty_names(self):
         """Dirty city names must normalize before lookup."""
-        dist_clean = get_segment_distance("Antsirabe", "Fianarantsoa")
-        dist_dirty = get_segment_distance("Antsirabe(2 jours)", "Fianarantsoa(3 jour)")
-        self.assertEqual(dist_clean, dist_dirty)
+        with km_mada_dataset(RN7):
+            dist_clean = get_segment_distance("Antsirabe", "Fianarantsoa")
+            dist_dirty = get_segment_distance(
+                "Antsirabe(2 jours)", "Fianarantsoa(3 jour)"
+            )
+        self.assertEqual(dist_clean, 242)
+        self.assertEqual(dist_dirty, 242)
 
     def test_segment_with_alias(self):
-        dist_clean = get_segment_distance("Ranohira", "Toliary")
-        dist_dirty = get_segment_distance("Ranohira (Isalo)", "Tulear")
-        self.assertEqual(dist_clean, dist_dirty)
+        with km_mada_dataset(RN7):
+            dist_clean = get_segment_distance("Ranohira", "Toliary")
+            dist_dirty = get_segment_distance("Ranohira (Isalo)", "Tulear")
+        self.assertEqual(dist_clean, 246)
+        self.assertEqual(dist_dirty, 246)
 
     def test_unknown_departure_falls_back_to_arrival_km(self):
         """If depart is unknown, fall back to km(arrivee)."""
-        km_arr = get_km_mada_km_for_repere("Antsirabe")
-        dist = get_segment_distance("VilleInconnueXYZ", "Antsirabe")
-        self.assertEqual(dist, km_arr)
+        with km_mada_dataset(RN7):
+            dist = get_segment_distance("VilleInconnueXYZ", "Antsirabe")
+        self.assertEqual(dist, 169)
 
     def test_both_unknown_returns_zero(self):
-        dist = get_segment_distance("InconnuA", "InconnuB")
+        with km_mada_dataset(RN7):
+            dist = get_segment_distance("InconnuA", "InconnuB")
         self.assertEqual(dist, 0)
 
 
