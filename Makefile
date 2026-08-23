@@ -1,8 +1,17 @@
-.PHONY: test test-unit test-cov test-verbose install-test clean lint-strict
+.PHONY: test test-fast test-gui test-unit test-cov test-verbose install-test clean lint init-data
 
-# Run all tests
+# Run all tests, interface comprise (~95 s : les ecrans de cotation
+# construisent de vrais widgets)
 test:
 	pytest
+
+# Suite rapide, sans les tests d'interface (~8 s)
+test-fast:
+	pytest -m "not gui"
+
+# Seuls les tests d'interface
+test-gui:
+	pytest -m gui
 
 # Run only unit tests
 test-unit:
@@ -24,9 +33,16 @@ install-test:
 coverage:
 	pytest --cov=. --cov-report=html --cov-report=term-missing tests/
 
-# Run strict lint on modules excluded by default flake8 config
-lint-strict:
-	flake8 gui/forms finances/tsarakonta --jobs=1 --max-line-length=88 --extend-ignore=E501,F401,F722,W293,W291,E203,F541,W503,F841 --statistics --count
+# Lint du depot entier. gui/forms et finances ne sont plus exclus de
+# setup.cfg : `flake8 .` les couvre, la cible stricte separee n'a plus d'objet.
+lint:
+	flake8 . --statistics --count
+	black --check .
+	isort --check-only .
+
+# Amorcage des classeurs de donnees sur un poste neuf
+init-data:
+	python scripts/init_data.py init
 
 # Clean up test artifacts
 clean:

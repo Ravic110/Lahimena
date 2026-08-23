@@ -2,12 +2,14 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-import pandas as pd
+# Les imports suivants viennent apres l'ajustement de sys.path ci-dessus,
+# qui les rend resolvables. Meme convention que main.py.
+import pandas as pd  # noqa: E402
 
-from finances.tsarakonta.config import CONFIG
-from finances.tsarakonta.models.data import DataManager, PCGManager
+from finances.tsarakonta.config import CONFIG  # noqa: E402
+from finances.tsarakonta.models.data import DataManager, PCGManager  # noqa: E402
 
-from .ui.etat_resultat import build_result_df, export_pdf_from_df
+from .ui.etat_resultat import build_result_df, export_pdf_from_df  # noqa: E402
 
 BASE = os.path.dirname(os.path.dirname(__file__))
 STATE_FOLDER = os.path.join(BASE, "EtatFiFolder")

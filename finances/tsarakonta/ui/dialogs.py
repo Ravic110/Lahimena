@@ -10,10 +10,15 @@ from tkinter import ttk
 
 # Ajout du chemin parent pour les imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import pandas as pd
+# Les imports suivants viennent apres l'ajustement de sys.path ci-dessus,
+# qui les rend resolvables. Meme convention que main.py.
+import pandas as pd  # noqa: E402
 
-from finances.tsarakonta.config import CONFIG
-from finances.tsarakonta.utils.formatters import extraire_numero_compte, parse_montant
+from finances.tsarakonta.config import CONFIG  # noqa: E402
+from finances.tsarakonta.utils.formatters import (  # noqa: E402
+    extraire_numero_compte,
+    parse_montant,
+)
 
 
 class DialogueLigne(tk.Toplevel):

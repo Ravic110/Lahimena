@@ -4,12 +4,23 @@ version = "0.1.0"
 description = "Devis generation desktop app for Lahimena Tours"
 authors = [ { name = "Your Name", email = "you@example.com" } ]
 readme = "README.md"
-requires-python = ">=3.7"
+# 3.10 minimum : le code utilise la syntaxe d'union `int | None` et les
+# generiques natifs `list[dict]` (utils/auth_handler.py notamment). Declarer
+# 3.7 laissait `pip install -e .` reussir sur 3.9, l'application plantant
+# ensuite a l'import. La CI tourne sur 3.12.
+requires-python = ">=3.10"
 
 # dependencies are a simple list of PEP 508 strings
 # (core runtime requirements)
 dependencies = [
-    "customtkinter>=5.2.0",
+    # Borne haute deliberee. gui/ctk_patch.py remplace onze elements d'API
+    # privee de CustomTkinter (AppearanceModeTracker, ScalingTracker, et les
+    # methodes destroy des fenetres). Ces internes n'ont aucune garantie de
+    # stabilite : une version qui les deplace rend les correctifs inoperants.
+    # Ils degradent proprement -- l'application demarre sans eux -- mais laisse
+    # filer des rappels `after` a la fermeture. Relever cette borne demande de
+    # verifier que tests/test_ctk_patch.py reste vert.
+    "customtkinter>=5.2.0,<5.3",
     "Pillow>=9.0.0",
     "openpyxl>=3.0.0",
     "phonenumbers>=8.12.0",

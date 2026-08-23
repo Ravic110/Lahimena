@@ -23,22 +23,26 @@ jobs:
           pip install -e .[financial]
           pip install -r requirements-test.txt
       - name: Run linters
+        # `flake8 .` couvre desormais tout le depot : gui/forms et finances,
+        # soit 70 % du code, ne sont plus exclus. L'ancienne passe stricte
+        # separee et non bloquante n'a donc plus d'objet.
         run: |
           pip install flake8 black isort
-          flake8 .
+          flake8 . --statistics --count
           black --check .
           isort --check-only .
-      - name: Run strict lint on excluded modules (non-blocking)
-        continue-on-error: true
+      - name: Check data workbook templates
+        # Le poste de CI est un clone frais, sans data.xlsx ni data-hotel.xlsx.
+        # L'amorcage doit savoir les recreer depuis les gabarits versionnes.
         run: |
-          flake8 gui/forms finances/tsarakonta \
-            --jobs=1 \
-            --max-line-length=88 \
-            --extend-ignore=E501,F401,F722,W293,W291,E203,F541,W503,F841 \
-            --statistics --count
+          python scripts/init_data.py init
       - name: Run tests
+        # xvfb-run fournit l'affichage dont ont besoin les tests des ecrans de
+        # cotation. Sans lui, la fixture tk_root les ignore : la suite reste
+        # verte mais le filet sur gui/ ne s'exerce pas.
         run: |
-          pytest --cov=utils --cov=models --cov-report=xml tests/
+          sudo apt-get update && sudo apt-get install -y xvfb
+          xvfb-run -a pytest --cov=utils --cov=models --cov=gui --cov-report=xml tests/
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:
