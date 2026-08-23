@@ -10,10 +10,13 @@ Rate limit: verrouillage temporaire après 5 échecs en 10 minutes (15 min de d�
 """
 
 import hashlib
+import hmac
 import json
 import os
 import secrets
 from datetime import datetime, timedelta
+
+from utils.logger import logger
 
 # ── Constantes ────────────────────────────────────────────────────────────────
 
@@ -76,18 +79,84 @@ def _valid_user_entries(users: list) -> list[dict]:
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 
 
+def _chemin_des_tentatives() -> str:
+    """Fichier ou survivent les tentatives echouees.
+
+    Voisin de users.json, donc il suit le fichier utilisateurs quand celui-ci
+    est redirige -- en test comme dans une installation deplacee.
+    """
+    return os.path.join(os.path.dirname(USERS_FILE), ".login_attempts.json")
+
+
+def _lire_tentatives_persistees() -> dict:
+    """{nom: [datetime, ...]} depuis le disque. Silencieux si illisible."""
+    try:
+        with open(_chemin_des_tentatives(), "r", encoding="utf-8") as f:
+            brut = json.load(f)
+    except Exception:
+        return {}
+    if not isinstance(brut, dict):
+        return {}
+
+    tentatives = {}
+    for nom, horodatages in brut.items():
+        if not isinstance(horodatages, list):
+            continue
+        dates = []
+        for h in horodatages:
+            try:
+                dates.append(datetime.fromisoformat(h))
+            except (TypeError, ValueError):
+                continue
+        if dates:
+            tentatives[nom] = dates
+    return tentatives
+
+
+def _ecrire_tentatives_persistees(tentatives: dict) -> None:
+    """Sauvegarde silencieuse : un echec d'ecriture ne doit pas bloquer l'appli."""
+    try:
+        payload = {
+            nom: [d.isoformat() for d in dates]
+            for nom, dates in tentatives.items()
+            if dates
+        }
+        with open(_chemin_des_tentatives(), "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+    except Exception:
+        pass
+
+
+def _tentatives_recentes(key: str) -> list:
+    """Tentatives dans la fenetre, memoire et disque fusionnes.
+
+    Le compteur ne vivait qu'en memoire : relancer l'application remettait les
+    cinq essais a zero, ce qui annulait la protection annoncee au README. Il
+    suffisait de fermer et rouvrir entre deux salves.
+    """
+    cutoff = datetime.now() - timedelta(minutes=_LOCKOUT_WINDOW_MIN)
+    connues = set(_failed_attempts.get(key, []))
+    connues.update(_lire_tentatives_persistees().get(key, []))
+    return sorted(t for t in connues if t > cutoff)
+
+
 def _record_failed_attempt(username: str) -> None:
     key = username.lower()
-    now = datetime.now()
-    attempts = _failed_attempts.get(key, [])
-    attempts.append(now)
-    # Conserver uniquement les tentatives dans la fenêtre de temps
-    cutoff = now - timedelta(minutes=_LOCKOUT_WINDOW_MIN)
-    _failed_attempts[key] = [t for t in attempts if t > cutoff]
+    recentes = _tentatives_recentes(key)
+    recentes.append(datetime.now())
+    _failed_attempts[key] = recentes
+
+    persistees = _lire_tentatives_persistees()
+    persistees[key] = recentes
+    _ecrire_tentatives_persistees(persistees)
 
 
 def _clear_failed_attempts(username: str) -> None:
-    _failed_attempts.pop(username.lower(), None)
+    key = username.lower()
+    _failed_attempts.pop(key, None)
+    persistees = _lire_tentatives_persistees()
+    if persistees.pop(key, None) is not None:
+        _ecrire_tentatives_persistees(persistees)
 
 
 def check_lockout(username: str) -> tuple[bool, int]:
@@ -99,8 +168,7 @@ def check_lockout(username: str) -> tuple[bool, int]:
     """
     key = username.lower()
     now = datetime.now()
-    cutoff = now - timedelta(minutes=_LOCKOUT_WINDOW_MIN)
-    recent = [t for t in _failed_attempts.get(key, []) if t > cutoff]
+    recent = _tentatives_recentes(key)
 
     if len(recent) >= _LOCKOUT_MAX_FAILURES:
         # Verrouillage à partir de la Nième tentative
@@ -140,6 +208,22 @@ def _hash_password(password: str, salt: str) -> str:
 
 def _generate_salt() -> str:
     return secrets.token_hex(32)  # 32 octets = 256 bits
+
+
+def _empreintes_egales(attendue, stockee) -> bool:
+    """Compare deux empreintes en temps constant.
+
+    `!=` s'arrete au premier octet different : la duree de la comparaison
+    renseigne alors sur le nombre d'octets devines. `compare_digest` parcourt
+    toujours la totalite.
+
+    Une empreinte absente ou d'un autre type renvoie False plutot que de lever :
+    une entree abimee doit refuser la connexion, pas interrompre la boucle qui
+    examine les comptes suivants.
+    """
+    if not isinstance(attendue, str) or not isinstance(stockee, str):
+        return False
+    return hmac.compare_digest(attendue, stockee)
 
 
 # ── Statut d'accès ────────────────────────────────────────────────────────────
@@ -206,7 +290,10 @@ def is_access_expired(user: dict) -> bool:
         dt = datetime.strptime(expires, "%Y-%m-%d")
         return datetime.now().date() > dt.date()
     except Exception:
-        return False
+        # Fail-secure, comme is_password_expired. Auparavant une date illisible
+        # renvoyait False : un acces a duree limitee devenait illimite des que
+        # sa date etait abimee, sans aucun signal.
+        return True
 
 
 def access_status(user: dict) -> str:
@@ -495,12 +582,24 @@ def authenticate(username: str, password: str) -> tuple[bool, dict | None, str]:
         if u["username"].lower() == username.lower():
             # ── Vérification du hash (v1 SHA-256 ou v2 PBKDF2) ───────────────
             hash_version = u.get("hash_version", 1)
-            if hash_version == 1:
-                expected = _hash_password_v1(password, u["salt"])
-            else:
-                expected = _hash_password_v2(password, u["salt"])
+            # Une entree amputee de son sel ou de son empreinte -- fichier
+            # edite a la main, ecriture interrompue, format anterieur -- levait
+            # KeyError et interrompait toute la connexion, y compris pour les
+            # comptes sains situes plus loin dans le fichier.
+            salt = u.get("salt")
+            if not isinstance(salt, str) or not salt:
+                _record_failed_attempt(username)
+                logger.warning(
+                    f"Entree utilisateur inexploitable (sel absent) : {u.get('username')}"
+                )
+                return False, None, "Identifiants incorrects."
 
-            if expected != u["password_hash"]:
+            if hash_version == 1:
+                expected = _hash_password_v1(password, salt)
+            else:
+                expected = _hash_password_v2(password, salt)
+
+            if not _empreintes_egales(expected, u.get("password_hash")):
                 _record_failed_attempt(username)
                 from utils.activity_log import log_activity
 
