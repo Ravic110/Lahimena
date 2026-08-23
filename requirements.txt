@@ -5,7 +5,9 @@
 #   pip install -e .[financial]
 
 # Interface graphique moderne
-customtkinter>=5.2.0
+# Borne haute : voir le commentaire dans pyproject.toml (API privee
+# remplacee par gui/ctk_patch.py).
+customtkinter>=5.2.0,<5.3
 
 # Traitement d'images (pour le logo)
 Pillow>=9.0.0
