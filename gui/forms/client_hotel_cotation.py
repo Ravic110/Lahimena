@@ -30,6 +30,15 @@ from config import (
     TEXT_COLOR,
     TITLE_FONT,
 )
+from gui.forms.cotation_commons import HOVER_BLUE as _HOVER_BLUE
+from gui.forms.cotation_commons import HOVER_GREEN as _HOVER_GREEN
+from gui.forms.cotation_commons import HOVER_GREY as _HOVER_GREY
+from gui.forms.cotation_commons import HOVER_RED as _HOVER_RED
+from gui.forms.cotation_commons import fmt as _fmt
+from gui.forms.cotation_commons import normalize as _normalize
+from gui.forms.cotation_commons import to_float as _to_float
+from gui.forms.cotation_commons import to_int as _to_int
+from gui.forms.cotation_screen import ClientCotationScreen
 from utils.excel_handler import (
     load_all_hotels,
     load_client_hotel_cotation,
@@ -60,23 +69,9 @@ _ROOM_TYPES = [
 ]
 
 # Couleurs hover pour les boutons CTk
-_HOVER_GREEN = "#0A6870"
-_HOVER_BLUE = "#0B6080"
-_HOVER_RED = "#A82020"
-_HOVER_GREY = "#9EA7AA"
 
 
 # ── Utilitaires ───────────────────────────────────────────────────────────────
-
-
-def _normalize(name: str) -> str:
-    if not name:
-        return ""
-    text = unicodedata.normalize("NFKD", str(name).strip().lower())
-    text = "".join(ch for ch in text if not unicodedata.combining(ch))
-    text = re.sub(r"\([^)]*\)", " ", text)
-    text = re.sub(r"[^a-z0-9]+", " ", text)
-    return re.sub(r"\s+", " ", text).strip()
 
 
 def _parse_cities(raw: str) -> list:
@@ -116,24 +111,6 @@ def _parse_city_days(raw: str) -> dict:
     return result
 
 
-def _to_float(s, default: float = 0.0) -> float:
-    try:
-        return float(str(s).replace(",", ".").strip() or default)
-    except (ValueError, TypeError):
-        return default
-
-
-def _to_int(s, default: int = 0) -> int:
-    try:
-        return max(0, int(_to_float(s, default)))
-    except (ValueError, TypeError):
-        return default
-
-
-def _fmt(value: float) -> str:
-    return f"{value:,.2f}"
-
-
 def _client_group_key(client: dict) -> str:
     """Déduit le groupe de chambre depuis le champ 'chambre' du client."""
     raw = str(client.get("chambre") or "").strip().lower()
@@ -166,7 +143,7 @@ def _compute_prix_unitaire(room_prices: dict) -> float:
 # ── Classe principale ─────────────────────────────────────────────────────────
 
 
-class ClientHotelCotation:
+class ClientHotelCotation(ClientCotationScreen):
     """Tableau de cotation hôtelière par ville pour un client donné."""
 
     _COLS = [
@@ -180,6 +157,11 @@ class ClientHotelCotation:
         ("marge", "Marge (%)", 80),
         ("total", "Total", 120),
     ]
+
+    # ── Raccordement au socle ClientCotationScreen ────────────────────────
+
+    def _enregistrer_lignes(self, client, rows):
+        return save_client_hotel_cotation_to_excel(client, rows)
 
     def __init__(self, parent: tk.Widget, client: dict, on_back=None):
         self.parent = parent
@@ -625,30 +607,6 @@ class ClientHotelCotation:
 
     # ── Sauvegarde Excel ───────────────────────────────────────────────────────
 
-    def _save_to_excel(self):
-        if not self._rows:
-            messagebox.showwarning(
-                "Aucune donnée", "Le tableau est vide. Rien à sauvegarder."
-            )
-            return
-        result = save_client_hotel_cotation_to_excel(self.client, self._rows)
-        if result > 0:
-            messagebox.showinfo(
-                "Sauvegarde réussie",
-                f"{result} ligne(s) enregistrée(s) dans la base de données.",
-            )
-        elif result == -2:
-            messagebox.showerror(
-                "Fichier verrouillé",
-                "Le fichier Excel est ouvert ailleurs.\n"
-                "Fermez data.xlsx puis réessayez.",
-            )
-        else:
-            messagebox.showerror(
-                "Erreur",
-                "La sauvegarde a échoué. Consultez les logs pour plus de détails.",
-            )
-
     # ── Actions sur les lignes ─────────────────────────────────────────────────
 
     def _add_row_dialog(self):
@@ -662,29 +620,6 @@ class ClientHotelCotation:
             room_prices=self._default_room_prices(self.client),
         )
         self._open_row_dialog(initial, row_index=None)
-
-    def _edit_selected(self):
-        sel = self._tree.selection()
-        if not sel:
-            messagebox.showwarning(
-                "Aucune sélection", "Sélectionnez une ligne à modifier."
-            )
-            return
-        idx = int(sel[0])
-        self._open_row_dialog(self._rows[idx], row_index=idx)
-
-    def _delete_selected(self):
-        sel = self._tree.selection()
-        if not sel:
-            messagebox.showwarning(
-                "Aucune sélection", "Sélectionnez une ligne à supprimer."
-            )
-            return
-        if not messagebox.askyesno("Supprimer", "Supprimer la ligne sélectionnée ?"):
-            return
-        del self._rows[int(sel[0])]
-        self._refresh_tree()
-        self._refresh_totals()
 
     # ── Dialog d'édition ──────────────────────────────────────────────────────
 

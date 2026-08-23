@@ -39,6 +39,13 @@ from config import (
     TEXT_COLOR,
     TITLE_FONT,
 )
+from gui.forms.cotation_commons import HOVER_BLUE as _HOVER_BLUE
+from gui.forms.cotation_commons import HOVER_GREEN as _HOVER_GREEN
+from gui.forms.cotation_commons import HOVER_ORANGE as _HOVER_ORANGE
+from gui.forms.cotation_commons import HOVER_RED as _HOVER_RED
+from gui.forms.cotation_commons import fmt as _fmt
+from gui.forms.cotation_commons import to_float as _to_float
+from gui.forms.cotation_screen import ClientCotationScreen
 from utils.excel_handler import (
     get_avion_compagnies,
     get_avion_tarifs,
@@ -46,26 +53,10 @@ from utils.excel_handler import (
     save_client_air_ticket_cotation_to_excel,
 )
 
-_HOVER_GREEN = "#0A6870"
-_HOVER_BLUE = "#0B6080"
-_HOVER_RED = "#A82020"
-_HOVER_ORANGE = "#C8860A"
-
 _CLASSES = ["Économique", "Affaires", "Première"]
 
 
 # ── Helpers purs ──────────────────────────────────────────────────────────────
-
-
-def _to_float(value, default=0.0):
-    try:
-        return float(str(value).replace(",", ".").strip() or default)
-    except (TypeError, ValueError):
-        return default
-
-
-def _fmt(value):
-    return f"{value:,.2f}"
 
 
 def _make_row(
@@ -219,7 +210,7 @@ def _validate_rows(rows):
 # ── Écran principal ────────────────────────────────────────────────────────────
 
 
-class ClientAirTicketCotation:
+class ClientAirTicketCotation(ClientCotationScreen):
 
     _COLS = [
         ("date_vol", "Date vol", 85),
@@ -235,6 +226,20 @@ class ClientAirTicketCotation:
         ("marge_pct", "Marge %", 65),
         ("total", "Total", 105),
     ]
+
+    # ── Raccordement au socle ClientCotationScreen ────────────────────────
+
+    def _enregistrer_lignes(self, client, rows):
+        return save_client_air_ticket_cotation_to_excel(client, rows)
+
+    def _erreurs_de_validation(self):
+        """Validation par ligne, plus fine que le simple refus du tableau vide.
+
+        Consequence conservee du comportement historique : une liste vide ne
+        produit aucune erreur, donc enregistrer un tableau vide efface les
+        billets deja sauvegardes du client.
+        """
+        return _validate_rows(self._rows)
 
     def __init__(self, parent: tk.Widget, client: dict, on_back=None):
         self.parent = parent
@@ -510,15 +515,6 @@ class ClientAirTicketCotation:
         sel = self._tree.selection()
         return int(sel[0]) if sel else None
 
-    def _delete_selected(self):
-        idx = self._get_selected_index()
-        if idx is None:
-            messagebox.showwarning("Sélection", "Sélectionnez une ligne à supprimer.")
-            return
-        self._rows.pop(idx)
-        self._refresh_tree()
-        self._refresh_totals()
-
     def _open_add_dialog(self):
         self._open_row_dialog(None)
 
@@ -555,26 +551,6 @@ class ClientAirTicketCotation:
             self._rows[row_index] = row
         self._refresh_tree()
         self._refresh_totals()
-
-    def _save_to_excel(self):
-        errors = _validate_rows(self._rows)
-        if errors:
-            messagebox.showwarning("Validation", "\n".join(errors))
-            return
-        result = save_client_air_ticket_cotation_to_excel(self.client, self._rows)
-        if result > 0:
-            messagebox.showinfo(
-                "Sauvegarde réussie", f"{result} ligne(s) enregistrée(s)."
-            )
-        elif result == -2:
-            messagebox.showerror(
-                "Fichier verrouillé",
-                "Le fichier Excel est ouvert ailleurs.\nFermez data.xlsx puis réessayez.",
-            )
-        else:
-            messagebox.showerror(
-                "Erreur", "La sauvegarde a échoué. Consultez les logs."
-            )
 
     def _export_pdf(self):
         if not self._rows:
