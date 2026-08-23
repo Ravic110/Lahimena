@@ -11,6 +11,14 @@ except ImportError:
 
 import re
 
+try:
+    import requests
+
+    REQUESTS_AVAILABLE = True
+except ImportError:  # pragma: no cover - depend de l'environnement
+    REQUESTS_AVAILABLE = False
+
+from utils.cache import cached_exchange_rates
 from utils.logger import logger
 
 
@@ -73,6 +81,7 @@ def validate_required_field(value, field_name):
     return True, None
 
 
+@cached_exchange_rates()
 def get_exchange_rates():
     """
     Get current exchange rates for EUR and USD to MGA
@@ -80,9 +89,17 @@ def get_exchange_rates():
     Returns:
         dict: Dictionary with rates {'EUR': rate, 'USD': rate}
         where rate is how many MGA for 1 EUR/USD
+
+    Cet appel part sur le reseau depuis le fil de l'interface : deux ecrans de
+    cotation l'invoquent dans leur constructeur. Sans cache, chaque ouverture
+    d'ecran gelait l'application le temps de l'aller-retour, soit jusqu'a
+    5 secondes de timeout sur une connexion mediocre. Le decorateur retient le
+    resultat une heure -- y compris les taux de secours, pour qu'une agence
+    hors ligne ne repaie pas le timeout a chaque ecran.
     """
     try:
-        import requests
+        if not REQUESTS_AVAILABLE:
+            raise RuntimeError("requests indisponible")
 
         # Using exchangerate-api.com free API with MGA as base
         response = requests.get(
