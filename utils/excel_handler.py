@@ -17,6 +17,7 @@ import shutil
 import unicodedata
 import zipfile
 from datetime import datetime, time, timedelta
+from functools import wraps
 from time import monotonic
 
 from config import (
@@ -100,10 +101,126 @@ from utils.storage.sheet import (
     _parse_duration_hours,
     _parse_num,
 )
-from utils.storage.workbook import create_backup
+from utils.storage.sheet import find_sheet as _find_sheet
+from utils.storage.source_cache import mtime_cached as _mtime_cached
+from utils.storage.workbook import WorkbookLocked as _WorkbookLocked
+from utils.storage.workbook import _save_atomic, create_backup
+from utils.storage.workbook import verrou_de_classeur as _verrou_de_classeur
 
 _THROTTLED_ERROR_STATE = {}
 _THROTTLED_ERROR_WINDOW_SECONDS = 30.0
+
+# Colonnes des feuilles principales. Elles vivaient en variables locales,
+# recopiees a l'identique dans deux fonctions chacune (save/update) : toute
+# colonne ajoutee d'un cote et pas de l'autre produisait une feuille dont la
+# lecture et l'ecriture divergeaient silencieusement.
+CLIENT_HEADERS = [
+    "Date",
+    "Réf. Client",
+    "Type Client",
+    "Prénom",
+    "Nom",
+    "Date Arrivée",
+    "Date Départ",
+    "Durée Séjour",
+    "Nombre Participants",
+    "Nombre Adultes",
+    "Enfants 2-12",
+    "Bébés 0-2",
+    "Téléphone",
+    "Téléphone WhatsApp",
+    "Email",
+    "Période",
+    "Restauration",
+    "Hébergement",
+    "Chambre",
+    "Enfant",
+    "Âge Enfant",
+    "Forfait",
+    "Circuit",
+    "Statut",
+    "SGL",
+    "DBL",
+    "TWN",
+    "TPL",
+    "FML",
+]
+
+CLIENT_INFOS_HEADERS = [
+    "Date",
+    "Réf. Client",
+    "Numéro Dossier",
+    "Type Client",
+    "Prénom",
+    "Nom",
+    "Date Arrivée",
+    "Date Départ",
+    "Durée Séjour",
+    "Nombre Participants",
+    "Nombre Adultes",
+    "Enfants 2-12",
+    "Bébés 0-2",
+    "Téléphone",
+    "Téléphone WhatsApp",
+    "Email",
+    "Période",
+    "Restauration",
+    "Hébergement",
+    "Chambre",
+    "Statut",
+    "Enfant",
+    "Âge Enfant",
+    "Heure Arrivée",
+    "Heure Départ",
+    "Compagnie",
+    "Aéroport",
+    "Réf. Externe",
+    "Forfait",
+    "Circuit",
+    "Type Circuit",
+    "ID Circuit",
+    "Itinéraire Circuit",
+    "Activité Circuit",
+    "Durée Circuit",
+    "Condition Physique Circuit",
+    "Type Voiture Circuit",
+    "Hôtels Défaut Circuit",
+    "Prestations Incluses Circuit",
+    "Transports Associés Circuit",
+    "Ville Départ",
+    "Ville Arrivée",
+    "Type Hôtel Arrivée",
+    "SGL",
+    "DBL",
+    "TWN",
+    "TPL",
+    "FML",
+]
+
+HOTEL_HEADERS = [
+    "Ville",
+    "HTL",
+    "CATÉGORIE",
+    "UNITÉ",
+    "SPL",
+    "DBL",
+    "TWINS",
+    "FML",
+    "SUPP",
+    "SUITE",
+    "PDJ",
+    "DJ",
+    "DR",
+    "ID",
+    "TYPE_HEBERGEMENT",
+    "TYPE_CLIENT",
+    "CONTACT",
+    "EMAIL",
+    "DESCRIPTION",
+    "DAY_USE",
+    "VIGNETTE",
+    "TAXE_SEJOUR",
+]
 
 CLIENT_ACTIVE_QUOTE_HEADERS = [
     "Date",
@@ -140,6 +257,61 @@ CLIENT_ACTIVE_INVOICE_HEADERS = [
 ]
 
 
+def _save_workbook(wb, path):
+    """Sauvegarde protegee d'un classeur : copie de securite puis bascule.
+
+    Les fonctions de ce module appelaient `wb.save(path)` directement : aucune
+    copie de securite (3 appels a create_backup pour 59 ecritures) et une
+    ecriture en place qui laisse un .xlsx tronque si elle est interrompue.
+    Ce point de passage unique corrige les deux, sans toucher aux sentinelles
+    de retour que l'interface teste : `_save_atomic` leve PermissionError
+    quand le fichier est verrouille, comme `wb.save` auparavant.
+
+    A terme ces appels rejoindront `open_workbook(..., write=True)`, qui porte
+    la meme protection.
+    """
+    if os.path.exists(path):
+        create_backup(path)
+    _save_atomic(wb, path)
+
+
+def _sous_verrou_ecriture(chemin_fn, sentinelle, delai_max_s=None):
+    """Tient le verrou du classeur pendant tout l'appel.
+
+    `_save_workbook` ne protege que la sauvegarde. Or ces fonctions font un
+    cycle lecture-modification-ecriture a la main : entre leur `load_workbook`
+    et leur enregistrement, un autre poste peut lire la meme version et
+    l'ecraser ensuite. Le verrou doit donc couvrir l'appel entier.
+
+    Si le verrou n'est pas obtenu dans le delai, la fonction renvoie sa
+    sentinelle historique -- `-2` pour save_/update_, `False` pour delete_ --
+    que l'interface traduit deja par « Fichier verrouille, fermez-le puis
+    reessayez ». Aucun appelant n'a donc a changer.
+
+    Args:
+        chemin_fn (callable): renvoie le chemin du classeur. Relu a chaque
+            appel, les tests redirigeant les classeurs.
+        sentinelle: valeur renvoyee si le verrou n'est pas obtenu.
+        delai_max_s (float | None): attente maximale.
+    """
+
+    def decorate(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                with _verrou_de_classeur(chemin_fn(), delai_max_s=delai_max_s):
+                    return func(*args, **kwargs)
+            except _WorkbookLocked:
+                logger.warning(
+                    f"{func.__name__} : classeur verrouille par un autre poste."
+                )
+                return sentinelle
+
+        return wrapper
+
+    return decorate
+
+
 def _log_error_throttled(key, message, exc_info=True):
     """Log repeated errors at most once per throttling window."""
     now = monotonic()
@@ -149,6 +321,7 @@ def _log_error_throttled(key, message, exc_info=True):
         logger.error(message, exc_info=exc_info)
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def save_client_to_excel(client_data):
     """
     Save client data to Excel file
@@ -164,37 +337,6 @@ def save_client_to_excel(client_data):
         return -1
 
     # Create file if it doesn't exist
-    client_headers = [
-        "Date",
-        "Réf. Client",
-        "Type Client",
-        "Prénom",
-        "Nom",
-        "Date Arrivée",
-        "Date Départ",
-        "Durée Séjour",
-        "Nombre Participants",
-        "Nombre Adultes",
-        "Enfants 2-12",
-        "Bébés 0-2",
-        "Téléphone",
-        "Téléphone WhatsApp",
-        "Email",
-        "Période",
-        "Restauration",
-        "Hébergement",
-        "Chambre",
-        "Enfant",
-        "Âge Enfant",
-        "Forfait",
-        "Circuit",
-        "Statut",
-        "SGL",
-        "DBL",
-        "TWN",
-        "TPL",
-        "FML",
-    ]
     client_header_style = {
         "font": Font(bold=True, color="FFFFFF"),
         "fill": PatternFill(
@@ -208,9 +350,9 @@ def save_client_to_excel(client_data):
         ws = wb.active
         ws.title = CLIENT_SHEET_NAME
 
-        _ensure_headers(ws, client_headers, client_header_style)
+        _ensure_headers(ws, CLIENT_HEADERS, client_header_style)
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
 
     # Open existing file
     wb = load_workbook(CLIENT_EXCEL_PATH)
@@ -219,7 +361,7 @@ def save_client_to_excel(client_data):
     else:
         ws = wb[CLIENT_SHEET_NAME]
 
-    header_map = _ensure_headers(ws, client_headers, client_header_style)
+    header_map = _ensure_headers(ws, CLIENT_HEADERS, client_header_style)
 
     # Find last empty row (column A)
     last_row = 2
@@ -278,7 +420,7 @@ def save_client_to_excel(client_data):
                 max_length = value_len
         ws.column_dimensions[column_letter].width = min(max_length + 2, 25)
 
-    wb.save(CLIENT_EXCEL_PATH)
+    _save_workbook(wb, CLIENT_EXCEL_PATH)
 
     # Invalidate cache after modification
     invalidate_client_cache()
@@ -289,62 +431,13 @@ def save_client_to_excel(client_data):
     return last_row
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def _save_client_infos_to_excel(client_data):
     """Save extended client infos to the INFOS_CLIENTS sheet"""
     if not OPENPYXL_AVAILABLE:
         logger.warning("openpyxl not available. Cannot save client infos.")
         return False
 
-    infos_headers = [
-        "Date",
-        "Réf. Client",
-        "Numéro Dossier",
-        "Type Client",
-        "Prénom",
-        "Nom",
-        "Date Arrivée",
-        "Date Départ",
-        "Durée Séjour",
-        "Nombre Participants",
-        "Nombre Adultes",
-        "Enfants 2-12",
-        "Bébés 0-2",
-        "Téléphone",
-        "Téléphone WhatsApp",
-        "Email",
-        "Période",
-        "Restauration",
-        "Hébergement",
-        "Chambre",
-        "Statut",
-        "Enfant",
-        "Âge Enfant",
-        "Heure Arrivée",
-        "Heure Départ",
-        "Compagnie",
-        "Aéroport",
-        "Réf. Externe",
-        "Forfait",
-        "Circuit",
-        "Type Circuit",
-        "ID Circuit",
-        "Itinéraire Circuit",
-        "Activité Circuit",
-        "Durée Circuit",
-        "Condition Physique Circuit",
-        "Type Voiture Circuit",
-        "Hôtels Défaut Circuit",
-        "Prestations Incluses Circuit",
-        "Transports Associés Circuit",
-        "Ville Départ",
-        "Ville Arrivée",
-        "Type Hôtel Arrivée",
-        "SGL",
-        "DBL",
-        "TWN",
-        "TPL",
-        "FML",
-    ]
     infos_header_style = {
         "font": Font(bold=True, color="FFFFFF"),
         "fill": PatternFill(
@@ -355,7 +448,7 @@ def _save_client_infos_to_excel(client_data):
 
     if not os.path.exists(CLIENT_EXCEL_PATH):
         wb = Workbook()
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
 
     wb = load_workbook(CLIENT_EXCEL_PATH)
     if CLIENT_INFOS_SHEET_NAME not in wb.sheetnames:
@@ -363,7 +456,7 @@ def _save_client_infos_to_excel(client_data):
     else:
         ws = wb[CLIENT_INFOS_SHEET_NAME]
 
-    header_map = _ensure_headers(ws, infos_headers, infos_header_style)
+    header_map = _ensure_headers(ws, CLIENT_INFOS_HEADERS, infos_header_style)
 
     # Find existing row by ref client
     ref_client = _first_available(client_data, ["Ref_Client", "ref_client"], "")
@@ -451,7 +544,7 @@ def _save_client_infos_to_excel(client_data):
                 value=_first_available(client_data, keys, ""),
             )
 
-    wb.save(CLIENT_EXCEL_PATH)
+    _save_workbook(wb, CLIENT_EXCEL_PATH)
     return True
 
 
@@ -535,6 +628,7 @@ def load_all_clients():
     return clients
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def update_client_in_excel(row_number, client_data):
     """
     Update client data in Excel file
@@ -561,37 +655,6 @@ def update_client_in_excel(row_number, client_data):
         return False
 
     ws = wb[CLIENT_SHEET_NAME]
-    client_headers = [
-        "Date",
-        "Réf. Client",
-        "Type Client",
-        "Prénom",
-        "Nom",
-        "Date Arrivée",
-        "Date Départ",
-        "Durée Séjour",
-        "Nombre Participants",
-        "Nombre Adultes",
-        "Enfants 2-12",
-        "Bébés 0-2",
-        "Téléphone",
-        "Téléphone WhatsApp",
-        "Email",
-        "Période",
-        "Restauration",
-        "Hébergement",
-        "Chambre",
-        "Enfant",
-        "Âge Enfant",
-        "Forfait",
-        "Circuit",
-        "Statut",
-        "SGL",
-        "DBL",
-        "TWN",
-        "TPL",
-        "FML",
-    ]
     client_header_style = {
         "font": Font(bold=True, color="FFFFFF"),
         "fill": PatternFill(
@@ -599,7 +662,7 @@ def update_client_in_excel(row_number, client_data):
         ),
         "alignment": Alignment(horizontal="center"),
     }
-    header_map = _ensure_headers(ws, client_headers, client_header_style)
+    header_map = _ensure_headers(ws, CLIENT_HEADERS, client_header_style)
 
     # Update data
     field_map = {
@@ -642,12 +705,13 @@ def update_client_in_excel(row_number, client_data):
                 value=_first_available(client_data, keys, ""),
             )
 
-    wb.save(CLIENT_EXCEL_PATH)
+    _save_workbook(wb, CLIENT_EXCEL_PATH)
     invalidate_client_cache()
     _save_client_infos_to_excel(client_data)
     return True
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def update_client_statut(row_number, new_statut):
     """
     Update only the Statut cell of a client row.
@@ -704,7 +768,7 @@ def update_client_statut(row_number, new_statut):
                         )
                         break
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         invalidate_client_cache()
         return True
     finally:
@@ -775,6 +839,7 @@ def _load_client_infos_map():
     return infos_map
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=False)
 def delete_client_from_excel(row_number):
     """
     Delete client data from Excel file
@@ -801,7 +866,7 @@ def delete_client_from_excel(row_number):
     # Delete row
     ws.delete_rows(row_number)
 
-    wb.save(CLIENT_EXCEL_PATH)
+    _save_workbook(wb, CLIENT_EXCEL_PATH)
     invalidate_client_cache()
     return True
 
@@ -1074,6 +1139,7 @@ def load_all_hotels(client_type=None):
     return hotels
 
 
+@_mtime_cached(lambda: HOTEL_EXCEL_PATH)
 def load_circuit_catalog():
     """
     Load circuit catalog from the Circuits sheet in data-hotel.xlsx.
@@ -1243,6 +1309,7 @@ def load_all_circuits():
     return [circuit["nom"] for circuit in load_circuit_catalog() if circuit.get("nom")]
 
 
+@_sous_verrou_ecriture(lambda: HOTEL_EXCEL_PATH, sentinelle=-2)
 def save_hotel_to_excel(hotel_data):
     """
     Save hotel data to Excel file
@@ -1260,30 +1327,6 @@ def save_hotel_to_excel(hotel_data):
     # Create backup before modifying Excel file
     create_backup(HOTEL_EXCEL_PATH)
     # Legacy flat headers, kept for backward compatibility with old sheets.
-    hotel_headers = [
-        "Ville",
-        "HTL",
-        "CATÉGORIE",
-        "UNITÉ",
-        "SPL",
-        "DBL",
-        "TWINS",
-        "FML",
-        "SUPP",
-        "SUITE",
-        "PDJ",
-        "DJ",
-        "DR",
-        "ID",
-        "TYPE_HEBERGEMENT",
-        "TYPE_CLIENT",
-        "CONTACT",
-        "EMAIL",
-        "DESCRIPTION",
-        "DAY_USE",
-        "VIGNETTE",
-        "TAXE_SEJOUR",
-    ]
     hotel_header_style = {
         "font": Font(bold=True, color="FFFFFF"),
         "fill": PatternFill(
@@ -1294,15 +1337,15 @@ def save_hotel_to_excel(hotel_data):
 
     if not os.path.exists(HOTEL_EXCEL_PATH):
         wb = Workbook()
-        wb.save(HOTEL_EXCEL_PATH)
+        _save_workbook(wb, HOTEL_EXCEL_PATH)
 
     # Open existing file
     wb = load_workbook(HOTEL_EXCEL_PATH)
 
     if HOTEL_SHEET_NAME not in wb.sheetnames:
         ws = wb.create_sheet(HOTEL_SHEET_NAME)
-        _ensure_headers(ws, hotel_headers, hotel_header_style)
-        wb.save(HOTEL_EXCEL_PATH)
+        _ensure_headers(ws, HOTEL_HEADERS, hotel_header_style)
+        _save_workbook(wb, HOTEL_EXCEL_PATH)
 
     # Open existing file again
     wb = load_workbook(HOTEL_EXCEL_PATH)
@@ -1407,7 +1450,7 @@ def save_hotel_to_excel(hotel_data):
             ["Inclus", "inclus", "Description", "description"],
         )
     else:
-        header_map = _ensure_headers(ws, hotel_headers, hotel_header_style)
+        header_map = _ensure_headers(ws, HOTEL_HEADERS, hotel_header_style)
         field_map = {
             "Ville": ["Lieu", "lieu"],
             "HTL": ["Nom", "nom"],
@@ -1453,11 +1496,12 @@ def save_hotel_to_excel(hotel_data):
                 max_length = value_len
         ws.column_dimensions[column_letter].width = min(max_length + 2, 25)
 
-    wb.save(HOTEL_EXCEL_PATH)
+    _save_workbook(wb, HOTEL_EXCEL_PATH)
     invalidate_hotel_cache()
     return last_row
 
 
+@_sous_verrou_ecriture(lambda: HOTEL_EXCEL_PATH, sentinelle=-2)
 def update_hotel_in_excel(row_number, hotel_data):
     """
     Update hotel data in Excel file
@@ -1491,30 +1535,6 @@ def update_hotel_in_excel(row_number, hotel_data):
         and "HTL" in header_map_row2
         and "Ville" not in header_map_row1
     )
-    hotel_headers = [
-        "Ville",
-        "HTL",
-        "CATÉGORIE",
-        "UNITÉ",
-        "SPL",
-        "DBL",
-        "TWINS",
-        "FML",
-        "SUPP",
-        "SUITE",
-        "PDJ",
-        "DJ",
-        "DR",
-        "ID",
-        "TYPE_HEBERGEMENT",
-        "TYPE_CLIENT",
-        "CONTACT",
-        "EMAIL",
-        "DESCRIPTION",
-        "DAY_USE",
-        "VIGNETTE",
-        "TAXE_SEJOUR",
-    ]
     hotel_header_style = {
         "font": Font(bold=True, color="FFFFFF"),
         "fill": PatternFill(
@@ -1598,7 +1618,7 @@ def update_hotel_in_excel(row_number, hotel_data):
             ["Inclus", "inclus", "Description", "description"],
         )
     else:
-        header_map = _ensure_headers(ws, hotel_headers, hotel_header_style)
+        header_map = _ensure_headers(ws, HOTEL_HEADERS, hotel_header_style)
         field_map = {
             "Ville": ["Lieu", "lieu"],
             "HTL": ["Nom", "nom"],
@@ -1631,11 +1651,12 @@ def update_hotel_in_excel(row_number, hotel_data):
                     value = "MGA"
                 ws.cell(row=row_number, column=col, value=value)
 
-    wb.save(HOTEL_EXCEL_PATH)
+    _save_workbook(wb, HOTEL_EXCEL_PATH)
     invalidate_hotel_cache()
     return True
 
 
+@_sous_verrou_ecriture(lambda: HOTEL_EXCEL_PATH, sentinelle=False)
 def delete_hotel_from_excel(row_number):
     """
     Delete hotel data from Excel file
@@ -1662,7 +1683,7 @@ def delete_hotel_from_excel(row_number):
     # Delete row
     ws.delete_rows(row_number)
 
-    wb.save(HOTEL_EXCEL_PATH)
+    _save_workbook(wb, HOTEL_EXCEL_PATH)
     invalidate_hotel_cache()
     return True
 
@@ -1708,6 +1729,7 @@ def get_collective_expense_headers():
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def save_collective_expense_quotation_to_excel(form_data):
     """
     Save a collective expense quotation row into COTATION_FRAIS_COL sheet.
@@ -1780,7 +1802,7 @@ def save_collective_expense_quotation_to_excel(form_data):
                 min(40, len(str(ws.cell(row=1, column=col).value or "")) + 4),
             )
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         logger.info(
             f"Collective expense quotation saved to row {next_row} in {COTATION_FRAIS_COL_SHEET_NAME}"
         )
@@ -1858,6 +1880,7 @@ def load_all_collective_expense_quotations():
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def save_hotel_quotation_to_excel(quotation_data):
     """
     Save hotel quotation to COTATION_H sheet in data.xlsx
@@ -1975,7 +1998,7 @@ def save_hotel_quotation_to_excel(quotation_data):
         ws.column_dimensions["M"].width = 14
         ws.column_dimensions["N"].width = 10
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         logger.info(f"Quotation saved to row {next_row} in {COTATION_H_SHEET_NAME}")
         return next_row
 
@@ -2017,6 +2040,7 @@ def _ensure_client_billing_sheet(wb, sheet_name, headers):
     return ws
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def save_active_client_quote_to_excel(client: dict, quote_document: dict) -> int:
     """Persist the one active quote document for a client."""
     if not OPENPYXL_AVAILABLE:
@@ -2077,7 +2101,7 @@ def save_active_client_quote_to_excel(client: dict, quote_document: dict) -> int
                     ws.cell(row=row_idx, column=col, value=value)
             saved += 1
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         invalidate_client_cache()
         return saved
     except PermissionError:
@@ -2165,6 +2189,7 @@ def load_active_client_quote_from_excel(client: dict) -> dict:
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def save_active_client_invoice_to_excel(client: dict, invoice_document: dict) -> int:
     """Persist the one active invoice document for a client."""
     if not OPENPYXL_AVAILABLE:
@@ -2219,7 +2244,7 @@ def save_active_client_invoice_to_excel(client: dict, invoice_document: dict) ->
                     ws.cell(row=row_idx, column=col, value=value)
             saved += 1
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         invalidate_client_cache()
         return saved
     except PermissionError:
@@ -2472,6 +2497,7 @@ def load_client_collective_cotation(client: dict) -> list:
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def save_client_hotel_cotation_to_excel(client: dict, rows: list) -> int:
     """
     Save client hotel cotation rows (one row per ville) into COTATION_H sheet.
@@ -2588,7 +2614,7 @@ def save_client_hotel_cotation_to_excel(client: dict, rows: list) -> int:
                     ws.cell(row=next_row, column=col_idx, value=val)
             saved += 1
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         invalidate_client_cache()
         logger.info(
             f"Client hotel cotation: {saved} row(s) saved to {COTATION_H_SHEET_NAME}"
@@ -2608,6 +2634,7 @@ def save_client_hotel_cotation_to_excel(client: dict, rows: list) -> int:
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def save_client_collective_cotation_to_excel(client: dict, rows: list) -> int:
     """
     Save client collective expense cotation rows into COTATION_FRAIS_COL sheet.
@@ -2697,7 +2724,7 @@ def save_client_collective_cotation_to_excel(client: dict, rows: list) -> int:
                     ws.cell(row=next_row, column=col_idx, value=val)
             saved += 1
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         invalidate_client_cache()
         logger.info(
             f"Client collective cotation: {saved} row(s) saved to {COTATION_FRAIS_COL_SHEET_NAME}"
@@ -2816,6 +2843,7 @@ def load_client_restauration_cotation(client: dict) -> list:
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def save_client_restauration_cotation_to_excel(client: dict, rows: list) -> int:
     """
     Sauvegarde les lignes de cotation restauration dans la feuille COTATION_REST.
@@ -2925,7 +2953,7 @@ def save_client_restauration_cotation_to_excel(client: dict, rows: list) -> int:
             _set("Total", row.get("total", 0))
             saved += 1
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         invalidate_client_cache()
         logger.info(
             f"Client restauration cotation: {saved} row(s) saved to {COTATION_REST_SHEET_NAME}"
@@ -3017,6 +3045,7 @@ def load_client_transport_cotation(client: dict) -> list:
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def save_client_transport_cotation_to_excel(client: dict, rows: list) -> int:
     """
     Sauvegarde les lignes de cotation transport dans la feuille COTATION_TRANSPORT.
@@ -3123,7 +3152,7 @@ def save_client_transport_cotation_to_excel(client: dict, rows: list) -> int:
             _set("Total", row.get("total", 0))
             saved += 1
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         invalidate_client_cache()
         logger.info(
             f"Client transport cotation: {saved} row(s) saved to {COTATION_TRANSPORT_SHEET_NAME}"
@@ -3276,6 +3305,7 @@ def get_quotations_by_city():
     return grouped
 
 
+@_mtime_cached(lambda: HOTEL_EXCEL_PATH)
 def load_collective_expenses_data():
     """
     Load all data from Frais collectifs sheet in data-hotel.xlsx
@@ -3407,6 +3437,7 @@ def get_collective_expense_forfait(prestataire, designation):
     return ""
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def update_collective_expense_quotation_in_excel(row_number, form_data):
     """
     Update an existing collective expense quotation in Excel
@@ -3443,7 +3474,7 @@ def update_collective_expense_quotation_in_excel(row_number, form_data):
             value = form_data.get(header, "")
             ws.cell(row=excel_row, column=col_idx, value=value)
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         logger.info(f"Updated collective expense at row {row_number}")
         return 0
     except PermissionError:
@@ -3461,6 +3492,7 @@ def update_collective_expense_quotation_in_excel(row_number, form_data):
             wb.close()
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=False)
 def delete_collective_expense_from_excel(row_number):
     """
     Delete a collective expense quotation from Excel
@@ -3491,7 +3523,7 @@ def delete_collective_expense_from_excel(row_number):
         excel_row = row_number + 1
         ws.delete_rows(excel_row)
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         logger.info(f"Deleted collective expense at row {row_number}")
         return True
     except Exception as e:
@@ -3504,6 +3536,7 @@ def delete_collective_expense_from_excel(row_number):
             wb.close()
 
 
+@_mtime_cached(lambda: HOTEL_EXCEL_PATH)
 def load_visite_excursion_data():
     """
     Load all data from Visite_excursion sheet in data-hotel.xlsx.
@@ -3521,10 +3554,15 @@ def load_visite_excursion_data():
     wb = None
     try:
         wb = load_workbook(HOTEL_EXCEL_PATH)
-        if VISITE_EXCURSION_SOURCE_SHEET_NAME not in wb.sheetnames:
+        # Comparaison tolerante : le classeur de production nomme cette
+        # feuille "Visite&excursion" la ou config.py attend
+        # "Visite_excursion". La comparaison exacte renvoyait une liste vide
+        # et le catalogue restait invisible dans l'application.
+        source_sheet = _find_sheet(wb, VISITE_EXCURSION_SOURCE_SHEET_NAME)
+        if not source_sheet:
             return []
 
-        ws = wb[VISITE_EXCURSION_SOURCE_SHEET_NAME]
+        ws = wb[source_sheet]
 
         header_index = {}
         for col in range(1, ws.max_column + 1):
@@ -3761,6 +3799,7 @@ def get_visite_excursion_headers():
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def save_visite_excursion_quotation_to_excel(form_data):
     """
     Save a visite & excursion quotation row into VISITE_EXCURSION sheet.
@@ -3825,7 +3864,7 @@ def save_visite_excursion_quotation_to_excel(form_data):
             value = form_data.get(header, "")
             ws.cell(row=next_row, column=col, value=value)
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         return next_row
     except PermissionError:
         return -2
@@ -3889,6 +3928,7 @@ def load_all_visite_excursion_quotations():
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def update_visite_excursion_quotation_in_excel(row_number, form_data):
     if not OPENPYXL_AVAILABLE:
         return -1
@@ -3910,7 +3950,7 @@ def update_visite_excursion_quotation_in_excel(row_number, form_data):
             value = form_data.get(header, "")
             ws.cell(row=excel_row, column=col_idx, value=value)
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         return 0
     except PermissionError:
         return -2
@@ -3927,6 +3967,7 @@ def update_visite_excursion_quotation_in_excel(row_number, form_data):
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=False)
 def delete_visite_excursion_from_excel(row_number):
     if not OPENPYXL_AVAILABLE:
         return False
@@ -3943,7 +3984,7 @@ def delete_visite_excursion_from_excel(row_number):
         ws = wb[VISITE_EXCURSION_SHEET_NAME]
         ws.delete_rows(row_number)
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         return True
     except Exception as e:
         logger.error(
@@ -3958,6 +3999,7 @@ def delete_visite_excursion_from_excel(row_number):
                 pass
 
 
+@_mtime_cached(lambda: HOTEL_EXCEL_PATH)
 def load_avion_source_data():
     """
     Load pricing rows from avion sheet in data-hotel.xlsx.
@@ -3976,16 +4018,7 @@ def load_avion_source_data():
     try:
         wb = load_workbook(HOTEL_EXCEL_PATH)
 
-        source_sheet = None
-        if AVION_SOURCE_SHEET_NAME in wb.sheetnames:
-            source_sheet = AVION_SOURCE_SHEET_NAME
-        else:
-            normalized_target = _normalize_header_key(AVION_SOURCE_SHEET_NAME)
-            for sheet_name in wb.sheetnames:
-                if _normalize_header_key(sheet_name) == normalized_target:
-                    source_sheet = sheet_name
-                    break
-
+        source_sheet = _find_sheet(wb, AVION_SOURCE_SHEET_NAME)
         if not source_sheet:
             return []
 
@@ -4290,6 +4323,7 @@ def get_avion_headers():
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def save_air_ticket_quotation_to_excel(form_data):
     """
     Save an air ticket quotation row into AVION sheet.
@@ -4355,7 +4389,7 @@ def save_air_ticket_quotation_to_excel(form_data):
             value = form_data.get(header, "")
             ws.cell(row=next_row, column=col, value=value)
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         return next_row
     except PermissionError:
         return -2
@@ -4415,6 +4449,7 @@ def load_all_air_ticket_quotations():
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def update_air_ticket_quotation_in_excel(row_number, form_data):
     """Update one air ticket quotation row in AVION sheet."""
     if not OPENPYXL_AVAILABLE:
@@ -4437,7 +4472,7 @@ def update_air_ticket_quotation_in_excel(row_number, form_data):
             value = form_data.get(header, "")
             ws.cell(row=excel_row, column=col_idx, value=value)
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         return 0
     except PermissionError:
         return -2
@@ -4452,6 +4487,7 @@ def update_air_ticket_quotation_in_excel(row_number, form_data):
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=False)
 def delete_air_ticket_from_excel(row_number):
     """Delete one air ticket quotation row from AVION sheet."""
     if not OPENPYXL_AVAILABLE:
@@ -4469,7 +4505,7 @@ def delete_air_ticket_from_excel(row_number):
         ws = wb[AVION_SHEET_NAME]
         ws.delete_rows(row_number)
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         return True
     except Exception as e:
         logger.error(f"Error deleting air ticket row {row_number}: {e}", exc_info=True)
@@ -4537,6 +4573,7 @@ def _ensure_default_param_rows(ws, header_map):
         ws.cell(row=target_row, column=value_col, value="")
 
 
+@_sous_verrou_ecriture(lambda: HOTEL_EXCEL_PATH, sentinelle=[])
 def get_parametrage_headers():
     if not OPENPYXL_AVAILABLE:
         return []
@@ -4567,7 +4604,7 @@ def get_parametrage_headers():
             changed = True
 
         if changed:
-            wb.save(HOTEL_EXCEL_PATH)
+            _save_workbook(wb, HOTEL_EXCEL_PATH)
         return list(PARAMETRAGE_DEFAULT_HEADERS)
     except PermissionError:
         try:
@@ -4609,6 +4646,7 @@ def get_parametrage_headers():
                 pass
 
 
+@_mtime_cached(lambda: HOTEL_EXCEL_PATH)
 def load_all_parametrages():
     if not OPENPYXL_AVAILABLE:
         return []
@@ -4669,6 +4707,7 @@ def load_all_parametrages():
                 pass
 
 
+@_sous_verrou_ecriture(lambda: HOTEL_EXCEL_PATH, sentinelle=-2)
 def save_parametrage_to_excel(form_data):
     if not OPENPYXL_AVAILABLE:
         return -1
@@ -4730,7 +4769,7 @@ def save_parametrage_to_excel(form_data):
         ws.cell(row=target_row, column=parameter_col, value=parameter)
         ws.cell(row=target_row, column=value_col, value=value)
 
-        wb.save(HOTEL_EXCEL_PATH)
+        _save_workbook(wb, HOTEL_EXCEL_PATH)
         return target_row
     except PermissionError:
         return -2
@@ -4745,6 +4784,7 @@ def save_parametrage_to_excel(form_data):
                 pass
 
 
+@_sous_verrou_ecriture(lambda: HOTEL_EXCEL_PATH, sentinelle=-2)
 def update_parametrage_in_excel(row_number, form_data):
     if not OPENPYXL_AVAILABLE:
         return -1
@@ -4784,7 +4824,7 @@ def update_parametrage_in_excel(row_number, form_data):
         )
         ws.cell(row=row_number, column=value_col, value=form_data.get("VALEUR", ""))
 
-        wb.save(HOTEL_EXCEL_PATH)
+        _save_workbook(wb, HOTEL_EXCEL_PATH)
         return 0
     except PermissionError:
         return -2
@@ -4801,6 +4841,7 @@ def update_parametrage_in_excel(row_number, form_data):
                 pass
 
 
+@_sous_verrou_ecriture(lambda: HOTEL_EXCEL_PATH, sentinelle=False)
 def delete_parametrage_from_excel(row_number):
     if not OPENPYXL_AVAILABLE:
         return False
@@ -4816,7 +4857,7 @@ def delete_parametrage_from_excel(row_number):
 
         ws = wb[PARAMETRAGE_SHEET_NAME]
         ws.delete_rows(row_number)
-        wb.save(HOTEL_EXCEL_PATH)
+        _save_workbook(wb, HOTEL_EXCEL_PATH)
         return True
     except Exception as e:
         logger.error(
@@ -4831,6 +4872,7 @@ def delete_parametrage_from_excel(row_number):
                 pass
 
 
+@_mtime_cached(lambda: HOTEL_EXCEL_PATH)
 def _load_transport_source_rows():
     if not OPENPYXL_AVAILABLE:
         return []
@@ -5095,6 +5137,7 @@ def get_segment_distance(depart, arrivee) -> float:
     return km_arr or km_dep
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle={})
 def migrate_normalize_infos_clients() -> dict:
     """
     Nettoie les données existantes dans INFOS_CLIENTS.
@@ -5160,7 +5203,7 @@ def migrate_normalize_infos_clients() -> dict:
                             f"'{raw}' → '{cleaned}'"
                         )
         if modified:
-            wb.save(CLIENT_EXCEL_PATH)
+            _save_workbook(wb, CLIENT_EXCEL_PATH)
             invalidate_client_cache()
             logger.info(
                 f"migrate_normalize_infos_clients: {modified} cellule(s) normalisée(s)."
@@ -5376,6 +5419,7 @@ def get_transport_headers():
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def save_transport_quotation_to_excel(form_data):
     """
     Save transport quotation row into data.xlsx/TRANSPORT.
@@ -5429,7 +5473,7 @@ def save_transport_quotation_to_excel(form_data):
         for header, col in header_map.items():
             ws.cell(row=next_row, column=col, value=form_data.get(header, ""))
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         return next_row
     except PermissionError:
         return -2
@@ -5487,6 +5531,7 @@ def load_all_transport_quotations():
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def update_transport_quotation_in_excel(row_number, form_data):
     """Update one transport quotation row in data.xlsx/TRANSPORT."""
     if not OPENPYXL_AVAILABLE:
@@ -5507,7 +5552,7 @@ def update_transport_quotation_in_excel(row_number, form_data):
         for col_idx, header in enumerate(headers, start=1):
             ws.cell(row=row_number, column=col_idx, value=form_data.get(header, ""))
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         return 0
     except PermissionError:
         return -2
@@ -5522,6 +5567,7 @@ def update_transport_quotation_in_excel(row_number, form_data):
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=False)
 def delete_transport_from_excel(row_number):
     """Delete one transport quotation row from data.xlsx/TRANSPORT."""
     if not OPENPYXL_AVAILABLE:
@@ -5538,7 +5584,7 @@ def delete_transport_from_excel(row_number):
 
         ws = wb[TRANSPORT_SHEET_NAME]
         ws.delete_rows(row_number)
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         return True
     except Exception as e:
         logger.error(f"Failed to delete transport row {row_number}: {e}", exc_info=True)
@@ -5621,15 +5667,37 @@ def _normalize_invoice_status(status, total_ttc=0.0, acompte=0.0):
     return INVOICE_STATUS_UNPAID
 
 
+def _valeur_non_renseignee(value):
+    """Vrai si le champ n'a pas ete rempli, par opposition a rempli avec 0.
+
+    L'interface transmet le contenu brut de ses champs de saisie : une case
+    laissee vide arrive ici en chaine vide, un zero saisi en "0". Les deux
+    donnaient 0.0 apres coercition, ce qui rendait les deux intentions
+    indiscernables.
+    """
+    if value is None:
+        return True
+    return isinstance(value, str) and not value.strip()
+
+
 def calculate_invoice_totals(
     montant_ht,
     cout_ht=0,
-    marge_pct=0,
+    marge_pct=None,
     tva_pct=0,
     acompte=0,
     statut="",
 ):
-    """Compute invoice totals with margin and VAT."""
+    """Compute invoice totals with margin and VAT.
+
+    `marge_pct` non renseigne (None ou champ vide) fait deduire la marge du
+    cout : c'est le comportement historique. Renseigne, il fait foi -- y
+    compris a 0, qui signifie "facturer a prix coutant". Avant cette
+    distinction, une marge nulle explicite etait ecrasee par la deduction et
+    le client se voyait facturer la difference.
+    """
+    marge_absente = _valeur_non_renseignee(marge_pct)
+
     montant_ht = max(0.0, _safe_float(montant_ht))
     cout_ht = max(0.0, _safe_float(cout_ht))
     marge_pct = max(0.0, _safe_float(marge_pct))
@@ -5637,7 +5705,7 @@ def calculate_invoice_totals(
     acompte = max(0.0, _safe_float(acompte))
 
     marge_montant = montant_ht * (marge_pct / 100.0)
-    if marge_montant == 0 and cout_ht > 0:
+    if marge_montant == 0 and cout_ht > 0 and marge_absente:
         marge_montant = max(0.0, montant_ht - cout_ht)
 
     base_taxable_ht = montant_ht + marge_montant
@@ -5725,6 +5793,7 @@ def _next_invoice_id(ws):
     return f"FAC-{datetime.now().strftime('%Y%m')}-{max_num + 1:04d}"
 
 
+@_sous_verrou_ecriture(lambda: FINANCIAL_EXCEL_PATH, sentinelle=-2)
 def save_invoice_to_excel(invoice_data):
     """Create an invoice and automatically refresh the financial state."""
     if not OPENPYXL_AVAILABLE:
@@ -5745,7 +5814,9 @@ def save_invoice_to_excel(invoice_data):
                 "Montant_HT", invoice_data.get("montant_ht", 0)
             ),
             cout_ht=invoice_data.get("Cout_HT", invoice_data.get("cout_ht", 0)),
-            marge_pct=invoice_data.get("Marge_%", invoice_data.get("marge_pct", 0)),
+            # Defaut None et non 0 : cle absente = marge non renseignee, donc
+            # deduite du cout. Un 0 stocke, lui, reste un 0 voulu.
+            marge_pct=invoice_data.get("Marge_%", invoice_data.get("marge_pct")),
             tva_pct=invoice_data.get("TVA_%", invoice_data.get("tva_pct", 0)),
             acompte=invoice_data.get("Acompte", invoice_data.get("acompte", 0)),
             statut=invoice_data.get("Statut", invoice_data.get("statut", "")),
@@ -5781,7 +5852,7 @@ def save_invoice_to_excel(invoice_data):
             ws.cell(row=row, column=col, value=values.get(header, ""))
 
         _rebuild_financial_state_in_workbook(wb)
-        wb.save(FINANCIAL_EXCEL_PATH)
+        _save_workbook(wb, FINANCIAL_EXCEL_PATH)
         return row
     except PermissionError:
         return -2
@@ -5838,6 +5909,7 @@ def load_all_invoices():
                 pass
 
 
+@_sous_verrou_ecriture(lambda: FINANCIAL_EXCEL_PATH, sentinelle=-2)
 def update_invoice_in_excel(row_number, invoice_data):
     """Update one invoice row and refresh financial state."""
     if not OPENPYXL_AVAILABLE:
@@ -5866,7 +5938,7 @@ def update_invoice_in_excel(row_number, invoice_data):
         calculations = calculate_invoice_totals(
             montant_ht=merged.get("Montant_HT", 0),
             cout_ht=merged.get("Cout_HT", 0),
-            marge_pct=merged.get("Marge_%", 0),
+            marge_pct=merged.get("Marge_%"),
             tva_pct=merged.get("TVA_%", 0),
             acompte=merged.get("Acompte", 0),
             statut=merged.get("Statut", ""),
@@ -5880,7 +5952,7 @@ def update_invoice_in_excel(row_number, invoice_data):
             ws.cell(row=row_number, column=col, value=merged.get(header, ""))
 
         _rebuild_financial_state_in_workbook(wb)
-        wb.save(FINANCIAL_EXCEL_PATH)
+        _save_workbook(wb, FINANCIAL_EXCEL_PATH)
         return 0
     except PermissionError:
         return -2
@@ -5972,6 +6044,7 @@ def _rebuild_financial_state_in_workbook(wb):
             ws_state.cell(row=row, column=col, value=data.get(header, ""))
 
 
+@_sous_verrou_ecriture(lambda: FINANCIAL_EXCEL_PATH, sentinelle=-2)
 def refresh_financial_state_from_invoices():
     """Public helper to force financial state rebuild from invoices."""
     if not OPENPYXL_AVAILABLE:
@@ -5986,7 +6059,7 @@ def refresh_financial_state_from_invoices():
             wb = load_workbook(FINANCIAL_EXCEL_PATH)
 
         _rebuild_financial_state_in_workbook(wb)
-        wb.save(FINANCIAL_EXCEL_PATH)
+        _save_workbook(wb, FINANCIAL_EXCEL_PATH)
         return 0
     except PermissionError:
         return -2
@@ -6127,6 +6200,7 @@ def load_client_air_ticket_cotation(client: dict) -> list:
                 pass
 
 
+@_sous_verrou_ecriture(lambda: CLIENT_EXCEL_PATH, sentinelle=-2)
 def save_client_air_ticket_cotation_to_excel(client: dict, rows: list) -> int:
     """
     Sauvegarde les lignes de cotation avion dans la feuille COTATION_AVION.
@@ -6218,7 +6292,7 @@ def save_client_air_ticket_cotation_to_excel(client: dict, rows: list) -> int:
                 if col:
                     ws.cell(row=next_row, column=col, value=value)
 
-        wb.save(CLIENT_EXCEL_PATH)
+        _save_workbook(wb, CLIENT_EXCEL_PATH)
         invalidate_client_cache()
         logger.info(
             f"Client air ticket cotation: {len(rows)} row(s) saved to {COTATION_AVION_SHEET_NAME}"
