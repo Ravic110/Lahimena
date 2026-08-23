@@ -20,6 +20,7 @@ from config import (
     TEXT_COLOR,
     TITLE_FONT,
 )
+from gui.feedback import signaler_echec
 from utils.client_billing import (
     convert_quote_to_invoice,
     invoice_requires_detail_refresh,
@@ -165,15 +166,22 @@ class ClientInvoicePage:
     def _load_document(self):
         self.document = load_active_client_invoice_from_excel(self.client)
         quote_document = load_active_client_quote_from_excel(self.client)
+        # Sauvegardes implicites : la facture est derivee du devis au moment
+        # de l'affichage. Leur echec passait inapercu, laissant l'utilisateur
+        # travailler sur une facture non enregistree.
         if not self.document:
             if quote_document:
                 self.document = convert_quote_to_invoice(quote_document)
-                save_active_client_invoice_to_excel(self.client, self.document)
+                resultat = save_active_client_invoice_to_excel(
+                    self.client, self.document
+                )
+                signaler_echec("Facture client", resultat)
         elif quote_document and invoice_requires_detail_refresh(
             self.document, quote_document
         ):
             self.document = convert_quote_to_invoice(quote_document)
-            save_active_client_invoice_to_excel(self.client, self.document)
+            resultat = save_active_client_invoice_to_excel(self.client, self.document)
+            signaler_echec("Facture client", resultat)
         self._render_document()
 
     def _render_document(self):

@@ -17,6 +17,7 @@ from config import (
     TEXT_COLOR,
     TITLE_FONT,
 )
+from gui.feedback import signaler_echec
 from utils.client_billing import (
     apply_margin_to_quote_line,
     build_client_quote,
@@ -201,7 +202,11 @@ class ClientQuotePage:
         loaded = load_active_client_quote_from_excel(self.client)
         self.document = loaded or build_client_quote(self.client)
         if self.document and self.document.get("lines") and not loaded:
-            save_active_client_quote_to_excel(self.client, self.document)
+            # Sauvegarde implicite : le devis vient d'etre construit et doit
+            # etre persiste avant d'etre affiche. Son echec passait inapercu,
+            # laissant l'utilisateur travailler sur un devis non enregistre.
+            resultat = save_active_client_quote_to_excel(self.client, self.document)
+            signaler_echec("Devis client", resultat)
         self._render_document()
 
     def _refresh_from_sources(self):

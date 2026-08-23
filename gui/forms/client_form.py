@@ -2308,9 +2308,8 @@ class ClientForm:
         row = tk.Frame(self._room_inner, bg=ROW_BG)
         row.pack(fill="x", pady=(0, 4))
 
-        _scroll = lambda e: self._room_canvas.yview_scroll(
-            int(-1 * (e.delta / 120)), "units"
-        )
+        def _scroll(e):
+            self._room_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
 
         # ── Canvas chip (lecture seule) ───────────────────────────────────
         def _make_chip(parent, w, h=_H):
@@ -2563,9 +2562,8 @@ class ClientForm:
         row = tk.Frame(self._itin_inner, bg=ROW_BG)
         row.pack(fill="x", pady=(0, 4))
 
-        _scroll = lambda e: self._itin_canvas.yview_scroll(
-            int(-1 * (e.delta / 120)), "units"
-        )
+        def _scroll(e):
+            self._itin_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
 
         # ── Helper : Canvas arrondi (même look que _date_chip) ───────────
         def _make_chip(parent, w, h=_H, clickable=False):
